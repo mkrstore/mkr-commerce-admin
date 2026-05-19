@@ -1,0 +1,284 @@
+<div class="page">
+
+  <!-- ── Header ── -->
+  <div class="page-hd">
+    <div class="page-hd-left">
+      <div class="page-hd-title">Staff Management</div>
+      <div class="page-hd-sub">{{ totalCount() }} members</div>
+    </div>
+    <div class="page-hd-right">
+      <button class="btn btn-primary btn-sm" *ngIf="canCreate()" (click)="openCreate()">
+        <span class="icon icon-sm">person_add</span> Add Staff
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Filters ── -->
+  <div class="filter-bar">
+    <div class="search-bar">
+      <span class="sb-icon icon icon-sm">search</span>
+      <input type="text" [(ngModel)]="searchQuery" (keyup.enter)="loadStaff(0)"
+        placeholder="Search name or email…" />
+    </div>
+    <select class="f-select-sm" [(ngModel)]="roleFilter" (change)="onFilterChange()">
+      <option value="">All Roles</option>
+      <option *ngFor="let r of visibleRoles()" [value]="r">{{ roleName(r) }}</option>
+    </select>
+    <select class="f-select-sm" [(ngModel)]="statusFilter" (change)="onFilterChange()">
+      <option value="">All Status</option>
+      <option value="true">Active</option>
+      <option value="false">Inactive</option>
+    </select>
+    <button class="btn btn-primary btn-sm" (click)="loadStaff(0)">Search</button>
+    <button class="btn btn-ghost btn-sm" *ngIf="hasActiveFilters" (click)="clearFilters()">Clear</button>
+  </div>
+
+  <!-- ── Table card ── -->
+  <div class="tbl-card">
+
+    <!-- Skeleton -->
+    <div class="tbl-wrap" *ngIf="loading()">
+      <table class="tbl">
+        <thead><tr>
+          <th style="width:100px">Emp ID</th>
+          <th>Member</th>
+          <th class="hide-sm">Role</th>
+          <th class="hide-md">Department</th>
+          <th>Status</th>
+        </tr></thead>
+        <tbody>
+          <tr *ngFor="let _ of skeletonRows">
+            <td><div class="sk" style="width:54px;height:13px"></div></td>
+            <td>
+              <div class="member-cell">
+                <div class="sk avatar-sk"></div>
+                <div>
+                  <div class="sk" style="width:110px;height:13px;margin-bottom:5px"></div>
+                  <div class="sk" style="width:68px;height:10px"></div>
+                </div>
+              </div>
+            </td>
+            <td class="hide-sm"><div class="sk" style="width:80px;height:22px;border-radius:99px"></div></td>
+            <td class="hide-md"><div class="sk" style="width:90px;height:13px"></div></td>
+            <td><div class="sk" style="width:60px;height:22px;border-radius:99px"></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty" *ngIf="!loading() && staff().length === 0">
+      <div class="empty-icon">
+        <span class="icon icon-xl icon-muted">person_add</span>
+      </div>
+      <p class="empty-title">No staff members found</p>
+      <p class="empty-sub" *ngIf="hasActiveFilters">
+        Try adjusting your filters or
+        <button class="link-btn" (click)="clearFilters()">clear all</button>
+      </p>
+    </div>
+
+    <!-- Data table -->
+    <div class="tbl-wrap" *ngIf="!loading() && staff().length > 0">
+      <table class="tbl">
+        <thead><tr>
+          <th style="width:100px">Emp ID</th>
+          <th>Member</th>
+          <th class="hide-sm">Role</th>
+          <th class="hide-md">Department</th>
+          <th>Status</th>
+          <th class="th-arrow"></th>
+        </tr></thead>
+        <tbody>
+          <tr *ngFor="let member of staff()" class="tbl-row" (click)="openDetail(member.id)">
+
+            <td class="emp-id">{{ formatEmpId(member.employeeId) }}</td>
+
+            <td>
+              <div class="member-cell">
+                <div class="avatar" [style.background]="roleColor(member.role)">{{ initials(member) }}</div>
+                <div class="member-info">
+                  <span class="member-name">{{ member.name }}</span>
+                  <span class="invite-badge" *ngIf="member.invitationPending">Pending setup</span>
+                </div>
+              </div>
+            </td>
+
+            <td class="hide-sm">
+              <span class="role-chip"
+                [style.background]="roleColor(member.role) + '1a'"
+                [style.color]="roleColor(member.role)">
+                {{ roleName(member.role) }}
+              </span>
+            </td>
+
+            <td class="hide-md t-muted">{{ member.department || '—' }}</td>
+
+            <td>
+              <span class="status-chip" [class.active]="member.isActive">
+                {{ member.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+
+            <td class="td-arrow">
+              <span class="icon icon-sm">chevron_right</span>
+            </td>
+
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pgn" *ngIf="totalPages() > 1 && !loading()">
+      <button class="pgn-btn" [disabled]="currentPage() === 0"
+        (click)="goToPage(currentPage() - 1)">
+        <span class="icon icon-sm">chevron_left</span>
+      </button>
+      <ng-container *ngFor="let p of pageNumbers()">
+        <span *ngIf="p === -1" class="pgn-ellipsis">…</span>
+        <button *ngIf="p !== -1" class="pgn-btn" [class.active]="p === currentPage()"
+          (click)="goToPage(p)">{{ p + 1 }}</button>
+      </ng-container>
+      <button class="pgn-btn" [disabled]="currentPage() + 1 >= totalPages()"
+        (click)="goToPage(currentPage() + 1)">
+        <span class="icon icon-sm">chevron_right</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═════════ Create Staff Modal ═════════════════════════════════════════ -->
+<div class="overlay" *ngIf="createOpen" (click)="closeCreate()"></div>
+<div class="modal" *ngIf="createOpen" (click)="$event.stopPropagation()">
+  <div class="modal-hd">
+    <span class="modal-title">Add Staff Member</span>
+    <button class="modal-close" (click)="closeCreate()">
+      <span class="icon icon-sm">close</span>
+    </button>
+  </div>
+
+  <div class="modal-body" *ngIf="createSuccess">
+    <div class="modal-success-state">
+      <span class="icon icon-xl" style="color:var(--green)">check_circle</span>
+      <h4>Staff member added!</h4>
+      <p>{{ createSuccess }}</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" (click)="openCreate()">Add Another</button>
+        <button class="btn btn-primary" (click)="closeCreate()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-body" *ngIf="!createSuccess">
+    <div class="steps">
+      <div class="step" [class.active]="formStep === 1" [class.done]="formStep > 1">
+        <span class="step-num">1</span><span class="step-lbl">Personal & Role</span>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" [class.active]="formStep === 2" [class.done]="formStep > 2">
+        <span class="step-num">2</span><span class="step-lbl">Contact</span>
+      </div>
+      <div class="step-line"></div>
+      <div class="step" [class.active]="formStep === 3">
+        <span class="step-num">3</span><span class="step-lbl">Address</span>
+      </div>
+    </div>
+
+    <div *ngIf="formStep === 1">
+      <div class="form-row three-col">
+        <app-input label="First Name" [required]="true" [touched]="step1Touched"
+          [value]="form.firstName" (valueChange)="form.firstName = $event"
+          placeholder="e.g. Ravi" />
+        <app-input label="Middle Name" optLabel="optional"
+          [value]="form.middleName" (valueChange)="form.middleName = $event"
+          placeholder="optional" />
+        <app-input label="Last Name" [required]="true" [touched]="step1Touched"
+          [value]="form.lastName" (valueChange)="form.lastName = $event"
+          placeholder="e.g. Kumar" />
+      </div>
+      <div class="name-preview" *ngIf="form.firstName || form.lastName">
+        <span class="preview-label">Full Name</span>
+        <span class="preview-value">{{ previewFullName() }}</span>
+      </div>
+      <div class="form-row two-col">
+        <app-input label="Company Email" type="email" [required]="true" [touched]="step1Touched"
+          errorMsg="Valid email is required"
+          [value]="form.email" (valueChange)="form.email = $event"
+          placeholder="ravi.kumar@mkr.com" />
+        <app-select label="Role" [required]="true" [touched]="step1Touched"
+          placeholder="Select role"
+          [options]="roleSelectOptions()"
+          [value]="form.role" (valueChange)="form.role = $event" />
+      </div>
+      <app-input label="Department" [required]="true" [touched]="step1Touched"
+        [value]="form.department" (valueChange)="form.department = $event"
+        placeholder="e.g. Operations, Sales, Warehouse" />
+      <div class="modal-actions">
+        <button class="btn btn-ghost" (click)="closeCreate()">Cancel</button>
+        <button class="btn btn-primary" (click)="tryNextStep()">
+          Next <span class="icon icon-sm">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="formStep === 2">
+      <div class="form-row two-col">
+        <app-input label="Mobile Number" type="tel" [required]="true" [touched]="step2Touched"
+          errorMsg="Mobile number is required"
+          [value]="form.mobileNumber" (valueChange)="form.mobileNumber = $event"
+          placeholder="+91 9876543210" />
+        <app-input label="Alternative Phone" optLabel="optional" type="tel"
+          [value]="form.alternativePhone" (valueChange)="form.alternativePhone = $event"
+          placeholder="optional" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" (click)="prevStep()">
+          <span class="icon icon-sm">arrow_back</span> Back
+        </button>
+        <button class="btn btn-primary" (click)="tryNextStep()">
+          Next <span class="icon icon-sm">arrow_forward</span>
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="formStep === 3">
+      <p class="step-note">All address fields are optional.</p>
+      <div class="form-row two-col">
+        <app-input label="Building / Flat No"
+          [value]="form.addressBuilding" (valueChange)="form.addressBuilding = $event"
+          placeholder="e.g. 4B, Tower A" />
+        <app-input label="Street"
+          [value]="form.addressStreet" (valueChange)="form.addressStreet = $event"
+          placeholder="e.g. MG Road" />
+      </div>
+      <div class="form-row two-col">
+        <app-input label="City"
+          [value]="form.addressCity" (valueChange)="form.addressCity = $event"
+          placeholder="e.g. Bengaluru" />
+        <app-input label="State"
+          [value]="form.addressState" (valueChange)="form.addressState = $event"
+          placeholder="e.g. Karnataka" />
+      </div>
+      <div class="form-row two-col">
+        <app-input label="Postal Code"
+          [value]="form.addressPostalCode" (valueChange)="form.addressPostalCode = $event"
+          placeholder="e.g. 560001" />
+        <app-input label="Country"
+          [value]="form.addressCountry" (valueChange)="form.addressCountry = $event"
+          placeholder="e.g. India" />
+      </div>
+      <div class="alert alert-error" style="margin-bottom:8px" *ngIf="createError">{{ createError }}</div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" (click)="prevStep()">
+          <span class="icon icon-sm">arrow_back</span> Back
+        </button>
+        <button class="btn btn-primary" [disabled]="creating" (click)="submitCreate()">
+          <span class="btn-spinner" *ngIf="creating"></span>
+          {{ creating ? 'Sending…' : 'Send Invitation' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

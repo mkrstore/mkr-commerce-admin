@@ -1,0 +1,111 @@
+<!-- Stat Detail Panel -->
+<app-stat-detail-panel [type]="activePanel" (closed)="closePanel()"></app-stat-detail-panel>
+
+<!-- Stats -->
+<div class="adm-stats">
+  <div class="scard" *ngFor="let stat of stats" (click)="openPanel(stat.panelType)" tabindex="0">
+    <div class="scard-accent" [ngClass]="stat.color"></div>
+    <div class="scard-icon" [ngClass]="stat.color">{{ stat.icon }}</div>
+    <div class="scard-val">{{ stat.value }}</div>
+    <div class="scard-lbl">{{ stat.label }}</div>
+    <div class="scard-chg" [ngClass]="stat.trend">{{ stat.change }}</div>
+    <div class="scard-hint">Tap to compare ›</div>
+  </div>
+</div>
+
+<div class="adm-body">
+  <!-- Revenue Chart + Category -->
+  <div class="adm-row c2">
+    <div class="adm-card">
+      <div class="adm-card-head">
+        <span class="adm-card-title">Revenue — Last 14 Days</span>
+        <span class="adm-card-link">Download ↓</span>
+      </div>
+      <div class="adm-card-body">
+        <div class="chart-wrap">
+          <div class="chart-bars">
+            <div class="cbar-col" *ngFor="let bar of revenueBars">
+              <div class="cbar-amt">{{ bar.revenue }}</div>
+              <div class="cbar" [class.hi]="bar.today" [style.height.%]="bar.pct"></div>
+            </div>
+          </div>
+          <div class="chart-days">
+            <div class="cday" *ngFor="let bar of revenueBars" [class.hi]="bar.today">{{ bar.label }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="adm-card">
+      <div class="adm-card-head">
+        <span class="adm-card-title">Sales by Category</span>
+      </div>
+      <div class="adm-card-body">
+        <div class="cat-bars">
+          <div class="cat-bar-row" *ngFor="let cat of categoryBars">
+            <span class="cat-bar-label">{{ cat.name }}</span>
+            <div class="cat-bar-track">
+              <div class="cat-bar-fill" [style.width]="cat.pct" [style.background]="cat.color"></div>
+            </div>
+            <span class="cat-bar-val">{{ cat.value }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Orders -->
+  <div class="adm-row c1">
+    <div class="adm-card">
+      <div class="adm-card-head">
+        <span class="adm-card-title">Recent Orders</span>
+        <a class="adm-card-link" routerLink="/orders">View All →</a>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Order ID</th><th>Customer</th><th>Type</th>
+              <th>Amount</th><th>Status</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let order of recentOrders">
+              <td><span class="o-id">{{ order.id }}</span></td>
+              <td>
+                <div class="o-name">{{ order.name }}</div>
+                <div class="o-email">{{ order.email }}</div>
+              </td>
+              <td><span class="otype" [ngClass]="order.type.toLowerCase()">{{ order.type }}</span></td>
+              <td><span class="oamt">{{ order.amount }}</span></td>
+              <td><span class="ostatus" [ngClass]="order.statusClass">{{ order.status }}</span></td>
+              <td><button class="o-act">{{ order.action }}</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Low Stock Alerts -->
+  <div class="adm-row c1">
+    <div class="adm-card">
+      <div class="adm-card-head">
+        <span class="adm-card-title"><span class="icon icon-sm icon-amber" style="vertical-align:middle;margin-right:4px">warning</span> Low Stock Alerts</span>
+        <a class="adm-card-link" routerLink="/inventory">Manage Inventory →</a>
+      </div>
+      <div class="adm-card-body">
+        <div class="alert-list">
+          <div class="adm-alert" *ngFor="let alert of stockAlerts" [ngClass]="alert.level">
+            <div class="adm-alert-icon">{{ alert.icon }}</div>
+            <div class="adm-alert-text">
+              <div class="adm-alert-title">{{ alert.title }}</div>
+              <div class="adm-alert-sub">{{ alert.sub }}</div>
+            </div>
+            <button class="adm-alert-act">{{ alert.action }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

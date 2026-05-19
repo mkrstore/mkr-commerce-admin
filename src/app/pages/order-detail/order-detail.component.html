@@ -1,0 +1,304 @@
+<!-- Not Found -->
+<div class="od-page" *ngIf="!order">
+  <div class="od-notfound">
+    <div class="nf-icon">📋</div>
+    <div class="nf-title">Order not found</div>
+    <button class="back-btn" (click)="goBack()">← Back to Orders</button>
+  </div>
+</div>
+
+<!-- Order Detail Page -->
+<div class="od-page" *ngIf="order">
+
+  <!-- Top bar -->
+  <div class="od-topbar">
+    <button class="back-btn" (click)="goBack()">← Orders</button>
+    <div class="od-title-wrap">
+      <h1 class="od-title">{{ order.id }}</h1>
+      <span class="od-date">{{ order.date }} · {{ order.time }}</span>
+      <span class="src-badge" [class.store]="order.source === 'In-Store'">
+        {{ order.source === 'Online' ? '🌐' : '🏪' }} {{ order.source }}
+      </span>
+    </div>
+    <div class="od-top-actions">
+      <button class="act-btn" (click)="generateInvoice()">📄 Generate Invoice</button>
+      <button class="act-btn primary" (click)="printInvoice()" *ngIf="invoiceGenerated">🖨️ Print</button>
+    </div>
+  </div>
+
+  <!-- Status pipeline -->
+  <div class="status-bar" *ngIf="order.statusClass !== 'cancelled' && order.statusClass !== 'return'">
+    <ng-container *ngFor="let step of pipeline; let i = index">
+      <div class="pipe-step"
+        [class.done]="pipelineStep(order.status) > i"
+        [class.active]="pipelineStep(order.status) === i">
+        <div class="pipe-dot">
+          <span *ngIf="pipelineStep(order.status) > i">✓</span>
+          <span *ngIf="pipelineStep(order.status) === i">●</span>
+          <span *ngIf="pipelineStep(order.status) < i">{{ i + 1 }}</span>
+        </div>
+        <div class="pipe-label">{{ step }}</div>
+      </div>
+      <div class="pipe-line" *ngIf="i < pipeline.length - 1"
+        [class.done]="pipelineStep(order.status) > i"></div>
+    </ng-container>
+  </div>
+  <div class="status-cancelled" *ngIf="order.statusClass === 'cancelled'">🚫 This order was cancelled</div>
+  <div class="status-cancelled return" *ngIf="order.statusClass === 'return'">↩️ Return requested</div>
+
+  <!-- Main grid -->
+  <div class="od-grid">
+
+    <!-- LEFT column: Products + Payment breakdown -->
+    <div class="od-left">
+
+      <!-- Products ordered -->
+      <div class="od-card">
+        <div class="od-card-title">Products Ordered</div>
+        <div class="table-wrap">
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>SKU</th>
+                <th>Variant</th>
+                <th class="num">Qty</th>
+                <th class="num">Unit Price</th>
+                <th class="num">Offer</th>
+                <th class="num">GST</th>
+                <th class="num">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of order.items">
+                <td>
+                  <div class="item-cell">
+                    <span class="item-icon">{{ item.icon }}</span>
+                    <span class="item-name">{{ item.name }}</span>
+                  </div>
+                </td>
+                <td><code class="sku">{{ item.sku }}</code></td>
+                <td class="variant">{{ item.variant }}</td>
+                <td class="num">{{ item.qty }}</td>
+                <td class="num">{{ formatCurrency(item.unitPrice) }}</td>
+                <td class="num disc" *ngIf="item.discount > 0">-{{ formatCurrency(item.discount) }}</td>
+                <td class="num muted" *ngIf="item.discount === 0">—</td>
+                <td class="num muted">{{ item.gstPct }}%</td>
+                <td class="num bold">{{ formatCurrency(itemSubtotal(item) + itemGst(item)) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Payment breakdown -->
+      <div class="od-card">
+        <div class="od-card-title">Payment Breakdown</div>
+        <div class="pay-breakdown">
+          <div class="pb-row">
+            <span class="pb-label">Subtotal</span>
+            <span class="pb-val">{{ formatCurrency(order.subtotal) }}</span>
+          </div>
+          <div class="pb-row">
+            <span class="pb-label">GST</span>
+            <span class="pb-val">+ {{ formatCurrency(order.gst) }}</span>
+          </div>
+          <div class="pb-row" *ngIf="order.shipping > 0">
+            <span class="pb-label">Shipping</span>
+            <span class="pb-val">+ {{ formatCurrency(order.shipping) }}</span>
+          </div>
+          <div class="pb-row" *ngIf="order.shipping === 0">
+            <span class="pb-label">Shipping</span>
+            <span class="pb-val free">FREE</span>
+          </div>
+          <div class="pb-row" *ngIf="order.discount > 0">
+            <span class="pb-label">Discount / Offer</span>
+            <span class="pb-val disc">- {{ formatCurrency(order.discount) }}</span>
+          </div>
+          <div class="pb-divider"></div>
+          <div class="pb-row total">
+            <span class="pb-label">Total Paid</span>
+            <span class="pb-val total">{{ formatCurrency(order.total) }}</span>
+          </div>
+        </div>
+
+        <!-- Payment method details -->
+        <div class="pay-method-block">
+          <div class="pmb-row">
+            <span class="pmb-label">Payment Status</span>
+            <span class="pay-status" [class.paid]="order.payment.status === 'Paid'">
+              {{ order.payment.status === 'Paid' ? '✓ Paid' : '⏳ Pending' }}
+            </span>
+          </div>
+          <div class="pmb-row">
+            <span class="pmb-label">Method</span>
+            <span class="pmb-val">{{ order.payment.method }}</span>
+          </div>
+          <div class="pmb-row">
+            <span class="pmb-label">Transaction ID</span>
+            <code class="pmb-txn">{{ order.payment.txnId }}</code>
+          </div>
+          <div class="pmb-row">
+            <span class="pmb-label">Paid On</span>
+            <span class="pmb-val">{{ order.payment.paidOn }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoice section -->
+      <div class="od-card invoice-card" *ngIf="invoiceGenerated">
+        <div class="od-card-title">Invoice</div>
+        <div class="invoice-block print-area">
+          <div class="inv-header">
+            <div class="inv-brand">
+              <div class="inv-logo">MKR</div>
+              <div>
+                <div class="inv-brand-name">MKR Commerce</div>
+                <div class="inv-brand-addr">123, Commerce Hub, Chennai – 600001 · GST: 33AABCM1234Z1Z2</div>
+              </div>
+            </div>
+            <div class="inv-meta">
+              <div class="inv-no">Invoice #INV-{{ order.id.replace('#MKR-', '') }}</div>
+              <div class="inv-date">Date: {{ order.date }}</div>
+              <div class="inv-status" [class.paid]="order.payment.status === 'Paid'">
+                {{ order.payment.status === 'Paid' ? 'PAID' : 'UNPAID' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="inv-parties">
+            <div>
+              <div class="inv-sec-label">Bill To</div>
+              <div class="inv-party-name">{{ order.customer.name }}</div>
+              <div class="inv-party-info">{{ order.customer.email }}</div>
+              <div class="inv-party-info">{{ order.customer.phone }}</div>
+              <div class="inv-party-info">{{ order.customer.address }}</div>
+            </div>
+          </div>
+
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th>#</th><th>Item</th><th>Variant</th><th>Qty</th><th>Rate</th><th>GST</th><th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of order.items; let idx = index">
+                <td>{{ idx + 1 }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.variant }}</td>
+                <td>{{ item.qty }}</td>
+                <td>{{ formatCurrency(item.unitPrice) }}</td>
+                <td>{{ item.gstPct }}%</td>
+                <td>{{ formatCurrency(itemSubtotal(item) + itemGst(item)) }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="inv-totals">
+            <div class="inv-t-row"><span>Subtotal</span><span>{{ formatCurrency(order.subtotal) }}</span></div>
+            <div class="inv-t-row"><span>GST</span><span>{{ formatCurrency(order.gst) }}</span></div>
+            <div class="inv-t-row" *ngIf="order.shipping > 0"><span>Shipping</span><span>{{ formatCurrency(order.shipping) }}</span></div>
+            <div class="inv-t-row disc" *ngIf="order.discount > 0"><span>Discount</span><span>-{{ formatCurrency(order.discount) }}</span></div>
+            <div class="inv-t-row grand"><span>Total</span><span>{{ formatCurrency(order.total) }}</span></div>
+          </div>
+
+          <div class="inv-footer">
+            <div>Thank you for shopping with MKR Commerce!</div>
+            <div>Payment via {{ order.payment.method }} · Txn: {{ order.payment.txnId }}</div>
+          </div>
+        </div>
+        <button class="print-btn" (click)="printInvoice()">🖨️ Print Invoice</button>
+      </div>
+
+    </div>
+
+    <!-- RIGHT column: Customer + Staff + Notes -->
+    <div class="od-right">
+
+      <!-- Customer info -->
+      <div class="od-card">
+        <div class="od-card-title">Customer</div>
+        <div class="cust-type-badge" [ngClass]="order.customer.type.toLowerCase()">{{ order.customer.type }}</div>
+        <div class="info-row"><span class="ir-label">Name</span><span class="ir-val">{{ order.customer.name }}</span></div>
+        <div class="info-row"><span class="ir-label">Email</span><span class="ir-val">{{ order.customer.email }}</span></div>
+        <div class="info-row"><span class="ir-label">Phone</span><span class="ir-val">{{ order.customer.phone }}</span></div>
+        <div class="info-row"><span class="ir-label">Address</span><span class="ir-val">{{ order.customer.address }}</span></div>
+      </div>
+
+      <!-- Staff -->
+      <div class="od-card">
+        <div class="od-card-title">Handled By</div>
+        <div class="staff-avatar">{{ order.staff.name.charAt(0) }}</div>
+        <div class="info-row"><span class="ir-label">Name</span><span class="ir-val bold">{{ order.staff.name }}</span></div>
+        <div class="info-row"><span class="ir-label">Role</span><span class="ir-val">{{ order.staff.role }}</span></div>
+        <div class="info-row"><span class="ir-label">Phone</span><span class="ir-val">{{ order.staff.phone }}</span></div>
+      </div>
+
+      <!-- Order notes -->
+      <div class="od-card" *ngIf="order.notes">
+        <div class="od-card-title">Notes</div>
+        <div class="notes-text">{{ order.notes }}</div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="od-card actions-card">
+        <div class="od-card-title">Actions</div>
+        <button class="qa-btn primary" (click)="generateInvoice()">📄 Generate Invoice</button>
+        <button class="qa-btn" (click)="printInvoice()" [disabled]="!invoiceGenerated">🖨️ Print Invoice</button>
+        <button class="qa-btn"
+          (click)="openStatusModal()"
+          *ngIf="order.statusClass !== 'cancelled'">
+          🔄 Update Status
+        </button>
+        <button class="qa-btn danger"
+          (click)="showCancelModal = true"
+          *ngIf="order.statusClass !== 'cancelled'">
+          ❌ Cancel Order
+        </button>
+        <div class="cancelled-note" *ngIf="order.statusClass === 'cancelled'">🚫 Order has been cancelled</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Update Status Modal -->
+  <div class="modal-backdrop" *ngIf="showStatusModal" (click)="showStatusModal = false">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-title">Update Order Status</div>
+      <div class="modal-body">
+        <div class="status-options">
+          <button
+            class="status-option"
+            *ngFor="let step of pipeline"
+            [class.selected]="selectedStatus === step"
+            (click)="selectedStatus = step">
+            <span class="so-dot"
+              [class.done]="pipeline.indexOf(step) < pipeline.indexOf(selectedStatus)"
+              [class.active]="selectedStatus === step"></span>
+            {{ step }}
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="mf-btn" (click)="showStatusModal = false">Cancel</button>
+        <button class="mf-btn primary" (click)="applyStatus()">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cancel Confirmation Modal -->
+  <div class="modal-backdrop" *ngIf="showCancelModal" (click)="showCancelModal = false">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-title">Cancel Order</div>
+      <div class="modal-body">
+        <p class="modal-warn">Are you sure you want to cancel order <strong>{{ order.id }}</strong>? This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="mf-btn" (click)="showCancelModal = false">Go Back</button>
+        <button class="mf-btn danger" (click)="confirmCancel()">Yes, Cancel Order</button>
+      </div>
+    </div>
+  </div>
+
+</div>

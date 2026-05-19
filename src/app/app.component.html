@@ -1,0 +1,26 @@
+<ng-container *ngIf="isLoginPage; else shell">
+  <router-outlet></router-outlet>
+</ng-container>
+
+<ng-template #shell>
+  <div class="app-shell" [ngClass]="theme.themeClass()">
+
+    <!-- Sidebar overlay for mobile -->
+    <div class="sidebar-overlay" [class.open]="sidebar.isOpen()" (click)="sidebar.close()"></div>
+
+    <!-- Sidebar -->
+    <app-sidebar></app-sidebar>
+
+    <!-- Main content -->
+    <div class="app-content">
+      <app-topbar></app-topbar>
+      <main class="app-main">
+        <router-outlet></router-outlet>
+      </main>
+    </div>
+
+    <!-- Bottom nav (mobile/tablet only) -->
+    <app-bottom-nav></app-bottom-nav>
+
+  </div>
+</ng-template>

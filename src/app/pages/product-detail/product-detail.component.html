@@ -1,0 +1,293 @@
+<!-- Loading state -->
+<div class="detail-loading" *ngIf="loading()">
+  <div class="dl-spinner"></div>
+  <div class="dl-text">Loading product…</div>
+</div>
+
+<!-- Not found -->
+<div class="detail-notfound" *ngIf="!loading() && notFound">
+  <div class="dnf-icon"><span class="icon icon-xl icon-muted">inventory_2</span></div>
+  <div class="dnf-title">Product not found</div>
+  <button class="btn btn-ghost btn-sm" (click)="back()">
+    <span class="icon icon-sm">arrow_back</span> Back to Products
+  </button>
+</div>
+
+<!-- Product detail -->
+<div class="detail-page" *ngIf="!loading() && !notFound && product() as p">
+
+  <!-- ── TOP BAR ── -->
+  <div class="detail-topbar">
+    <button class="btn btn-ghost btn-sm" (click)="back()">
+      <span class="icon icon-sm">arrow_back</span> Products
+    </button>
+    <div class="dt-center">
+      <h1 class="dt-name">{{ p.name }}</h1>
+      <span class="status-badge" [ngClass]="statusClass(p.status)">{{ p.status }}</span>
+    </div>
+    <div class="dt-actions" *ngIf="canEdit()">
+      <button class="btn btn-ghost btn-sm" (click)="clone()" title="Clone product">
+        <span class="icon icon-sm">content_copy</span> Clone
+      </button>
+      <button class="btn btn-success btn-sm" *ngIf="p.status !== 'ACTIVE'" (click)="setStatus('ACTIVE')">Activate</button>
+      <button class="btn btn-danger btn-sm" *ngIf="p.status === 'ACTIVE'" (click)="setStatus('INACTIVE')">Deactivate</button>
+    </div>
+  </div>
+
+  <!-- ── TABS ── -->
+  <div class="tabs">
+    <button class="tab-btn" [class.active]="activeTab === 'info'"       (click)="activeTab = 'info'">Basic Info</button>
+    <button class="tab-btn" [class.active]="activeTab === 'pricing'"    (click)="activeTab = 'pricing'">Pricing</button>
+    <button class="tab-btn" [class.active]="activeTab === 'attributes'" (click)="activeTab = 'attributes'">
+      Attributes
+      <span class="tab-count" *ngIf="p.attributes?.length">{{ p.attributes.length }}</span>
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'media'"      (click)="activeTab = 'media'">
+      Media
+      <span class="tab-count" *ngIf="p.media?.length">{{ p.media.length }}</span>
+    </button>
+  </div>
+
+  <!-- ── INFO TAB ── -->
+  <div class="tab-content" *ngIf="activeTab === 'info'">
+    <div class="alert alert-error"   *ngIf="infoError"><span class="icon icon-sm">warning</span> {{ infoError }}</div>
+    <div class="alert alert-success" *ngIf="infoSaved"><span class="icon icon-sm">check_circle</span> Saved successfully</div>
+
+    <div class="form-grid">
+      <app-input class="span-2" label="Product Name" [required]="true"
+        [value]="infoForm.name" (valueChange)="infoForm.name = $event" />
+      <app-input label="SKU" [required]="true"
+        [value]="infoForm.sku" (valueChange)="infoForm.sku = $event" />
+      <app-input label="Slug"
+        [value]="infoForm.slug" (valueChange)="infoForm.slug = $event" />
+      <app-input label="Barcode" optLabel="EAN / UPC"
+        [value]="infoForm.barcode" (valueChange)="infoForm.barcode = $event" />
+      <div class="fg">
+        <label class="field-label">Status</label>
+        <select class="f-select" [(ngModel)]="infoForm.status">
+          <option *ngFor="let s of allStatuses" [value]="s">{{ s }}</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="field-label">Category</label>
+        <select class="f-select" [(ngModel)]="infoForm.categoryId">
+          <option value="">Select category…</option>
+          <ng-container *ngFor="let cat of categories()">
+            <option [value]="cat.id">{{ cat.name }}</option>
+            <option *ngFor="let child of cat.children" [value]="child.id">— {{ child.name }}</option>
+          </ng-container>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="field-label">Brand</label>
+        <select class="f-select" [(ngModel)]="infoForm.brandId">
+          <option value="">No brand</option>
+          <option *ngFor="let b of brands()" [value]="b.id">{{ b.name }}</option>
+        </select>
+      </div>
+      <app-input class="span-2" label="Short Description"
+        [value]="infoForm.shortDescription" (valueChange)="infoForm.shortDescription = $event"
+        placeholder="One-liner shown in listing" />
+      <app-textarea class="span-2" label="Description"
+        [value]="infoForm.description" (valueChange)="infoForm.description = $event" [rows]="5" />
+      <app-input class="span-2" label="Tags" optLabel="comma-separated"
+        [value]="infoForm.tagsRaw" (valueChange)="infoForm.tagsRaw = $event"
+        placeholder="e.g. TV, 4K, QLED" />
+    </div>
+
+    <div class="save-bar" *ngIf="canEdit()">
+      <button class="btn btn-primary" [disabled]="infoSaving" (click)="saveInfo()">
+        <span class="btn-spinner" *ngIf="infoSaving"></span>
+        {{ infoSaving ? 'Saving…' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ── PRICING TAB ── -->
+  <div class="tab-content" *ngIf="activeTab === 'pricing'">
+    <div class="alert alert-error"   *ngIf="pricingError"><span class="icon icon-sm">warning</span> {{ pricingError }}</div>
+    <div class="alert alert-success" *ngIf="pricingSaved"><span class="icon icon-sm">check_circle</span> Saved successfully</div>
+
+    <div class="form-grid">
+      <app-input label="Retail Price (₹)" type="number" [required]="true"
+        [value]="pricingForm.priceRetail" (valueChange)="pricingForm.priceRetail = $event" />
+      <app-input label="Wholesale Price" optLabel="₹" type="number"
+        [value]="pricingForm.priceWholesale" (valueChange)="pricingForm.priceWholesale = $event" />
+      <app-input label="Broker Price" optLabel="₹" type="number"
+        [value]="pricingForm.priceBroker" (valueChange)="pricingForm.priceBroker = $event" />
+      <app-input label="Min Qty (Wholesale)" type="number"
+        [value]="pricingForm.minQtyWholesale" (valueChange)="pricingForm.minQtyWholesale = $event" />
+      <app-input label="GST %" type="number"
+        [value]="pricingForm.gstPercent" (valueChange)="pricingForm.gstPercent = $event" />
+      <app-input label="Stock Qty" type="number"
+        [value]="pricingForm.stockQty" (valueChange)="pricingForm.stockQty = $event" />
+      <app-input label="Weight" optLabel="grams" type="number"
+        [value]="pricingForm.weight" (valueChange)="pricingForm.weight = $event" />
+      <app-input label="Dimensions"
+        [value]="pricingForm.dimensions" (valueChange)="pricingForm.dimensions = $event"
+        placeholder="10×5×3 cm" />
+      <div class="fg span-2">
+        <app-checkbox label="GST included in price"
+          [checked]="pricingForm.gstIncluded" (checkedChange)="pricingForm.gstIncluded = $event" />
+      </div>
+    </div>
+
+    <!-- Price summary -->
+    <div class="price-summary">
+      <div class="ps-row">
+        <span>Retail</span>
+        <strong>{{ inr(pricingForm.priceRetail) }}</strong>
+      </div>
+      <div class="ps-row" *ngIf="pricingForm.priceWholesale">
+        <span>Wholesale</span>
+        <strong>{{ inr(pricingForm.priceWholesale) }}</strong>
+      </div>
+      <div class="ps-row" *ngIf="pricingForm.priceBroker">
+        <span>Broker</span>
+        <strong>{{ inr(pricingForm.priceBroker) }}</strong>
+      </div>
+      <div class="ps-row">
+        <span>GST</span>
+        <strong>{{ pricingForm.gstPercent }}% {{ pricingForm.gstIncluded ? '(incl.)' : '(excl.)' }}</strong>
+      </div>
+    </div>
+
+    <div class="save-bar" *ngIf="canEdit()">
+      <button class="btn btn-primary" [disabled]="pricingSaving" (click)="savePricing()">
+        <span class="btn-spinner" *ngIf="pricingSaving"></span>
+        {{ pricingSaving ? 'Saving…' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ── ATTRIBUTES TAB ── -->
+  <div class="tab-content" *ngIf="activeTab === 'attributes'">
+    <div class="alert alert-error"   *ngIf="attrError"><span class="icon icon-sm">warning</span> {{ attrError }}</div>
+    <div class="alert alert-success" *ngIf="attrSaved"><span class="icon icon-sm">check_circle</span> Saved successfully</div>
+
+    <div class="attr-empty" *ngIf="attrDefs.length === 0">
+      This category has no attribute definitions yet.
+      Go to <strong>Categories</strong> and add fields to <strong>{{ p.categoryName }}</strong>.
+    </div>
+
+    <div class="form-grid" *ngIf="attrDefs.length > 0">
+      <div class="fg" *ngFor="let def of attrDefs">
+        <app-input *ngIf="def.fieldType === 'TEXT'" [label]="def.label"
+          [optLabel]="def.unit ?? ''" [required]="def.required"
+          [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event"
+          [placeholder]="def.defaultValue ?? ''" />
+
+        <app-input *ngIf="def.fieldType === 'NUMBER'" [label]="def.label"
+          type="number" [optLabel]="def.unit ?? ''" [required]="def.required"
+          [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event"
+          [placeholder]="def.defaultValue ?? '0'" />
+
+        <div *ngIf="def.fieldType === 'BOOLEAN'" class="field">
+          <label class="field-label">{{ def.label }}</label>
+          <app-checkbox [label]="'Yes'" [checked]="attrValues[def.id] === 'true'"
+            (checkedChange)="attrValues[def.id] = $event ? 'true' : 'false'" />
+        </div>
+
+        <div *ngIf="def.fieldType === 'SELECT'" class="field">
+          <label class="field-label">{{ def.label }} <span class="req" *ngIf="def.required">*</span></label>
+          <select class="f-select" [(ngModel)]="attrValues[def.id]">
+            <option value="">Select…</option>
+            <option *ngFor="let opt of parsedOptions(def)" [value]="opt">{{ opt }}</option>
+          </select>
+        </div>
+
+        <div *ngIf="def.fieldType === 'MULTISELECT'" class="field">
+          <label class="field-label">{{ def.label }}</label>
+          <div class="multi-check-group">
+            <app-checkbox *ngFor="let opt of parsedOptions(def)" [label]="opt"
+              [checked]="isMultiSelected(def.id, opt)"
+              (checkedChange)="toggleMultiValue(def.id, opt)" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="save-bar" *ngIf="canEdit() && attrDefs.length > 0">
+      <button class="btn btn-primary" [disabled]="attrSaving" (click)="saveAttributes()">
+        <span class="btn-spinner" *ngIf="attrSaving"></span>
+        {{ attrSaving ? 'Saving…' : 'Save Attributes' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ── MEDIA TAB ── -->
+  <div class="tab-content" *ngIf="activeTab === 'media'">
+    <div class="alert alert-error" *ngIf="uploadError"><span class="icon icon-sm">warning</span> {{ uploadError }}</div>
+
+    <!-- Media grid -->
+    <div class="media-grid" *ngIf="(p.media?.length ?? 0) > 0">
+      <div class="media-card" *ngFor="let m of p.media">
+        <div class="mc-thumb">
+          <img *ngIf="!isVideo(m.mediaType)" [src]="m.url" [alt]="m.altText ?? ''" />
+          <div class="mc-video-icon" *ngIf="isVideo(m.mediaType)">
+            <span class="icon icon-lg icon-muted">play_arrow</span>
+          </div>
+        </div>
+        <div class="mc-info">
+          <span class="mc-type-badge" [ngClass]="'mt-' + m.mediaType.toLowerCase()">
+            {{ m.mediaType.replace('_', ' ') }}
+          </span>
+          <span class="mc-alt" *ngIf="m.altText">{{ m.altText }}</span>
+        </div>
+        <button class="mc-delete" *ngIf="canEdit()" (click)="openDeleteMedia(m)" title="Delete">
+          <span class="icon icon-xs">close</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="media-empty" *ngIf="!p.media || p.media.length === 0">
+      No media uploaded yet.
+    </div>
+
+    <!-- Upload form -->
+    <div class="upload-section" *ngIf="canEdit()">
+      <div class="us-title">Upload Media</div>
+      <div class="form-grid">
+        <div class="fg">
+          <label class="field-label">Media Type</label>
+          <select class="f-select" [(ngModel)]="uploadMediaType">
+            <option *ngFor="let opt of mediaTypeOptions" [value]="opt.value">{{ opt.label }}</option>
+          </select>
+        </div>
+        <app-input label="Alt Text" optLabel="optional"
+          [value]="uploadAltText" (valueChange)="uploadAltText = $event"
+          placeholder="Image description" />
+      </div>
+      <div class="upload-row">
+        <label class="upload-file-label">
+          <input id="media-upload-input" type="file" accept="image/*,video/*" (change)="onFileSelected($event)" />
+          <span>{{ uploadFile ? uploadFile.name : 'Choose file…' }}</span>
+        </label>
+        <button class="btn btn-primary" [disabled]="!uploadFile || uploading" (click)="uploadMedia()">
+          <span class="btn-spinner" *ngIf="uploading"></span>
+          {{ uploading ? 'Uploading…' : 'Upload' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── DELETE MEDIA CONFIRM ── -->
+<div class="overlay" *ngIf="deleteConfirmMedia" (click)="closeDeleteMedia()"></div>
+<div class="modal modal-sm" *ngIf="deleteConfirmMedia">
+  <div class="confirm-body">
+    <div class="confirm-icon danger">
+      <span class="icon icon-lg">delete</span>
+    </div>
+    <h3>Delete Media?</h3>
+    <p>This <strong>{{ deleteConfirmMedia.mediaType.replace('_', ' ').toLowerCase() }}</strong> will be permanently removed from Cloudinary.</p>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-ghost" (click)="closeDeleteMedia()">Cancel</button>
+    <button class="btn btn-danger" [disabled]="deletingMedia" (click)="confirmDeleteMedia()">
+      <span class="btn-spinner" *ngIf="deletingMedia"></span>
+      {{ deletingMedia ? 'Deleting…' : 'Delete' }}
+    </button>
+  </div>
+</div>

@@ -1,0 +1,16 @@
+.status-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+
+  input { display: none; }
+
+  &.selected {
+    border-color: var(--blue);
+    background: var(--blue-light);
+  }
+}

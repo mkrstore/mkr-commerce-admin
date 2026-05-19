@@ -1,0 +1,154 @@
+// ── Page layout override (sidebar + main side by side) ────────────────────────
+.prod-page-layout {
+  overflow: hidden; // let inner areas scroll individually
+  gap: 12px;
+}
+
+// ── Body (sidebar + main) ─────────────────────────────────────────────────────
+.prod-body {
+  display: flex; gap: 16px; flex: 1; min-height: 0; overflow: hidden;
+}
+
+// ── Sidebar (category tree) ───────────────────────────────────────────────────
+.prod-sidebar {
+  width: 200px; flex-shrink: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 12px 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+
+  .ps-title {
+    font-size: 11px; font-weight: 700; color: var(--t3); text-transform: uppercase;
+    letter-spacing: .5px; padding: 4px 8px 8px;
+  }
+
+  .ps-all {
+    width: 100%; text-align: left; background: none; border: none; border-radius: 6px;
+    padding: 7px 10px; font-size: 13px; font-weight: 600; color: var(--t2); cursor: pointer;
+    &:hover { background: var(--hover); }
+    &.active { background: var(--blue-soft); color: var(--blue); }
+  }
+
+  .psc-row {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; background: none; border: none; border-radius: 6px;
+    padding: 7px 10px; font-size: 13px; color: var(--t2); cursor: pointer; text-align: left;
+    &:hover { background: var(--hover); }
+    &.active { background: var(--blue-soft); color: var(--blue); font-weight: 600; }
+    .psc-name { flex: 1; }
+    .psc-toggle { color: var(--t3); padding: 0 2px; }
+  }
+
+  .psc-children { padding-left: 10px; display: flex; flex-direction: column; gap: 2px; }
+
+  .psc-child {
+    width: 100%; text-align: left; background: none; border: none; border-radius: 6px;
+    padding: 6px 10px; font-size: 12px; color: var(--t3); cursor: pointer;
+    &:hover { background: var(--hover); color: var(--t1); }
+    &.active { color: var(--blue); font-weight: 600; }
+  }
+}
+
+// ── Main content area ─────────────────────────────────────────────────────────
+.prod-main {
+  flex: 1; display: flex; flex-direction: column; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 16px; overflow-y: auto; min-height: 0;
+
+  // pgn inside prod-main needs top border with less margin
+  .pgn { border-top: 1px solid var(--border); padding: 12px 0 0; margin-top: 4px; }
+}
+
+// ── Skeleton rows ─────────────────────────────────────────────────────────────
+.psk-list { display: flex; flex-direction: column; gap: 10px; }
+.psk-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.psk-img { width: 44px; height: 44px; border-radius: 6px; flex-shrink: 0; }
+.psk-lines { flex: 1; display: flex; flex-direction: column; }
+
+// ── Product name cell ─────────────────────────────────────────────────────────
+.pt-name {
+  display: flex; align-items: center; gap: 10px; min-width: 200px;
+  .ptn-img {
+    width: 40px; height: 40px; border-radius: 6px; overflow: hidden; flex-shrink: 0;
+    img { width: 100%; height: 100%; object-fit: cover; }
+  }
+  .ptn-placeholder {
+    width: 40px; height: 40px; border-radius: 6px; background: var(--hover);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .ptn-title { font-weight: 600; color: var(--t1); font-size: 13px; }
+  .ptn-brand { font-size: 11px; color: var(--t3); margin-top: 2px; }
+}
+
+// ── Badges ────────────────────────────────────────────────────────────────────
+.sku-badge {
+  background: var(--hover); color: var(--t2); padding: 3px 7px;
+  border-radius: 4px; font-family: monospace; font-size: 11px; white-space: nowrap;
+}
+
+.stock-badge {
+  display: inline-flex; align-items: center; padding: 3px 8px;
+  border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;
+  &.s-ok  { background: rgba(22,163,74,.12);  color: #16A34A; }
+  &.s-low { background: rgba(234,179, 8,.15); color: #B45309; }
+  &.s-out { background: rgba(239,68, 68,.12); color: #DC2626; }
+}
+
+.status-badge {
+  display: inline-flex; align-items: center; padding: 3px 8px;
+  border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;
+  &.st-active       { background: rgba(22,163,74,.12);    color: #16A34A; }
+  &.st-draft        { background: rgba(107,114,128,.12);  color: #6B7280; }
+  &.st-inactive     { background: rgba(239,68,68,.12);    color: #DC2626; }
+  &.st-discontinued { background: rgba(124,58,237,.12);   color: #7C3AED; }
+}
+
+.pt-date { font-size: 12px; color: var(--t3); white-space: nowrap; }
+
+// ── Media grid (wizard step 4) ────────────────────────────────────────────────
+.media-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-bottom: 4px;
+}
+
+.media-thumb {
+  position: relative; aspect-ratio: 1; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); overflow: hidden; background: var(--hover);
+  display: flex; align-items: center; justify-content: center;
+  img { width: 100%; height: 100%; object-fit: cover; }
+  .media-video-icon { display: flex; align-items: center; justify-content: center; }
+  .media-type-tag {
+    position: absolute; bottom: 3px; left: 3px; right: 3px;
+    background: rgba(0,0,0,.6); color: #fff; font-size: 9px;
+    text-align: center; border-radius: 3px; padding: 1px 3px;
+    text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+}
+
+.media-empty { font-size: 12px; color: var(--t3); padding: 12px 0 4px; }
+.upload-form { display: flex; flex-direction: column; gap: 10px; }
+
+.upload-row {
+  display: flex; gap: 10px; align-items: center;
+  .upload-file-label {
+    flex: 1; display: flex; align-items: center;
+    background: var(--input-bg); border: 1.5px solid var(--border);
+    border-radius: var(--radius); padding: 8px 12px; cursor: pointer; font-size: 13px; color: var(--t2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    input[type=file] { display: none; }
+    &:hover { background: var(--hover); }
+  }
+}
+
+// ── Wizard misc ───────────────────────────────────────────────────────────────
+.step-hint { font-size: 12px; color: var(--t3); }
+.ft-actions { display: flex; gap: 10px; }
+.multi-check-group { display: flex; flex-direction: column; gap: 8px; }
+
+// ── Mobile ────────────────────────────────────────────────────────────────────
+@media (max-width: 768px) {
+  .prod-body { flex-direction: column; overflow: visible; }
+  .prod-sidebar { width: 100%; overflow-y: visible; flex-direction: row; flex-wrap: wrap; gap: 4px; }
+  .prod-sidebar .ps-title { width: 100%; }
+  .prod-main { overflow-y: visible; }
+}

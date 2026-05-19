@@ -1,0 +1,55 @@
+<aside class="adm-aside" [class.open]="sidebar.isOpen()">
+  <div class="adm-logo">
+    <div class="adm-logo-main">MKR<b>Commerce</b></div>
+    <div class="adm-logo-sub">Staff Portal</div>
+  </div>
+
+  <nav class="adm-nav">
+    <ng-container *ngFor="let group of filteredNavGroups()">
+      <div class="nav-grp-lbl">{{ group.label }}</div>
+      <a
+        *ngFor="let item of group.items"
+        class="adm-item"
+        [routerLink]="item.route"
+        routerLinkActive="on"
+        (click)="onNavClick()"
+      >
+        <span class="adm-item-icon icon" [title]="item.label">{{ item.icon }}</span>
+        <span class="adm-item-lbl">{{ item.label }}</span>
+        <span *ngIf="item.badge" class="adm-item-badge" [ngClass]="item.badgeClass">
+          {{ item.badge }}
+        </span>
+      </a>
+    </ng-container>
+  </nav>
+
+  <div class="adm-user">
+    <div class="adm-avatar" [style.background]="auth.roleColor(auth.currentUser()!.role) + '22'" [style.color]="auth.roleColor(auth.currentUser()!.role)">
+      {{ auth.userInitials(auth.currentUser()) }}
+    </div>
+    <div class="adm-user-info">
+      <div class="adm-user-name">{{ auth.currentUser()?.name }}</div>
+      <div class="adm-user-role">{{ auth.roleName(auth.currentUser()!.role) }}</div>
+    </div>
+    <button class="adm-logout" (click)="logout()" title="Sign out">
+      <span class="icon icon-md">logout</span>
+    </button>
+  </div>
+
+</aside>
+
+<!-- Logout confirmation popup -->
+<ng-container *ngIf="showLogoutConfirm">
+  <div class="logout-overlay" (click)="cancelLogout()"></div>
+  <div class="logout-popup">
+    <div class="logout-popup-icon">
+      <span class="icon icon-lg">logout</span>
+    </div>
+    <h4>Sign out?</h4>
+    <p>You'll need to sign in again to access the admin portal.</p>
+    <div class="logout-popup-actions">
+      <button class="logout-popup-cancel" (click)="cancelLogout()">Cancel</button>
+      <button class="logout-popup-ok" (click)="confirmLogout()">Sign out</button>
+    </div>
+  </div>
+</ng-container>

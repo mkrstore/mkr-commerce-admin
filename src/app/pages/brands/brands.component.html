@@ -1,0 +1,163 @@
+<div class="page">
+  <div class="page-hd">
+    <div class="page-hd-left">
+      <div class="page-hd-title">Brands</div>
+      <div class="page-hd-sub" *ngIf="!loading()">{{ totalCount() }} brands</div>
+    </div>
+    <div class="page-hd-right">
+      <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreate()">New Brand</app-btn>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-bar">
+      <span class="sb-icon icon icon-sm">search</span>
+      <input type="text" [(ngModel)]="searchQuery" placeholder="Search brands…" (ngModelChange)="onFilterChange()" />
+      <button class="sb-clear" *ngIf="searchQuery" (click)="searchQuery = ''; onFilterChange()">
+        <span class="icon icon-xs">close</span>
+      </button>
+    </div>
+    <app-select placeholder="All Status" [options]="statusFilterOpts"
+      [value]="activeFilter" (valueChange)="activeFilter = $event; onFilterChange()" />
+    <app-btn variant="ghost" size="sm" *ngIf="searchQuery || activeFilter" (clicked)="clearFilters()">Clear</app-btn>
+  </div>
+
+  <!-- Skeleton -->
+  <div class="tbl-card" *ngIf="loading()">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Brand</th><th>Slug</th><th>Status</th><th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of skeletonRows">
+            <td><div class="sk" style="width:120px;height:13px"></div></td>
+            <td><div class="sk" style="width:80px;height:13px"></div></td>
+            <td><div class="sk" style="width:60px;height:20px;border-radius:99px"></div></td>
+            <td><div class="sk" style="width:80px;height:13px"></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty" *ngIf="!loading() && brands().length === 0">
+    <div class="empty-icon"><span class="icon icon-xl icon-muted">label</span></div>
+    <div class="empty-title">No brands found</div>
+    <div class="empty-sub" *ngIf="!searchQuery && !activeFilter && canManage()">
+      Add brands to associate them with your products
+    </div>
+    <app-btn variant="primary" size="sm" icon="add"
+      *ngIf="!searchQuery && !activeFilter && canManage()" (clicked)="openCreate()">New Brand</app-btn>
+  </div>
+
+  <!-- Table -->
+  <div class="tbl-card" *ngIf="!loading() && brands().length > 0">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Brand</th>
+            <th>Slug</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th *ngIf="canManage()"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let brand of brands()" class="tbl-row" (click)="openEdit(brand)">
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="brand-logo-cell">
+                  <img *ngIf="brand.logoUrl" [src]="brand.logoUrl" [alt]="brand.name" />
+                  <span *ngIf="!brand.logoUrl" class="icon icon-sm icon-muted">label</span>
+                </div>
+                <span style="font-weight:600;color:var(--t1)">{{ brand.name }}</span>
+              </div>
+            </td>
+            <td><span class="slug-badge">{{ brand.slug }}</span></td>
+            <td style="color:var(--t3);font-size:12px;max-width:200px">
+              {{ brand.description ? (brand.description | slice:0:60) + (brand.description.length > 60 ? '…' : '') : '—' }}
+            </td>
+            <td>
+              <span class="badge" [class.badge-green]="brand.isActive" [class.badge-gray]="!brand.isActive">
+                {{ brand.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+            <td style="color:var(--t3);font-size:12px">{{ formatDate(brand.createdAt) }}</td>
+            <td *ngIf="canManage()" (click)="$event.stopPropagation()">
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" (click)="openEdit(brand)">
+                  <span class="icon icon-sm">edit</span>
+                </button>
+                <button class="btn btn-ghost btn-sm" *ngIf="brand.isActive" (click)="openDelete(brand)">
+                  <span class="icon icon-sm icon-red">block</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pgn" *ngIf="totalPages() > 1">
+      <button class="pgn-btn" [disabled]="currentPage()===0" (click)="goToPage(currentPage()-1)">
+        <span class="icon icon-sm">chevron_left</span>
+      </button>
+      <ng-container *ngFor="let pg of pageNumbers()">
+        <span class="pgn-ellipsis" *ngIf="pg===-1">…</span>
+        <button class="pgn-btn" *ngIf="pg!==-1" [class.active]="pg===currentPage()" (click)="goToPage(pg)">{{ pg+1 }}</button>
+      </ng-container>
+      <button class="pgn-btn" [disabled]="currentPage()===totalPages()-1" (click)="goToPage(currentPage()+1)">
+        <span class="icon icon-sm">chevron_right</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CREATE / EDIT MODAL ── -->
+<div class="overlay" *ngIf="modalMode !== 'closed'" (click)="closeModal()"></div>
+<div class="modal modal-sm" *ngIf="modalMode !== 'closed'" (click)="$event.stopPropagation()">
+  <div class="modal-hd">
+    <span class="modal-title">{{ modalMode === 'create' ? 'New Brand' : 'Edit Brand' }}</span>
+    <button class="modal-close" (click)="closeModal()"><span class="icon icon-sm">close</span></button>
+  </div>
+  <div class="modal-body">
+    <div class="alert alert-error" *ngIf="modalError">
+      <span class="icon icon-sm">warning</span> {{ modalError }}
+    </div>
+    <app-input label="Brand Name" [required]="true" [touched]="formTouched"
+      [value]="form.name" (valueChange)="form.name = $event" placeholder="e.g. Samsung" />
+    <app-input label="Slug" optLabel="auto-generated if blank"
+      [value]="form.slug" (valueChange)="form.slug = $event" placeholder="e.g. samsung" />
+    <app-textarea label="Description" optLabel="optional"
+      [value]="form.description" (valueChange)="form.description = $event"
+      placeholder="Short brand description…" [rows]="2" />
+    <app-checkbox *ngIf="modalMode === 'edit'" label="Active"
+      [checked]="form.isActive" (checkedChange)="form.isActive = $event" />
+  </div>
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
+    <app-btn variant="primary" [loading]="saving" (clicked)="save()">
+      {{ modalMode === 'create' ? 'Create' : 'Save Changes' }}
+    </app-btn>
+  </div>
+</div>
+
+<!-- ── DEACTIVATE CONFIRM ── -->
+<div class="overlay" *ngIf="deleteTarget" (click)="closeDelete()"></div>
+<div class="modal modal-sm" *ngIf="deleteTarget" (click)="$event.stopPropagation()">
+  <div class="confirm-body">
+    <div class="confirm-icon warning"><span class="icon icon-lg">block</span></div>
+    <h3>Deactivate Brand?</h3>
+    <p><strong>{{ deleteTarget.name }}</strong> will be hidden from the product catalogue.</p>
+    <div class="alert alert-error" *ngIf="deleteError">{{ deleteError }}</div>
+  </div>
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeDelete()">Cancel</app-btn>
+    <app-btn variant="danger" [loading]="deleting" (clicked)="confirmDelete()">Deactivate</app-btn>
+  </div>
+</div>

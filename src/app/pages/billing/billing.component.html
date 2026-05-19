@@ -1,0 +1,723 @@
+<div class="billing-page">
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <div class="tabs">
+      <button
+        class="tab"
+        [class.active]="activeTab === 'new'"
+        (click)="activeTab = 'new'"
+      >
+        🧾 New Bill
+      </button>
+      <button
+        class="tab"
+        [class.active]="activeTab === 'history'"
+        (click)="activeTab = 'history'"
+      >
+        📋 Bill History
+        <span class="tab-badge" *ngIf="savedBills.length">{{
+          savedBills.length
+        }}</span>
+      </button>
+    </div>
+    <div class="tab-right">
+      <span
+        class="bill-id-label"
+        *ngIf="activeTab === 'new' && paymentState !== 'done'"
+      >
+        # {{ currentBillId }}
+      </span>
+      <button
+        class="btn-new-bill"
+        *ngIf="paymentState === 'done'"
+        (click)="startNewBill()"
+      >
+        ➕ New Bill
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ NEW BILL ═══ -->
+  <ng-container *ngIf="activeTab === 'new'">
+    <!-- SUCCESS STATE -->
+    <div class="success-screen" *ngIf="paymentState === 'done' && printBill">
+      <div class="ss-icon">✅</div>
+      <h2 class="ss-heading">Payment Confirmed!</h2>
+      <p class="ss-id">{{ printBill.id }}</p>
+      <p class="ss-amount">{{ inr(printBill.grandTotal) }}</p>
+      <p class="ss-method">
+        {{ payIcon(printBill.paymentMethod) }}
+        {{ payLabel(printBill.paymentMethod) }} — PAID
+      </p>
+      <p class="ss-customer">
+        {{ printBill.customer.name }} &middot; {{ printBill.customer.phone }}
+      </p>
+      <div class="ss-actions">
+        <button class="btn-print" (click)="doPrint()">🖨️ Print Receipt</button>
+        <button class="btn-start-new" (click)="startNewBill()">
+          ➕ New Bill
+        </button>
+      </div>
+      <p class="ss-hint">
+        Print dialog opens — works with thermal printers (80mm) and normal
+        printers (A4).
+      </p>
+    </div>
+
+    <!-- POS LAYOUT -->
+    <div class="pos-layout" *ngIf="paymentState !== 'done'">
+      <!-- ── LEFT PANEL ──────────────────────────────── -->
+      <div class="pos-left">
+        <!-- Product Search -->
+        <div class="search-card">
+          <div class="search-box">
+            <span class="si">🔍</span>
+            <input
+              type="text"
+              [(ngModel)]="searchQ"
+              (ngModelChange)="productsShown = 20"
+              placeholder="Search product by name, SKU or category..."
+              class="si-input"
+            />
+            <button
+              class="si-clear"
+              *ngIf="searchQ"
+              (click)="searchQ = ''; productsShown = 20"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="cat-chips">
+            <button
+              class="chip"
+              [class.active]="!selectedCategory"
+              (click)="selectedCategory = ''; productsShown = 20"
+            >
+              All
+            </button>
+            <button
+              class="chip"
+              *ngFor="let cat of categories"
+              [class.active]="selectedCategory === cat"
+              (click)="selectedCategory = cat; productsShown = 20"
+            >
+              {{ cat }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Product Results -->
+        <div class="product-list-card" (scroll)="onProductListScroll($event)">
+          <div
+            class="product-row"
+            *ngFor="let p of displayedProducts"
+            [class.row-out-of-stock]="p.stock === 0"
+            (click)="addProduct(p)"
+          >
+            <span class="pr-icon">{{ p.icon }}</span>
+            <div class="pr-info">
+              <span class="pr-name">{{ p.name }}</span>
+              <span class="pr-meta">{{ p.sku }} &middot; {{ p.category }}</span>
+            </div>
+            <div class="pr-right">
+              <span class="pr-stock s-low" *ngIf="p.stock > 0 && p.stock <= 5">{{ p.stock }} left</span>
+              <span class="pr-stock s-out" *ngIf="p.stock === 0">Out of stock</span>
+              <span class="pr-price">{{ inr(p.price) }}</span>
+              <button
+                class="add-btn"
+                [disabled]="p.stock === 0"
+                (click)="$event.stopPropagation(); addProduct(p)"
+              >+ Add</button>
+            </div>
+          </div>
+
+          <div class="scroll-hint" *ngIf="hasMoreProducts">
+            ↓ Scroll to load more products
+          </div>
+
+          <div class="no-results" *ngIf="filteredProducts.length === 0">
+            No products found for "{{ searchQ }}"
+          </div>
+        </div>
+
+        <!-- Bill Items -->
+        <div class="bill-items-card">
+          <div class="bi-header">
+            <h3>
+              Bill Items
+              <span class="bi-count" *ngIf="billItems.length"
+                >({{ billItems.length }})</span
+              >
+            </h3>
+          </div>
+
+          <div class="bi-empty" *ngIf="billItems.length === 0">
+            <span>🛒</span>
+            <p>
+              No items yet — click <strong>+ Add</strong> on any product above
+            </p>
+          </div>
+
+          <div class="bill-table-wrap" *ngIf="billItems.length > 0">
+            <table class="bill-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Product</th>
+                  <th class="tc">Qty</th>
+                  <th>Unit Price (₹)</th>
+                  <th>Discount (₹)</th>
+                  <th class="tr" *ngIf="gstEnabled">GST%</th>
+                  <th class="tr" *ngIf="gstEnabled">GST (₹)</th>
+                  <th class="tr">Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of billItems; let i = index">
+                  <td class="td-n">{{ i + 1 }}</td>
+                  <td class="td-prod">
+                    <span class="td-ico">{{ item.product.icon }}</span>
+                    <div>
+                      <div class="td-name">{{ item.product.name }}</div>
+                      <div class="td-sku">{{ item.product.sku }}</div>
+                    </div>
+                  </td>
+                  <td class="tc">
+                    <div class="qty-ctrl">
+                      <button (click)="decQty(item)">−</button>
+                      <input
+                        type="number"
+                        [(ngModel)]="item.qty"
+                        min="1"
+                        class="qty-in"
+                      />
+                      <button (click)="incQty(item)">+</button>
+                    </div>
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      [(ngModel)]="item.unitPrice"
+                      min="0"
+                      class="price-in"
+                    />
+                    <span
+                      class="negotiated"
+                      *ngIf="item.unitPrice !== item.product.price"
+                    >
+                      MRP {{ inr(item.product.price) }}
+                    </span>
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      [(ngModel)]="item.discount"
+                      min="0"
+                      placeholder="0"
+                      class="disc-in"
+                    />
+                  </td>
+                  <td class="tr gst-pct" *ngIf="gstEnabled">{{ item.product.gstRate }}%</td>
+                  <td class="tr gst-amt" *ngIf="gstEnabled">{{ inr(lineGst(item)) }}</td>
+                  <td class="td-total tr">{{ inr(lineTotal(item)) }}</td>
+                  <td>
+                    <button
+                      class="remove-btn"
+                      (click)="removeItem(i)"
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- /pos-left -->
+
+      <!-- ── RIGHT PANEL ─────────────────────────────── -->
+      <div class="pos-right">
+        <!-- Customer Details -->
+        <div class="card">
+          <div class="card-title">👤 Customer Details</div>
+
+          <!-- Phone with typeahead -->
+          <div class="field-wrap">
+            <div class="phone-box">
+              <input
+                type="tel"
+                [(ngModel)]="customer.phone"
+                (input)="onPhoneInput()"
+                (blur)="phoneTouched = true; closeDropdown()"
+                placeholder="Phone number *"
+                class="field"
+                maxlength="10"
+              />
+              <span class="phone-digits" *ngIf="customer.phone"
+                >{{ customer.phone.length }}/10</span
+              >
+            </div>
+            <!-- Typeahead dropdown -->
+            <div class="phone-dropdown" *ngIf="showPhoneDropdown">
+              <div
+                class="pd-item"
+                *ngFor="let c of phoneDropdown"
+                (mousedown)="selectFromDropdown(c)"
+              >
+                <div class="pd-top">
+                  <span class="pd-phone">{{ c.phone }}</span>
+                  <span class="pd-name">{{ c.name }}</span>
+                </div>
+                <div class="pd-addr" *ngIf="c.address">{{ c.address }}</div>
+              </div>
+            </div>
+            <div class="field-error" *ngIf="phoneError">{{ phoneError }}</div>
+          </div>
+
+          <!-- Name -->
+          <div class="field-wrap">
+            <input
+              type="text"
+              [(ngModel)]="customer.name"
+              (input)="onNameInput()"
+              (blur)="nameTouched = true"
+              placeholder="Full name *"
+              class="field"
+            />
+            <div class="field-error" *ngIf="nameError">{{ nameError }}</div>
+          </div>
+
+          <!-- Email -->
+          <div class="field-wrap">
+            <input
+              type="email"
+              [(ngModel)]="customer.email"
+              (input)="onEmailInput()"
+              (blur)="emailTouched = true"
+              placeholder="Email (optional)"
+              class="field"
+            />
+            <div class="field-error" *ngIf="emailError">{{ emailError }}</div>
+          </div>
+
+          <!-- Address -->
+          <div class="field-wrap last">
+            <input
+              type="text"
+              [(ngModel)]="customer.address"
+              placeholder="Address (optional)"
+              class="field"
+            />
+          </div>
+        </div>
+
+        <!-- Bill Summary -->
+        <div class="card" *ngIf="billItems.length > 0">
+          <div class="card-title">
+            🧾 Bill Summary
+            <label
+              class="gst-toggle"
+              title="GST is tax added by government. Turn ON if your shop is GST registered."
+            >
+              <input type="checkbox" [(ngModel)]="gstEnabled" />
+              <span class="gt-track"></span>
+              <span class="gt-label">Add GST</span>
+            </label>
+          </div>
+
+          <div class="sum-row">
+            <span
+              >Subtotal ({{ billItems.length }} item{{
+                billItems.length !== 1 ? "s" : ""
+              }})</span
+            >
+            <span>{{ inr(subtotal) }}</span>
+          </div>
+          <div class="sum-row disc" *ngIf="totalDiscount > 0">
+            <span>Discount</span>
+            <span>− {{ inr(totalDiscount) }}</span>
+          </div>
+          <div class="sum-row gst-row" *ngIf="gstEnabled">
+            <span>GST <span class="gst-note">(as per item rate)</span></span>
+            <span>+ {{ inr(gstAmount) }}</span>
+          </div>
+          <div class="sum-divider"></div>
+          <div class="sum-total">
+            <span>Total Payable</span>
+            <span>{{ inr(grandTotal) }}</span>
+          </div>
+        </div>
+
+        <!-- Payment -->
+        <div class="card" *ngIf="billItems.length > 0">
+          <div class="card-title">💳 Payment</div>
+
+          <!-- Step 1: Select method -->
+          <div *ngIf="paymentState === 'idle'">
+            <p class="pay-need" *ngIf="!canBill">
+              Fill customer name &amp; 10-digit phone to enable payment
+            </p>
+            <div class="pay-methods" [class.locked]="!canBill">
+              <button class="pay-btn cash" (click)="selectPayment('cash')">
+                <span>💵</span>Cash
+              </button>
+              <button class="pay-btn upi" (click)="selectPayment('upi')">
+                <span>📱</span>UPI
+              </button>
+              <button class="pay-btn card" (click)="selectPayment('card')">
+                <span>💳</span>Card
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 2a: Cash / Card -->
+          <div
+            class="pay-confirm-box"
+            *ngIf="paymentState === 'confirming' && paymentMethod !== 'upi'"
+          >
+            <div class="pc-amount">{{ inr(grandTotal) }}</div>
+            <div class="pc-method">
+              {{ payIcon(paymentMethod!) }}
+              {{ payLabel(paymentMethod!) }} Payment
+            </div>
+            <p class="pc-note">
+              Collect {{ inr(grandTotal) }} from customer, then confirm
+            </p>
+            <button class="btn-confirm" (click)="confirmPayment()">
+              ✓ Payment Received — Confirm Bill
+            </button>
+            <button
+              class="btn-back"
+              (click)="paymentState = 'idle'; paymentMethod = null"
+            >
+              ← Change Method
+            </button>
+          </div>
+
+          <!-- Step 2b: UPI flow -->
+          <div
+            class="pay-upi-box"
+            *ngIf="paymentState === 'confirming' && paymentMethod === 'upi'"
+          >
+            <!-- UPI Init: show amount, ask customer to pay -->
+            <div class="upi-init" *ngIf="upiState === 'init'">
+              <div class="upi-amount">{{ inr(grandTotal) }}</div>
+              <div class="upi-instruction">
+                <p>
+                  Tell the customer the amount
+                  <strong>{{ inr(grandTotal) }}</strong>
+                </p>
+                <p>
+                  Customer scans your <strong>UPI merchant QR stand</strong> and
+                  pays
+                </p>
+              </div>
+              <div class="upi-apps">
+                <span title="PhonePe">📱</span>
+                <span title="Google Pay">💰</span>
+                <span title="Paytm">🔵</span>
+                <span title="Any UPI App">📲</span>
+                <span class="upi-apps-label">Any UPI app</span>
+              </div>
+              <button class="btn-upi-wait" (click)="startUpiWaiting()">
+                📡 I'm Waiting for Payment
+              </button>
+              <div class="upi-divider">— or —</div>
+              <button class="btn-confirm-sm" (click)="confirmPayment()">
+                ✓ Already Received — Confirm
+              </button>
+              <button
+                class="btn-back"
+                (click)="paymentState = 'idle'; paymentMethod = null"
+              >
+                ← Change Method
+              </button>
+            </div>
+
+            <!-- UPI Waiting: spinner + countdown -->
+            <div class="upi-waiting" *ngIf="upiState === 'waiting'">
+              <div class="upi-pulse-wrap">
+                <div class="upi-pulse"></div>
+                <span class="upi-pulse-icon">📡</span>
+              </div>
+              <div class="upi-wait-amount">{{ inr(grandTotal) }}</div>
+              <div class="upi-wait-status">Waiting for UPI payment...</div>
+              <div class="upi-countdown">{{ upiTimerLabel() }} remaining</div>
+              <p class="upi-wait-note">
+                Once customer pays, click the button below.<br />
+                <em
+                  >Auto-verify will be available after Razorpay backend
+                  setup.</em
+                >
+              </p>
+              <button class="btn-upi-received" (click)="upiPaymentReceived()">
+                ✓ Payment Received on Phone
+              </button>
+              <button class="btn-cancel-upi" (click)="cancelUpiWait()">
+                ✕ Cancel
+              </button>
+            </div>
+
+            <!-- UPI Received: success flash before confirming -->
+            <div class="upi-received" *ngIf="upiState === 'received'">
+              <div class="upi-received-icon">✅</div>
+              <div class="upi-received-text">UPI Payment Received!</div>
+              <div class="upi-received-sub">Saving bill...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /pos-right -->
+    </div>
+    <!-- /pos-layout -->
+  </ng-container>
+
+  <!-- ═══ BILL HISTORY ═══ -->
+  <div class="history-tab" *ngIf="activeTab === 'history'">
+    <div class="history-top">
+      <input
+        type="text"
+        [(ngModel)]="historySearch"
+        placeholder="Search by bill ID, customer name or phone..."
+        class="history-search"
+      />
+      <span class="history-meta"
+        >{{ savedBills.length }} bill{{
+          savedBills.length !== 1 ? "s" : ""
+        }}
+        this session</span
+      >
+    </div>
+
+    <div class="history-empty" *ngIf="savedBills.length === 0">
+      <span>📋</span>
+      <p>No bills yet. Generate your first bill from New Bill tab.</p>
+    </div>
+
+    <div class="history-list">
+      <div
+        class="h-row"
+        *ngFor="let b of filteredHistory"
+        (click)="viewBillDetail(b)"
+      >
+        <div class="h-col-id">
+          <span class="h-id">{{ b.id }}</span>
+          <span class="h-date"
+            >{{ fmtDate(b.date) }} · {{ fmtTime(b.date) }}</span
+          >
+        </div>
+        <div class="h-col-cust">
+          <span class="h-name">{{ b.customer.name }}</span>
+          <span class="h-phone">{{ b.customer.phone }}</span>
+        </div>
+        <div class="h-col-items">
+          {{ b.items.length }} item{{ b.items.length !== 1 ? "s" : "" }}
+        </div>
+        <div class="h-col-amount">{{ inr(b.grandTotal) }}</div>
+        <span class="h-pay-badge" [ngClass]="b.paymentMethod">
+          {{ payIcon(b.paymentMethod) }} {{ payLabel(b.paymentMethod) }}
+        </span>
+        <button
+          class="reprint-btn"
+          (click)="$event.stopPropagation(); reprintBill(b)"
+        >
+          🖨
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="no-match"
+      *ngIf="savedBills.length > 0 && filteredHistory.length === 0"
+    >
+      No bills match "{{ historySearch }}"
+    </div>
+  </div>
+</div>
+<!-- /billing-page -->
+
+<!-- ═══ BILL DETAIL MODAL ═══ -->
+<div class="bd-overlay" *ngIf="selectedBill" (click)="closeBillDetail()">
+  <div class="bd-modal" (click)="$event.stopPropagation()">
+    <div class="bd-head">
+      <div>
+        <div class="bd-bill-id">{{ selectedBill.id }}</div>
+        <div class="bd-bill-date">
+          {{ fmtDate(selectedBill.date) }} at {{ fmtTime(selectedBill.date) }}
+        </div>
+      </div>
+      <button class="bd-close" (click)="closeBillDetail()">✕</button>
+    </div>
+
+    <div class="bd-body">
+      <!-- Customer -->
+      <div class="bd-section">
+        <div class="bd-sec-title">Customer</div>
+        <div class="bd-customer">
+          <span class="bd-cust-name">{{ selectedBill.customer.name }}</span>
+          <span class="bd-cust-phone"
+            >📱 {{ selectedBill.customer.phone }}</span
+          >
+          <span class="bd-cust-email" *ngIf="selectedBill.customer.email"
+            >✉ {{ selectedBill.customer.email }}</span
+          >
+          <span class="bd-cust-addr" *ngIf="selectedBill.customer.address"
+            >📍 {{ selectedBill.customer.address }}</span
+          >
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div class="bd-section">
+        <div class="bd-sec-title">Items Purchased</div>
+        <table class="bd-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Product</th>
+              <th class="tc">Qty</th>
+              <th class="tr">Price</th>
+              <th class="tr">Disc</th>
+              <th class="tr">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of selectedBill.items; let i = index">
+              <td class="td-n">{{ i + 1 }}</td>
+              <td>
+                {{ item.product.icon }} {{ item.product.name }}<br />
+                <small class="td-sku">{{ item.product.sku }}</small>
+              </td>
+              <td class="tc">{{ item.qty }}</td>
+              <td class="tr">{{ inr(item.unitPrice) }}</td>
+              <td class="tr">{{ item.discount ? inr(item.discount) : "—" }}</td>
+              <td class="tr td-total">{{ inr(lineTotal(item)) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Summary -->
+      <div class="bd-section bd-summary-section">
+        <div class="bd-sum-row">
+          <span>Subtotal</span><span>{{ inr(selectedBill.subtotal) }}</span>
+        </div>
+        <div class="bd-sum-row green" *ngIf="selectedBill.totalDiscount > 0">
+          <span>Discount</span
+          ><span>− {{ inr(selectedBill.totalDiscount) }}</span>
+        </div>
+        <div
+          class="bd-sum-row"
+          *ngIf="selectedBill.gstEnabled && selectedBill.gstAmount > 0"
+        >
+          <span>GST</span><span>+ {{ inr(selectedBill.gstAmount) }}</span>
+        </div>
+        <div class="bd-sum-total">
+          <span>Total Paid</span><span>{{ inr(selectedBill.grandTotal) }}</span>
+        </div>
+        <div class="bd-pay-method">
+          {{ payIcon(selectedBill.paymentMethod) }}
+          {{ payLabel(selectedBill.paymentMethod) }} — PAID
+        </div>
+      </div>
+    </div>
+
+    <div class="bd-foot">
+      <button class="bd-btn-print" (click)="reprintBill(selectedBill)">
+        🖨 Print Receipt
+      </button>
+      <button class="bd-btn-close" (click)="closeBillDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PRINT RECEIPT ═══ -->
+<div class="print-receipt" *ngIf="printBill">
+  <div class="receipt">
+    <div class="r-shop">{{ shopSettings.name }}</div>
+    <div class="r-sub">{{ shopSettings.tagline }}</div>
+    <div class="r-contact" *ngIf="shopSettings.phone || shopSettings.email">
+      <span *ngIf="shopSettings.phone">Ph: {{ shopSettings.phone }}</span>
+      <span *ngIf="shopSettings.email"> | {{ shopSettings.email }}</span>
+    </div>
+    <div class="r-address" *ngIf="shopSettings.address">
+      {{ shopSettings.address }}
+    </div>
+    <div class="r-gstin" *ngIf="shopSettings.gstin">
+      GSTIN: {{ shopSettings.gstin }}
+    </div>
+    <div class="r-line">================================</div>
+    <div class="r-block">
+      <div><b>Bill No:</b> {{ printBill.id }}</div>
+      <div><b>Date :</b> {{ fmtDate(printBill.date) }}</div>
+      <div><b>Time :</b> {{ fmtTime(printBill.date) }}</div>
+    </div>
+    <div class="r-line">--------------------------------</div>
+    <div class="r-block">
+      <div><b>Customer:</b> {{ printBill.customer.name }}</div>
+      <div><b>Phone :</b> {{ printBill.customer.phone }}</div>
+      <div *ngIf="printBill.customer.email">
+        <b>Email :</b> {{ printBill.customer.email }}
+      </div>
+      <div *ngIf="printBill.customer.address">
+        <b>Address:</b> {{ printBill.customer.address }}
+      </div>
+    </div>
+    <div class="r-line">--------------------------------</div>
+    <table class="r-table">
+      <thead>
+        <tr>
+          <th class="r-th-item">Item</th>
+          <th class="r-th-num">Qty</th>
+          <th class="r-th-num">Rate</th>
+          <th class="r-th-num">Amt</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of printBill.items; let i = index">
+          <td class="r-td-item">
+            {{ i + 1 }}. {{ item.product.name }}<br />
+            <span class="r-sku">{{ item.product.sku }}</span>
+            <span *ngIf="item.discount" class="r-disc">
+              | Disc: {{ inr(item.discount) }}</span
+            >
+          </td>
+          <td class="r-td-num">{{ item.qty }}</td>
+          <td class="r-td-num">{{ inr(item.unitPrice) }}</td>
+          <td class="r-td-num">{{ inr(lineTotal(item)) }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="r-line">--------------------------------</div>
+    <div class="r-sum-rows">
+      <div class="r-sum-row">
+        <span>Subtotal</span><span>{{ inr(printBill.subtotal) }}</span>
+      </div>
+      <div class="r-sum-row" *ngIf="printBill.totalDiscount > 0">
+        <span>Discount</span><span>-{{ inr(printBill.totalDiscount) }}</span>
+      </div>
+      <div
+        class="r-sum-row"
+        *ngIf="printBill.gstEnabled && printBill.gstAmount > 0"
+      >
+        <span>GST</span><span>{{ inr(printBill.gstAmount) }}</span>
+      </div>
+    </div>
+    <div class="r-line">================================</div>
+    <div class="r-total">
+      <span>TOTAL</span><span>{{ inr(printBill.grandTotal) }}</span>
+    </div>
+    <div class="r-line">================================</div>
+    <div class="r-pay">
+      Payment: {{ payIcon(printBill.paymentMethod) }}
+      {{ payLabel(printBill.paymentMethod) }} — PAID
+    </div>
+    <div class="r-line">--------------------------------</div>
+    <div class="r-thanks">Thank You! Visit Again 🙏</div>
+    <div class="r-note">Computer generated bill. No signature required.</div>
+    <div class="r-line">================================</div>
+  </div>
+</div>

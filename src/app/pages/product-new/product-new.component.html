@@ -1,0 +1,296 @@
+<!-- ── DISCARD MODAL ── -->
+<div class="overlay" *ngIf="showDiscard" (click)="showDiscard = false"></div>
+<div class="modal modal-sm" *ngIf="showDiscard" (click)="$event.stopPropagation()">
+  <div class="confirm-body">
+    <div class="confirm-icon warning"><span class="icon icon-lg">edit_off</span></div>
+    <h3>Leave without finishing?</h3>
+    <p>This product was saved as a <strong>Draft</strong>. You can keep it to continue later, or delete it now.</p>
+  </div>
+  <div class="modal-ft" style="flex-direction:column;gap:8px">
+    <app-btn variant="ghost" style="width:100%;justify-content:center" (clicked)="showDiscard = false">Keep Editing</app-btn>
+    <app-btn variant="secondary" style="width:100%;justify-content:center" (clicked)="discardAsDraft()">Save as Draft & Leave</app-btn>
+    <app-btn variant="danger" style="width:100%;justify-content:center" (clicked)="confirmDelete()">Delete & Leave</app-btn>
+  </div>
+</div>
+
+<!-- ── FULL PAGE ── -->
+<div class="pnew">
+
+  <!-- Header -->
+  <div class="pnew-hd">
+    <button class="pnew-back" (click)="back()">
+      <span class="icon icon-sm">arrow_back</span>
+    </button>
+    <div class="pnew-hd-text">
+      <div class="pnew-title">New Product</div>
+      <div class="pnew-sub">Step {{ step }} of 4 — {{ stepLabel }}</div>
+    </div>
+    <button class="pnew-discard" (click)="tryDiscard()">
+      <span class="icon icon-sm">close</span>
+      <span class="hide-mobile">Discard</span>
+    </button>
+  </div>
+
+  <!-- Step indicator -->
+  <div class="pnew-steps">
+    <ng-container *ngFor="let s of steps; let i = index">
+      <div class="pnew-step" [class.active]="i + 1 === step" [class.done]="i + 1 < step">
+        <div class="pnew-step-dot">
+          <span class="icon icon-xs" *ngIf="i + 1 < step">check</span>
+          <span *ngIf="i + 1 >= step">{{ i + 1 }}</span>
+        </div>
+        <div class="pnew-step-lbl">{{ s.label }}</div>
+      </div>
+      <div class="pnew-step-line" *ngIf="i < steps.length - 1"></div>
+    </ng-container>
+  </div>
+
+  <!-- Content -->
+  <div class="pnew-content">
+
+    <!-- ── STEP 1: Basic Info ── -->
+    <ng-container *ngIf="step === 1">
+      <div class="form-section">
+        <div class="form-section-title">Basic Information</div>
+        <div class="alert alert-error" *ngIf="error">
+          <span class="icon icon-sm">error</span> {{ error }}
+        </div>
+        <app-input label="Product Name" [required]="true" [touched]="touched"
+          [value]="step1.name" (valueChange)="step1.name = $event" (blur)="autoSku()"
+          placeholder="e.g. Samsung 55 QLED 4K Smart TV" />
+        <app-input label="SKU" [required]="true" [touched]="touched"
+          [value]="step1.sku" (valueChange)="step1.sku = $event"
+          hint="Auto-filled from name — must be unique across all products"
+          placeholder="e.g. SAM-TV-55-QLED" />
+        <div class="field-row">
+          <app-select label="Category" [required]="true" [touched]="touched"
+            placeholder="Select a category…" [options]="categoryOpts"
+            [value]="step1.categoryId" (valueChange)="onCategoryChange($event)" />
+          <app-select label="Brand" optLabel="optional"
+            placeholder="Select brand…" [options]="brandOpts"
+            [value]="step1.brandId" (valueChange)="step1.brandId = $event" />
+        </div>
+        <app-textarea label="Short Description" optLabel="optional" [rows]="2"
+          [value]="step1.shortDescription" (valueChange)="step1.shortDescription = $event"
+          placeholder="One-line summary shown on product cards" />
+        <app-textarea label="Full Description" optLabel="optional" [rows]="4"
+          [value]="step1.description" (valueChange)="step1.description = $event"
+          placeholder="Detailed product description for the product page" />
+      </div>
+    </ng-container>
+
+    <!-- ── STEP 2: Pricing ── -->
+    <ng-container *ngIf="step === 2">
+      <div class="form-section">
+        <div class="form-section-title">Pricing & Stock</div>
+        <div class="alert alert-error" *ngIf="error">
+          <span class="icon icon-sm">error</span> {{ error }}
+        </div>
+
+        <div class="price-grid">
+          <div class="price-card required">
+            <div class="price-card-label">Retail Price ₹ <span class="req">*</span></div>
+            <div class="price-card-hint">Walk-in customer price</div>
+            <app-input type="number" [minVal]="1" [required]="true" [touched]="touched"
+              [value]="step2.priceRetail" (valueChange)="step2.priceRetail = $event" placeholder="0" />
+          </div>
+          <div class="price-card">
+            <div class="price-card-label">Wholesale Price ₹</div>
+            <div class="price-card-hint">For bulk buyers</div>
+            <app-input type="number" [minVal]="1"
+              [value]="step2.priceWholesale" (valueChange)="step2.priceWholesale = $event" placeholder="0" />
+          </div>
+          <div class="price-card">
+            <div class="price-card-label">Broker Price ₹</div>
+            <div class="price-card-hint">For brokers / dealers</div>
+            <app-input type="number" [minVal]="1"
+              [value]="step2.priceBroker" (valueChange)="step2.priceBroker = $event" placeholder="0" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <app-select label="GST Rate" [options]="gstOpts"
+            [value]="step2.gstPercent" (valueChange)="step2.gstPercent = +$event" />
+          <app-input label="Opening Stock (units)" type="number" [minVal]="0"
+            [value]="step2.stockQty" (valueChange)="step2.stockQty = $event" placeholder="0" />
+        </div>
+        <app-checkbox label="GST included in the above prices"
+          [checked]="step2.gstIncluded" (checkedChange)="step2.gstIncluded = $event" />
+      </div>
+    </ng-container>
+
+    <!-- ── STEP 3: Spec Fields ── -->
+    <ng-container *ngIf="step === 3">
+      <div class="form-section">
+        <div class="form-section-title">
+          Spec Fields
+          <span class="form-section-sub">{{ step1.categoryId ? '' : '' }}</span>
+        </div>
+
+        <div class="alert alert-error" *ngIf="error">
+          <span class="icon icon-sm">error</span> {{ error }}
+        </div>
+
+        <!-- Loading attrs -->
+        <div class="attrs-loading" *ngIf="attrLoading">
+          <div class="sk" style="height:56px;border-radius:8px" *ngFor="let i of [1,2,3]"></div>
+        </div>
+
+        <!-- No attrs defined -->
+        <div class="empty" style="padding:32px" *ngIf="!attrLoading && attrDefs.length === 0">
+          <div class="empty-icon"><span class="icon icon-lg icon-muted">tune</span></div>
+          <div class="empty-title" style="font-size:14px">No spec fields for this category</div>
+          <div class="empty-sub">
+            You can add spec fields (like RAM, Battery, Screen Size) to this category in the
+            <strong>Categories</strong> settings, then come back to fill them in.
+          </div>
+        </div>
+
+        <!-- Attrs form -->
+        <ng-container *ngIf="!attrLoading && attrDefs.length > 0">
+          <ng-container *ngFor="let attr of attrDefs">
+
+            <!-- TEXT / NUMBER -->
+            <app-input *ngIf="attr.fieldType === 'TEXT' || attr.fieldType === 'NUMBER'"
+              [label]="attr.label + (attr.unit ? ' (' + attr.unit + ')' : '')"
+              [type]="attr.fieldType === 'NUMBER' ? 'number' : 'text'"
+              [required]="attr.required" [touched]="touched"
+              [value]="attrValues[attr.id]"
+              (valueChange)="attrValues[attr.id] = $event"
+              [placeholder]="attr.defaultValue ?? ''" />
+
+            <!-- BOOLEAN -->
+            <app-checkbox *ngIf="attr.fieldType === 'BOOLEAN'"
+              [label]="attr.label"
+              [checked]="attrValues[attr.id] === 'true'"
+              (checkedChange)="attrValues[attr.id] = $event ? 'true' : 'false'" />
+
+            <!-- SELECT -->
+            <app-select *ngIf="attr.fieldType === 'SELECT'"
+              [label]="attr.label + (attr.unit ? ' (' + attr.unit + ')' : '')"
+              placeholder="Select…" [options]="getSelectOpts(attr)"
+              [required]="attr.required" [touched]="touched"
+              [value]="attrValues[attr.id]"
+              (valueChange)="attrValues[attr.id] = $event" />
+
+            <!-- MULTISELECT -->
+            <div *ngIf="attr.fieldType === 'MULTISELECT'" class="field">
+              <label class="field-label">
+                {{ attr.label }}<span *ngIf="attr.unit"> ({{ attr.unit }})</span>
+                <span class="req" *ngIf="attr.required">*</span>
+              </label>
+              <div class="multi-opts">
+                <label *ngFor="let opt of parsedOptions(attr)" class="multi-opt"
+                  [class.selected]="isMultiSelected(attr, opt)"
+                  (click)="toggleMulti(attr, opt)">
+                  <span class="icon icon-xs" *ngIf="isMultiSelected(attr, opt)">check_box</span>
+                  <span class="icon icon-xs" *ngIf="!isMultiSelected(attr, opt)">check_box_outline_blank</span>
+                  {{ opt }}
+                </label>
+              </div>
+              <div class="field-hint" *ngIf="attr.unit">Unit: {{ attr.unit }}</div>
+            </div>
+
+          </ng-container>
+        </ng-container>
+      </div>
+    </ng-container>
+
+    <!-- ── STEP 4: Variants ── -->
+    <ng-container *ngIf="step === 4">
+      <div class="form-section">
+        <div class="form-section-title">
+          Product Variants
+          <span class="form-section-badge" *ngIf="variants.length > 0">{{ variants.length }}</span>
+        </div>
+
+        <div class="variant-info">
+          <span class="icon icon-sm icon-blue">info</span>
+          <span>Add variants if this product comes in different sizes, storage options, or colours — e.g. Realme 15 Pro in 6GB+128GB Blue and 8GB+256GB Black. Each variant has its own stock and optional price.</span>
+        </div>
+
+        <div class="alert alert-error" *ngIf="variantError">
+          <span class="icon icon-sm">error</span> {{ variantError }}
+        </div>
+        <div class="alert alert-error" *ngIf="error">
+          <span class="icon icon-sm">error</span> {{ error }}
+        </div>
+
+        <!-- Variants list -->
+        <div class="variants-list" *ngIf="variants.length > 0">
+          <div class="variant-row" *ngFor="let v of variants; let i = index">
+            <div class="variant-row-hd">
+              <div class="variant-num">Variant {{ i + 1 }}</div>
+              <button class="variant-remove" (click)="removeVariant(i)">
+                <span class="icon icon-sm">delete</span>
+              </button>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Colour Name</label>
+                <div class="color-input-row">
+                  <input type="color" class="color-picker" [(ngModel)]="v.colorHex" />
+                  <input type="text" class="f-input" [(ngModel)]="v.colorName" placeholder="e.g. Midnight Blue" />
+                </div>
+              </div>
+              <app-input label="Size / Storage" style="flex:1"
+                [value]="v.size" (valueChange)="v.size = $event"
+                placeholder="e.g. 8GB+256GB or XL" />
+            </div>
+            <div class="field-row">
+              <app-input label="Price Override ₹" type="number" optLabel="optional — uses base price if blank"
+                [value]="v.priceOverride" (valueChange)="v.priceOverride = $event" placeholder="0" />
+              <app-input label="Stock Qty" type="number" [minVal]="0"
+                [value]="v.stockQty" (valueChange)="v.stockQty = $event" placeholder="0" />
+            </div>
+          </div>
+        </div>
+
+        <button class="add-variant-btn" (click)="addVariant()">
+          <span class="icon icon-sm">add</span>
+          Add Variant
+        </button>
+
+        <!-- Summary before publish -->
+        <div class="publish-summary">
+          <div class="pub-row">
+            <span class="icon icon-sm icon-blue">inventory_2</span>
+            <span><strong>{{ step1.name || 'Product' }}</strong> will be published as <span class="badge badge-green">Active</span></span>
+          </div>
+          <div class="pub-row" *ngIf="variants.length === 0">
+            <span class="icon icon-sm icon-muted">palette</span>
+            <span style="color:var(--t3)">No variants — single product listing</span>
+          </div>
+          <div class="pub-row" *ngIf="variants.length > 0">
+            <span class="icon icon-sm icon-blue">palette</span>
+            <span>{{ variants.length }} variant{{ variants.length > 1 ? 's' : '' }} will be added</span>
+          </div>
+        </div>
+
+      </div>
+    </ng-container>
+
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="pnew-footer">
+    <app-btn variant="ghost" (clicked)="back()">
+      {{ step === 1 ? 'Cancel' : 'Back' }}
+    </app-btn>
+
+    <div style="display:flex;gap:8px;align-items:center">
+      <!-- Skip spec fields if no attrs defined or step 4 (skip variants) -->
+      <app-btn variant="ghost" *ngIf="step === 3 && hasNoAttrs" (clicked)="skipToNext()">Skip</app-btn>
+      <app-btn variant="ghost" *ngIf="step === 4 && variants.length === 0" [loading]="saving" (clicked)="publish()">
+        Publish without variants
+      </app-btn>
+
+      <app-btn variant="primary" [loading]="saving"
+        [icon]="isLastStep ? 'rocket_launch' : 'arrow_forward'"
+        (clicked)="next()">
+        {{ isLastStep ? 'Publish Product' : 'Next' }}
+      </app-btn>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,153 @@
+<div class="login-shell" [ngClass]="theme.themeClass()">
+
+  <!-- ── LEFT PANEL — Branding ──────────────────────────────────────────── -->
+  <div class="lp-left">
+    <div class="lp-logo">
+      <span class="logo-mkr">MKR</span><span class="logo-commerce">Commerce</span>
+      <span class="logo-badge">Admin</span>
+    </div>
+    <div class="lp-tagline">Your complete retail<br>management system</div>
+    <div class="lp-desc">
+      One platform for your entire team — billing, inventory, analytics, and customer management.
+    </div>
+    <div class="lp-roles">
+      <div class="rc" *ngFor="let r of roleCards">
+        <span class="rc-icon" [style.background]="r.color + '22'" [style.color]="r.color">{{ r.icon }}</span>
+        <div class="rc-body">
+          <div class="rc-name">{{ r.name }}</div>
+          <div class="rc-desc">{{ r.desc }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="lp-footer">
+      <span>🔐 Secure</span><span class="lf-dot">·</span>
+      <span>🎭 Multi-role</span><span class="lf-dot">·</span>
+      <span>🛡 Role-based access</span>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL — Form ─────────────────────────────────────────────── -->
+  <div class="lp-right">
+    <div class="login-card">
+
+      <div class="lc-head">
+        <div class="lc-greeting">Welcome back 👋</div>
+        <div class="lc-sub">Sign in to MKR Commerce Admin</div>
+      </div>
+
+      <!-- Error banner -->
+      <div class="lc-error" *ngIf="error">
+        <span>⚠</span> {{ error }}
+      </div>
+
+      <!-- Identifier -->
+      <div class="fg">
+        <label class="fg-label">Email or Phone number</label>
+        <div class="fg-input" [class.fg-input-err]="error && !loading">
+          <span class="fgi-icon">👤</span>
+          <input type="text" [(ngModel)]="identifier" placeholder="your@company.com or 9876543210"
+            autocomplete="off" (keydown.enter)="login()" [disabled]="loading"/>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="fg">
+        <div class="fg-label-row">
+          <label class="fg-label">Password</label>
+          <button class="fg-forgot" type="button" (click)="openForgotPassword()">Forgot password?</button>
+        </div>
+        <div class="fg-input" [class.fg-input-err]="error && !loading">
+          <span class="fgi-icon">🔒</span>
+          <input [type]="showPwd ? 'text' : 'password'" [(ngModel)]="password"
+            placeholder="••••••••" autocomplete="new-password"
+            (keydown.enter)="login()" [disabled]="loading"/>
+          <button class="fgi-eye" type="button" (click)="showPwd=!showPwd">
+            {{ showPwd ? '🙈' : '👁️' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Sign In button -->
+      <button class="btn-signin" (click)="login()" [disabled]="loading">
+        <span class="bsi-spinner" *ngIf="loading"></span>
+        <span *ngIf="!loading">Sign In →</span>
+        <span *ngIf="loading">Signing in…</span>
+      </button>
+
+      <!-- Divider -->
+      <div class="or-divider"><span>or continue with</span></div>
+
+      <!-- Google button -->
+      <button class="btn-google" (click)="loginWithGoogle()" [disabled]="loading">
+        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+          <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div class="lc-note">Don't have an account? Contact your administrator to get access.</div>
+
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ── FORGOT PASSWORD MODAL ─────────────────────────────────────────────────── -->
+<div class="fp-overlay" *ngIf="modal !== 'closed'" (click)="closeForgotPassword()"></div>
+
+<div class="fp-modal" *ngIf="modal !== 'closed'" [ngClass]="theme.themeClass()">
+
+  <!-- ── Step 1: Email form ──────────────────────────────────────────────── -->
+  <ng-container *ngIf="modal === 'form'">
+    <div class="fpm-header">
+      <div class="fpm-icon">🔑</div>
+      <div class="fpm-title">Forgot your password?</div>
+      <div class="fpm-sub">Enter your staff email and we'll send you a secure reset link.</div>
+    </div>
+
+    <div class="fpm-error" *ngIf="fpError">
+      <span>⚠</span> {{ fpError }}
+    </div>
+
+    <div class="fg">
+      <label class="fg-label">Staff email address</label>
+      <div class="fg-input">
+        <span class="fgi-icon">✉</span>
+        <input type="email" [(ngModel)]="fpEmail" placeholder="your@company.com"
+          autocomplete="off" [disabled]="fpLoading" (keydown.enter)="sendResetLink()"/>
+      </div>
+    </div>
+
+    <div class="fpm-actions">
+      <button class="fpm-btn-cancel" type="button" (click)="closeForgotPassword()" [disabled]="fpLoading">
+        Cancel
+      </button>
+      <button class="fpm-btn-send" type="button" (click)="sendResetLink()" [disabled]="fpLoading">
+        <span class="bsi-spinner sm" *ngIf="fpLoading"></span>
+        <span *ngIf="!fpLoading">Send Reset Link →</span>
+        <span *ngIf="fpLoading">Sending…</span>
+      </button>
+    </div>
+  </ng-container>
+
+  <!-- ── Step 2: Success ─────────────────────────────────────────────────── -->
+  <ng-container *ngIf="modal === 'sent'">
+    <div class="fpm-success">
+      <div class="fpm-success-icon">✉️</div>
+      <div class="fpm-title">Check your email</div>
+      <div class="fpm-sub">
+        If <strong>{{ fpEmail }}</strong> is registered, you'll receive a reset link within a few minutes.
+        Check your spam folder if you don't see it.
+      </div>
+      <div class="fpm-note">Link expires in 60 minutes.</div>
+      <button class="fpm-btn-send" type="button" (click)="closeForgotPassword()">
+        Back to Sign In
+      </button>
+    </div>
+  </ng-container>
+
+</div>

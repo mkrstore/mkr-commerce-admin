@@ -1,0 +1,62 @@
+/* Source overview cards */
+.source-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.source-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  &:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: var(--blue); }
+  &.source-card-store:hover { border-color: #388E3C; }
+}
+
+.sc-icon {
+  width: 56px; height: 56px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  &.sc-icon-blue  { background: var(--blue-soft); color: var(--blue); }
+  &.sc-icon-green { background: rgba(56,142,60,.1); color: #388E3C; }
+}
+
+.sc-breakdown {
+  display: flex;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface2);
+}
+
+.sc-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  &.sc-dot-retail    { background: var(--blue); }
+  &.sc-dot-wholesale { background: #388E3C; }
+  &.sc-dot-broker    { background: var(--purple); }
+}
+
+.sc-cta-store {
+  font-size: 13px;
+  font-weight: 700;
+  color: #388E3C;
+}
+
+/* Customer list avatar */
+.cust-avatar {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: #fff; flex-shrink: 0;
+  &.cust-avatar-retail    { background: var(--blue); }
+  &.cust-avatar-wholesale { background: #388E3C; }
+  &.cust-avatar-broker    { background: var(--purple); }
+}
+
+@media (max-width: 700px) {
+  .source-cards { grid-template-columns: 1fr; }
+}

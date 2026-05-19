@@ -1,0 +1,85 @@
+<header class="adm-topbar">
+  <button class="menu-btn" (click)="sidebar.toggle()" title="Toggle menu">
+    <span class="icon">menu</span>
+  </button>
+  <div class="adm-pg-title">{{ title }}</div>
+
+  <div class="adm-search">
+    <span class="icon icon-sm" style="color:var(--t3);font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 20">search</span>
+    <input placeholder="Search…" />
+  </div>
+
+  <!-- Notification Bell -->
+  <div class="notif-wrap">
+    <button class="notif-btn" (click)="toggleNotif()" title="Notifications">
+      <span class="icon icon-md">notifications</span>
+      <span class="notif-dot" *ngIf="notif.totalUnread() > 0">{{ notif.totalUnread() }}</span>
+    </button>
+
+    <!-- Notification Panel -->
+    <div class="notif-panel" *ngIf="notifOpen">
+      <div class="np-head">
+        <span class="np-title">Notifications</span>
+        <button class="np-read-all" (click)="notif.markAllRead()" *ngIf="notif.totalUnread() > 0">
+          Mark all read
+        </button>
+      </div>
+
+      <!-- Tabs -->
+      <div class="np-tabs">
+        <button class="np-tab" [class.active]="notifTab==='all'"     (click)="notifTab='all'">
+          All
+          <span class="np-badge" *ngIf="notif.totalUnread()>0">{{ notif.totalUnread() }}</span>
+        </button>
+        <button class="np-tab" [class.active]="notifTab==='payment'" (click)="notifTab='payment'">
+          Payments
+          <span class="np-badge" *ngIf="notif.payUnread()>0">{{ notif.payUnread() }}</span>
+        </button>
+        <button class="np-tab" [class.active]="notifTab==='stock'"   (click)="notifTab='stock'">
+          Stock
+          <span class="np-badge red" *ngIf="notif.stockUnread()>0">{{ notif.stockUnread() }}</span>
+        </button>
+        <button class="np-tab" [class.active]="notifTab==='message'" (click)="notifTab='message'">
+          Messages
+          <span class="np-badge purple" *ngIf="notif.messageUnread()>0">{{ notif.messageUnread() }}</span>
+        </button>
+      </div>
+
+      <!-- Notification list -->
+      <div class="np-list">
+        <div
+          class="np-item"
+          *ngFor="let n of tabItems"
+          [class.unread]="!n.read"
+          (click)="notif.markRead(n.id)"
+        >
+          <span class="np-icon icon icon-sm"
+            [class.icon-blue]="n.type==='payment'"
+            [class.icon-amber]="n.type==='stock'"
+            [class.icon-green]="n.type==='message'"
+            [style.background]="n.type==='payment' ? 'var(--blue-soft)' : n.type==='stock' ? 'var(--amber-bg)' : 'var(--green-bg)'">{{ n.icon }}</span>
+          <div class="np-content">
+            <div class="np-item-title">{{ n.title }}</div>
+            <div class="np-item-body">{{ n.body }}</div>
+            <div class="np-item-time">{{ notif.timeAgo(n.time) }}</div>
+          </div>
+          <span class="np-unread-dot" *ngIf="!n.read"></span>
+        </div>
+
+        <div class="np-empty" *ngIf="tabItems.length===0">
+          No notifications in this category
+        </div>
+      </div>
+    </div>
+
+    <!-- Backdrop -->
+    <div class="notif-backdrop" *ngIf="notifOpen" (click)="notifOpen=false"></div>
+  </div>
+
+  <!-- Avatar / User -->
+  <div class="adm-avatar-btn"
+    [title]="(auth.currentUser()?.name ?? '') + ' — ' + auth.roleName(auth.currentUser()!.role)"
+    [style.background]="auth.roleColor(auth.currentUser()!.role) + '22'"
+    [style.color]="auth.roleColor(auth.currentUser()!.role)"
+  >{{ auth.userInitials(auth.currentUser()) }}</div>
+</header>

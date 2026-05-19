@@ -1,0 +1,77 @@
+.slug-badge {
+  background: var(--surface2); color: var(--t3);
+  padding: 2px 7px; border-radius: 4px; font-family: monospace; font-size: 11px;
+}
+
+.icon-red { color: var(--red); }
+
+/* ── Spec field count in table ── */
+.cat-spec-count {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: var(--t3);
+  &.has-specs { color: var(--blue); font-weight: 600; }
+}
+
+/* ── Info box inside spec fields tab ── */
+.spec-info-box {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 10px 12px; background: var(--blue-soft);
+  border-radius: var(--radius); font-size: 12px; color: var(--t2); line-height: 1.5;
+  strong { color: var(--t1); }
+}
+
+/* ── Attr inline form panel ── */
+.attr-form-panel {
+  background: var(--surface2); border-radius: var(--radius-md);
+  border: 1px solid var(--border); overflow: hidden;
+}
+.attr-form-hd {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: var(--surface3); border-bottom: 1px solid var(--border);
+}
+.attr-back-btn {
+  width: 28px; height: 28px; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; color: var(--t2); cursor: pointer;
+  &:hover { background: var(--hover); color: var(--t1); }
+}
+
+/* ── Attr list items ── */
+.attr-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 14px; background: var(--surface2);
+  border-radius: var(--radius); border: 1px solid var(--border);
+  &:hover { border-color: var(--border2); }
+}
+.attr-item-left { flex: 1; min-width: 0; }
+.attr-type-chip {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  background: var(--surface3); color: var(--t2); padding: 1px 6px;
+  border-radius: 3px; text-transform: uppercase; letter-spacing: .3px;
+}
+
+/* ── SELECT/MULTISELECT option inputs ── */
+.option-inputs {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 6px;
+}
+.option-input-row {
+  display: flex; align-items: center; gap: 6px;
+  .f-input { flex: 1; }
+}
+.opt-remove-btn {
+  width: 28px; height: 28px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--t3); cursor: pointer;
+  &:hover:not(:disabled) { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+  &:disabled { opacity: .4; cursor: not-allowed; }
+}
+.opt-add-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 10px; border-radius: var(--radius);
+  background: none; border: 1px dashed var(--border);
+  color: var(--blue); font-size: 12px; font-weight: 600;
+  font-family: var(--font); cursor: pointer;
+  &:hover { border-color: var(--blue); background: var(--blue-light); }
+}

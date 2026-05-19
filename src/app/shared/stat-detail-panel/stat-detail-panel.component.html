@@ -1,0 +1,90 @@
+<!-- Backdrop -->
+<div class="panel-backdrop" [class.open]="isOpen" (click)="close()"></div>
+
+<!-- Slide panel -->
+<aside class="detail-panel" [class.open]="isOpen" *ngIf="data">
+  <!-- Header -->
+  <div class="panel-header">
+    <div class="panel-title">{{ data.title }}</div>
+    <button class="panel-close" (click)="close()">✕</button>
+  </div>
+
+  <!-- Big summary -->
+  <div class="panel-summary">
+    <div class="summary-col today">
+      <div class="summary-label">{{ data.todayLabel }}</div>
+      <div class="summary-val">{{ formatVal(data.todayVal, data.unit) }}</div>
+    </div>
+    <div class="summary-vs">
+      <div class="vs-badge" [ngClass]="data.trend">{{ data.pct }}</div>
+      <div class="vs-label">vs</div>
+      <div class="vs-diff" [ngClass]="data.trend">{{ data.diff }}</div>
+    </div>
+    <div class="summary-col yest">
+      <div class="summary-label">{{ data.yestLabel }}</div>
+      <div class="summary-val muted">{{ formatVal(data.yestVal, data.unit) }}</div>
+    </div>
+  </div>
+
+  <!-- Hourly trend chart -->
+  <div class="panel-section" *ngIf="data.hourly?.length">
+    <div class="section-title">Hourly Trend</div>
+    <div class="legend-row">
+      <span class="leg-dot today-dot"></span><span class="leg-lbl">Today</span>
+      <span class="leg-dot yest-dot"></span><span class="leg-lbl">Yesterday</span>
+    </div>
+    <div class="hourly-chart">
+      <div class="hour-group" *ngFor="let h of data.hourly">
+        <div class="bars-pair">
+          <div class="bar today-bar" [style.height.px]="barH(h.t, maxHourly(data.hourly))" [title]="h.t"></div>
+          <div class="bar yest-bar"  [style.height.px]="barH(h.y, maxHourly(data.hourly))" [title]="h.y"></div>
+        </div>
+        <div class="hour-label">{{ h.h }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- By Customer Type -->
+  <div class="panel-section">
+    <div class="section-title">By Customer Type</div>
+    <div class="compare-rows">
+      <div class="compare-row" *ngFor="let row of data.byType">
+        <span class="row-icon">{{ row.icon }}</span>
+        <span class="row-label">{{ row.label }}</span>
+        <div class="row-vals">
+          <span class="val-today">{{ formatVal(row.today, row.unit) }}</span>
+          <span class="trend-badge" [ngClass]="trend(row.today, row.yest)">
+            {{ trend(row.today, row.yest) === 'up' ? '▲' : trend(row.today, row.yest) === 'dn' ? '▼' : '—' }}
+            {{ pct(row.today, row.yest) }}
+          </span>
+          <span class="val-yest">{{ formatVal(row.yest, row.unit) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- By Category -->
+  <div class="panel-section">
+    <div class="section-title">By Category</div>
+    <div class="cat-compare" *ngFor="let cat of data.byCategory">
+      <div class="cat-row-top">
+        <span class="row-icon">{{ cat.icon }}</span>
+        <span class="row-label">{{ cat.label }}</span>
+        <span class="trend-badge" [ngClass]="trend(cat.today, cat.yest)">
+          {{ trend(cat.today, cat.yest) === 'up' ? '▲' : trend(cat.today, cat.yest) === 'dn' ? '▼' : '→' }}
+          {{ pct(cat.today, cat.yest) }}
+        </span>
+      </div>
+      <div class="cat-bars-row">
+        <div class="cat-bar-wrap">
+          <div class="cat-bar today-cat" [style.width.%]="(cat.today / maxCat(data.byCategory)) * 100" [style.background]="cat.color"></div>
+          <span class="cat-bar-val">{{ formatVal(cat.today, data.unit) }}</span>
+        </div>
+        <div class="cat-bar-wrap">
+          <div class="cat-bar yest-cat" [style.width.%]="(cat.yest / maxCat(data.byCategory)) * 100"></div>
+          <span class="cat-bar-val muted">{{ formatVal(cat.yest, data.unit) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</aside>

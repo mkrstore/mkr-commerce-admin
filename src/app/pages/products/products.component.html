@@ -1,0 +1,410 @@
+<div class="page prod-page-layout">
+
+  <!-- ── HEADER ── -->
+  <div class="page-hd">
+    <div class="page-hd-left">
+      <div class="page-hd-title">Products</div>
+      <div class="page-hd-sub" *ngIf="!loading()">{{ totalCount() }} products total</div>
+    </div>
+    <div class="page-hd-right">
+      <button class="btn btn-primary btn-sm" *ngIf="canCreate()" (click)="router.navigate(['/products/new'])">
+        <span class="icon icon-sm">add</span> New Product
+      </button>
+    </div>
+  </div>
+
+  <!-- ── BODY (sidebar + main) ── -->
+  <div class="prod-body">
+
+    <!-- LEFT: Category tree -->
+    <div class="prod-sidebar">
+      <div class="ps-title">Categories</div>
+      <button class="ps-all" [class.active]="!selectedCategoryId" (click)="selectCategory('')">
+        All Products
+      </button>
+
+      <div class="prod-skeleton" *ngIf="catLoading()">
+        <div class="sk" style="height:14px;border-radius:4px" *ngFor="let i of [1,2,3,4,5]"></div>
+      </div>
+
+      <ng-container *ngIf="!catLoading()">
+        <div class="ps-cat" *ngFor="let cat of categories()">
+          <button class="psc-row" [class.active]="selectedCategoryId === cat.id" (click)="selectCategory(cat.id)">
+            <span class="psc-name">{{ cat.name }}</span>
+            <span class="psc-toggle icon icon-xs" *ngIf="cat.children.length"
+              (click)="$event.stopPropagation(); toggleCat(cat.id)">
+              {{ expandedCats.has(cat.id) ? 'expand_more' : 'chevron_right' }}
+            </span>
+          </button>
+          <div class="psc-children" *ngIf="cat.children.length && expandedCats.has(cat.id)">
+            <button class="psc-child" *ngFor="let child of cat.children"
+              [class.active]="selectedCategoryId === child.id"
+              (click)="selectCategory(child.id)">
+              {{ child.name }}
+            </button>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- RIGHT: Products list -->
+    <div class="prod-main">
+
+      <!-- Filters -->
+      <div class="filter-bar">
+        <div class="search-bar">
+          <span class="sb-icon icon icon-sm">search</span>
+          <input type="text" [(ngModel)]="searchQuery" placeholder="Search by name or SKU…"
+            (ngModelChange)="onFilterChange()" />
+          <button class="sb-clear" *ngIf="searchQuery" (click)="searchQuery=''; onFilterChange()">
+            <span class="icon icon-xs">close</span>
+          </button>
+        </div>
+        <select class="f-select-sm" [(ngModel)]="selectedBrandId" (change)="onFilterChange()">
+          <option value="">All Brands</option>
+          <option *ngFor="let b of brands()" [value]="b.id">{{ b.name }}</option>
+        </select>
+        <select class="f-select-sm" [(ngModel)]="selectedStatus" (change)="onFilterChange()">
+          <option value="">All Status</option>
+          <option *ngFor="let s of allStatuses" [value]="s">{{ s }}</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" *ngIf="hasFilters" (click)="clearFilters()">Clear</button>
+      </div>
+
+      <!-- Skeleton rows -->
+      <ng-container *ngIf="loading()">
+        <div class="psk-list">
+          <div class="psk-row" *ngFor="let r of skeletonRows">
+            <div class="sk psk-img"></div>
+            <div class="psk-lines">
+              <div class="sk" style="height:14px;width:60%"></div>
+              <div class="sk" style="height:11px;width:40%;margin-top:6px"></div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Empty state -->
+      <div class="empty" *ngIf="!loading() && products().length === 0">
+        <div class="empty-icon"><span class="icon icon-xl icon-muted">inventory_2</span></div>
+        <div class="empty-title">No products found</div>
+        <div class="empty-sub" *ngIf="hasFilters">Try adjusting your filters</div>
+        <div class="empty-sub" *ngIf="!hasFilters && canCreate()">Get started by adding your first product</div>
+        <button class="btn btn-primary btn-sm" *ngIf="!hasFilters && canCreate()" (click)="router.navigate(['/products/new'])">
+          <span class="icon icon-sm">add</span> Add Product
+        </button>
+      </div>
+
+      <!-- Product table -->
+      <div class="tbl-wrap" *ngIf="!loading() && products().length > 0">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>SKU</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Status</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of products()" (click)="openDetail(p.id)" class="tbl-row">
+              <td class="pt-name">
+                <div class="ptn-img" *ngIf="p.primaryImageUrl">
+                  <img [src]="p.primaryImageUrl" [alt]="p.name" />
+                </div>
+                <div class="ptn-placeholder" *ngIf="!p.primaryImageUrl">
+                  <span class="icon icon-sm icon-muted">inventory_2</span>
+                </div>
+                <div class="ptn-info">
+                  <div class="ptn-title">{{ p.name }}</div>
+                  <div class="ptn-brand" *ngIf="p.brandName">{{ p.brandName }}</div>
+                </div>
+              </td>
+              <td><span class="sku-badge">{{ p.sku }}</span></td>
+              <td>{{ p.categoryName }}</td>
+              <td>{{ inr(p.priceRetail) }}</td>
+              <td><span class="stock-badge" [ngClass]="stockClass(p.stockQty)">{{ stockLabel(p.stockQty) }}</span></td>
+              <td><span class="status-badge" [ngClass]="statusClass(p.status)">{{ p.status }}</span></td>
+              <td class="pt-date">{{ formatDate(p.createdAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pgn" *ngIf="totalPages() > 1">
+        <button class="pgn-btn" [disabled]="currentPage() === 0" (click)="goToPage(currentPage() - 1)">
+          <span class="icon icon-sm">chevron_left</span>
+        </button>
+        <ng-container *ngFor="let pg of pageNumbers()">
+          <span class="pgn-ellipsis" *ngIf="pg === -1">…</span>
+          <button class="pgn-btn" *ngIf="pg !== -1"
+            [class.active]="pg === currentPage()"
+            (click)="goToPage(pg)">{{ pg + 1 }}</button>
+        </ng-container>
+        <button class="pgn-btn" [disabled]="currentPage() === totalPages() - 1" (click)="goToPage(currentPage() + 1)">
+          <span class="icon icon-sm">chevron_right</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── CREATE PRODUCT WIZARD ── -->
+<div class="overlay" *ngIf="createOpen" (click)="closeCreate()"></div>
+
+<div class="modal modal-lg" *ngIf="createOpen">
+  <div class="modal-hd">
+    <span class="modal-title">New Product</span>
+    <button class="modal-close" (click)="closeCreate()">
+      <span class="icon icon-sm">close</span>
+    </button>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step" [class.active]="formStep >= 1" [class.done]="formStep > 1">
+      <span class="step-num">1</span><span class="step-lbl">Basic</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" [class.active]="formStep >= 2" [class.done]="formStep > 2">
+      <span class="step-num">2</span><span class="step-lbl">Pricing</span>
+    </div>
+    <ng-container *ngIf="attrDefs.length > 0 || formStep === 3">
+      <div class="step-line"></div>
+      <div class="step" [class.active]="formStep >= 3" [class.done]="formStep > 3">
+        <span class="step-num">3</span><span class="step-lbl">Details</span>
+      </div>
+    </ng-container>
+    <div class="step-line"></div>
+    <div class="step" [class.active]="formStep >= 4">
+      <span class="step-num">{{ attrDefs.length > 0 ? '4' : '3' }}</span>
+      <span class="step-lbl">Media</span>
+    </div>
+  </div>
+
+  <!-- Step 1: Basic Info -->
+  <div class="modal-body" *ngIf="formStep === 1">
+    <div class="alert alert-error" *ngIf="step1Error">
+      <span class="icon icon-sm">warning</span> {{ step1Error }}
+    </div>
+    <div class="field-row">
+      <app-input label="Product Name" [required]="true" [touched]="step1Touched"
+        [value]="step1.name" (valueChange)="step1.name = $event"
+        placeholder="e.g. Samsung 55-inch QLED TV" />
+      <app-input style="max-width:180px" label="SKU" [required]="true" [touched]="step1Touched"
+        [value]="step1.sku" (valueChange)="step1.sku = $event"
+        placeholder="e.g. SAM-TV-55" />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">Category <span class="req">*</span></label>
+        <select class="f-select" [(ngModel)]="step1.categoryId"
+          [class.error]="step1Touched && !step1.categoryId">
+          <option value="">Select category…</option>
+          <ng-container *ngFor="let cat of categories()">
+            <option [value]="cat.id">{{ cat.name }}</option>
+            <option *ngFor="let child of cat.children" [value]="child.id">— {{ child.name }}</option>
+          </ng-container>
+        </select>
+        <div class="field-error" *ngIf="step1Touched && !step1.categoryId">
+          <span class="icon icon-xs">error</span> Category is required
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Brand <span class="opt">(optional)</span></label>
+        <select class="f-select" [(ngModel)]="step1.brandId">
+          <option value="">No brand</option>
+          <option *ngFor="let b of brands()" [value]="b.id">{{ b.name }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <app-input label="Barcode" optLabel="optional"
+        [value]="step1.barcode" (valueChange)="step1.barcode = $event"
+        placeholder="EAN / UPC / ISBN" />
+      <app-input label="Slug" optLabel="auto-generated if blank"
+        [value]="step1.slug" (valueChange)="step1.slug = $event"
+        placeholder="e.g. samsung-55-qled" />
+    </div>
+    <app-input label="Short Description" optLabel="optional"
+      [value]="step1.shortDescription" (valueChange)="step1.shortDescription = $event"
+      placeholder="One-liner shown in listing" />
+    <app-textarea label="Full Description" optLabel="optional"
+      [value]="step1.description" (valueChange)="step1.description = $event"
+      placeholder="Detailed product description…" [rows]="3" />
+  </div>
+
+  <!-- Step 2: Pricing -->
+  <div class="modal-body" *ngIf="formStep === 2">
+    <div class="alert alert-error" *ngIf="step2Error">
+      <span class="icon icon-sm">warning</span> {{ step2Error }}
+    </div>
+    <div class="field-row">
+      <app-input label="Retail Price (₹)" type="number" [required]="true" [touched]="step2Touched"
+        [minVal]="0.01" errorMsg="Retail price must be greater than 0"
+        [value]="step2.priceRetail" (valueChange)="step2.priceRetail = $event"
+        placeholder="0.00" />
+      <app-input label="Wholesale Price" optLabel="₹" type="number"
+        [value]="step2.priceWholesale" (valueChange)="step2.priceWholesale = $event"
+        placeholder="0.00" />
+    </div>
+    <div class="field-row">
+      <app-input label="Broker Price" optLabel="₹" type="number"
+        [value]="step2.priceBroker" (valueChange)="step2.priceBroker = $event"
+        placeholder="0.00" />
+      <app-input label="Min Qty (Wholesale)" type="number"
+        [value]="step2.minQtyWholesale" (valueChange)="step2.minQtyWholesale = $event" />
+    </div>
+    <div class="field-row">
+      <app-input label="GST %" type="number"
+        [value]="step2.gstPercent" (valueChange)="step2.gstPercent = $event" />
+      <app-input label="Initial Stock Qty" type="number"
+        [value]="step2.stockQty" (valueChange)="step2.stockQty = $event" />
+    </div>
+    <app-checkbox label="GST included in price"
+      [checked]="step2.gstIncluded" (checkedChange)="step2.gstIncluded = $event" />
+    <div class="field-row">
+      <app-input label="Weight" optLabel="grams" type="number"
+        [value]="step2.weight" (valueChange)="step2.weight = $event"
+        placeholder="e.g. 500" />
+      <app-input label="Dimensions" optLabel="optional"
+        [value]="step2.dimensions" (valueChange)="step2.dimensions = $event"
+        placeholder="10×5×3 cm" />
+    </div>
+    <app-input label="Tags" optLabel="comma-separated"
+      [value]="step2.tagsRaw" (valueChange)="step2.tagsRaw = $event"
+      placeholder="e.g. TV, QLED, Samsung, 4K" />
+  </div>
+
+  <!-- Step 3: Attributes -->
+  <div class="modal-body" *ngIf="formStep === 3">
+    <div class="alert alert-error" *ngIf="step3Error">
+      <span class="icon icon-sm">warning</span> {{ step3Error }}
+    </div>
+    <p class="step-hint">Fill in the product specifications for this category. Fields marked * are required.</p>
+    <ng-container *ngFor="let def of attrDefs">
+      <app-input *ngIf="def.fieldType === 'TEXT'" [label]="def.label"
+        [optLabel]="def.unit ?? ''" [required]="def.required"
+        [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event"
+        [placeholder]="def.defaultValue ?? ''" />
+
+      <app-input *ngIf="def.fieldType === 'NUMBER'" [label]="def.label"
+        type="number" [optLabel]="def.unit ?? ''" [required]="def.required"
+        [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event"
+        [placeholder]="def.defaultValue ?? '0'" />
+
+      <div *ngIf="def.fieldType === 'BOOLEAN'" class="field">
+        <label class="field-label">{{ def.label }}</label>
+        <app-checkbox label="Yes" [checked]="attrValues[def.id] === 'true'"
+          (checkedChange)="attrValues[def.id] = $event ? 'true' : 'false'" />
+      </div>
+
+      <div *ngIf="def.fieldType === 'SELECT'" class="field">
+        <label class="field-label">{{ def.label }} <span class="req" *ngIf="def.required">*</span></label>
+        <select class="f-select" [(ngModel)]="attrValues[def.id]">
+          <option value="">Select…</option>
+          <option *ngFor="let opt of parsedOptions(def)" [value]="opt">{{ opt }}</option>
+        </select>
+      </div>
+
+      <div *ngIf="def.fieldType === 'MULTISELECT'" class="field">
+        <label class="field-label">{{ def.label }}</label>
+        <div class="multi-check-group">
+          <app-checkbox *ngFor="let opt of parsedOptions(def)" [label]="opt"
+            [checked]="isMultiSelected(def.id, opt)"
+            (checkedChange)="toggleMultiValue(def.id, opt)" />
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Step 4: Media Upload -->
+  <div class="modal-body" *ngIf="formStep === 4">
+    <div class="alert alert-error" *ngIf="uploadError">
+      <span class="icon icon-sm">warning</span> {{ uploadError }}
+    </div>
+    <div class="media-grid" *ngIf="uploadedMedia.length > 0">
+      <div class="media-thumb" *ngFor="let m of uploadedMedia">
+        <img *ngIf="!isVideo(m.mediaType)" [src]="m.url" [alt]="m.altText ?? ''" />
+        <div class="media-video-icon" *ngIf="isVideo(m.mediaType)">
+          <span class="icon icon-lg icon-muted">play_arrow</span>
+        </div>
+        <span class="media-type-tag">{{ m.mediaType }}</span>
+      </div>
+    </div>
+    <div class="media-empty" *ngIf="uploadedMedia.length === 0">
+      No media uploaded yet. Add the primary product image first.
+    </div>
+    <div class="upload-form">
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Media Type</label>
+          <select class="f-select" [(ngModel)]="uploadMediaType">
+            <option *ngFor="let opt of mediaTypeOptions" [value]="opt.value">{{ opt.label }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Alt Text <span class="opt">(optional)</span></label>
+          <input class="f-input" type="text" [(ngModel)]="uploadAltText" placeholder="Image description" />
+        </div>
+      </div>
+      <div class="upload-row">
+        <label class="upload-file-label">
+          <input id="upload-input" type="file" accept="image/*,video/*" (change)="onFileSelected($event)" />
+          <span>{{ uploadFile ? uploadFile.name : 'Choose file…' }}</span>
+        </label>
+        <button class="btn btn-primary" [disabled]="!uploadFile || uploading" (click)="uploadMedia()">
+          <span class="btn-spinner" *ngIf="uploading"></span>
+          {{ uploading ? 'Uploading…' : 'Upload' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Footer -->
+  <div class="modal-ft">
+    <button class="btn btn-ghost" type="button" (click)="prevStep()">
+      <span class="icon icon-sm" *ngIf="formStep > 1">arrow_back</span>
+      {{ formStep > 1 ? 'Back' : 'Cancel' }}
+    </button>
+
+    <button class="btn btn-primary" *ngIf="formStep === 1"
+      [disabled]="step1Saving" (click)="submitStep1()">
+      <span class="btn-spinner" *ngIf="step1Saving"></span>
+      {{ step1Saving ? 'Creating…' : 'Next' }}
+      <span class="icon icon-sm" *ngIf="!step1Saving">arrow_forward</span>
+    </button>
+
+    <div class="ft-actions" *ngIf="formStep === 2">
+      <button class="btn btn-ghost" type="button" (click)="skipStep2()">Skip</button>
+      <button class="btn btn-primary" [disabled]="step2Saving" (click)="submitStep2()">
+        <span class="btn-spinner" *ngIf="step2Saving"></span>
+        {{ step2Saving ? 'Saving…' : 'Save & Next' }}
+        <span class="icon icon-sm" *ngIf="!step2Saving">arrow_forward</span>
+      </button>
+    </div>
+
+    <div class="ft-actions" *ngIf="formStep === 3">
+      <button class="btn btn-ghost" type="button" (click)="skipStep3()">Skip</button>
+      <button class="btn btn-primary" [disabled]="step3Saving" (click)="submitStep3()">
+        <span class="btn-spinner" *ngIf="step3Saving"></span>
+        {{ step3Saving ? 'Saving…' : 'Save & Next' }}
+        <span class="icon icon-sm" *ngIf="!step3Saving">arrow_forward</span>
+      </button>
+    </div>
+
+    <div class="ft-actions" *ngIf="formStep === 4">
+      <button class="btn btn-ghost" type="button" (click)="addAnother()">
+        <span class="icon icon-sm">add</span> Add Another
+      </button>
+      <button class="btn btn-primary" (click)="finishWizard()">
+        View Product <span class="icon icon-sm">arrow_forward</span>
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,201 @@
+<div class="an-page">
+
+  <!-- Toolbar -->
+  <div class="an-toolbar">
+    <div class="an-toolbar-left">
+      <h1 class="an-title">Analytics</h1>
+      <span class="an-sub">Performance overview for your store</span>
+    </div>
+    <div class="an-range-tabs">
+      <button class="rtab" *ngFor="let r of ranges"
+        [class.on]="range === r.key" (click)="setRange(r.key)">{{ r.label }}</button>
+    </div>
+    <button class="export-btn">⬇ Export</button>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card" *ngFor="let k of kpis">
+      <div class="kpi-icon" [style.background]="k.color + '18'" [style.color]="k.color">{{ k.icon }}</div>
+      <div class="kpi-body">
+        <div class="kpi-label">{{ k.label }}</div>
+        <div class="kpi-value">{{ k.value }}</div>
+        <div class="kpi-sub">{{ k.sub }}</div>
+      </div>
+      <div class="kpi-trend" [class.up]="k.trend > 0" [class.dn]="k.trend < 0">
+        {{ k.trend > 0 ? '▲' : '▼' }} {{ k.trend | number:'1.1-1' }}%
+      </div>
+    </div>
+  </div>
+
+  <!-- Revenue chart + Order status -->
+  <div class="an-row two-col">
+
+    <!-- Revenue trend -->
+    <div class="an-card span2">
+      <div class="an-card-head">
+        <span class="an-card-title">Revenue Trend</span>
+        <span class="an-card-sub">Last 30 days · hover bars for details</span>
+      </div>
+      <div class="an-card-body">
+        <div class="rev-chart-wrap">
+          <div class="rev-chart-bars">
+            <div class="rev-col" *ngFor="let d of revenueData">
+              <div class="rev-tip">
+                <div class="rev-tip-val">{{ formatRevenue(d.rev) }}</div>
+                <div class="rev-tip-orders">{{ d.orders }} orders</div>
+              </div>
+              <div class="rev-bar" [style.height.%]="d.pct"></div>
+            </div>
+          </div>
+          <div class="rev-chart-days">
+            <span class="rev-day" *ngFor="let d of revenueData">{{ d.day }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Order status donut-style -->
+    <div class="an-card">
+      <div class="an-card-head"><span class="an-card-title">Order Status</span></div>
+      <div class="an-card-body">
+        <div class="status-bars">
+          <div class="sbar-row" *ngFor="let s of orderStatuses">
+            <div class="sbar-meta">
+              <span class="sbar-dot" [style.background]="s.color"></span>
+              <span class="sbar-label">{{ s.label }}</span>
+              <span class="sbar-count">{{ s.value }}</span>
+            </div>
+            <div class="sbar-track">
+              <div class="sbar-fill" [style.width.%]="s.pct" [style.background]="s.color"></div>
+            </div>
+            <span class="sbar-pct">{{ s.pct }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sales by category -->
+    <div class="an-card">
+      <div class="an-card-head"><span class="an-card-title">Sales by Category</span></div>
+      <div class="an-card-body">
+        <div class="cat-bars-an">
+          <div class="cat-bar-an" *ngFor="let c of categories">
+            <div class="cat-bar-an-head">
+              <span class="cat-bar-an-label">{{ c.label }}</span>
+              <span class="cat-bar-an-val">₹{{ (c.value / 1000).toFixed(0) }}K</span>
+            </div>
+            <div class="cat-bar-an-track">
+              <div class="cat-bar-an-fill" [style.width.%]="c.pct" [style.background]="c.color"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Customer type + Payment + Hourly -->
+  <div class="an-row three-col">
+
+    <!-- Customer type breakdown -->
+    <div class="an-card">
+      <div class="an-card-head"><span class="an-card-title">Customer Type</span></div>
+      <div class="an-card-body">
+        <div class="type-rings">
+          <div class="type-ring-row" *ngFor="let t of customerTypes">
+            <div class="trr-info">
+              <span class="trr-dot" [style.background]="t.color"></span>
+              <span class="trr-label">{{ t.label }}</span>
+            </div>
+            <div class="trr-bar-wrap">
+              <div class="trr-bar" [style.width.%]="t.pct" [style.background]="t.color"></div>
+            </div>
+            <div class="trr-right">
+              <span class="trr-pct">{{ t.pct }}%</span>
+              <span class="trr-count">{{ t.value }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment methods -->
+    <div class="an-card">
+      <div class="an-card-head"><span class="an-card-title">Payment Methods</span></div>
+      <div class="an-card-body">
+        <div class="pay-method-bars">
+          <div class="pmb-item" *ngFor="let p of paymentMethods">
+            <div class="pmb-head">
+              <span class="pmb-label">{{ p.label }}</span>
+              <span class="pmb-count">{{ p.value }}</span>
+            </div>
+            <div class="pmb-track">
+              <div class="pmb-fill" [style.width.%]="p.pct" [style.background]="p.color"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Peak hours -->
+    <div class="an-card">
+      <div class="an-card-head"><span class="an-card-title">Peak Order Hours</span></div>
+      <div class="an-card-body">
+        <div class="hour-chart">
+          <div class="hour-bars">
+            <div class="hour-col" *ngFor="let h of hourlyTraffic">
+              <div class="hour-bar" [style.height.%]="h.pct"></div>
+            </div>
+          </div>
+          <div class="hour-labels">
+            <span class="hlabel" *ngFor="let h of hourlyTraffic">{{ h.hour }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Top Products table -->
+  <div class="an-card full-card">
+    <div class="an-card-head">
+      <span class="an-card-title">Top Products by Revenue</span>
+      <span class="an-card-sub">Ranked by total revenue this period</span>
+    </div>
+    <div class="table-scroll">
+      <table class="an-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Product</th>
+            <th>Category</th>
+            <th class="num">Units Sold</th>
+            <th class="num">Revenue</th>
+            <th class="num">Growth</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of topProducts">
+            <td><span class="rank" [class.top3]="p.rank <= 3">{{ p.rank }}</span></td>
+            <td>
+              <div class="prod-cell-an">
+                <span class="prod-icon-an">{{ p.icon }}</span>
+                <span class="prod-name-an">{{ p.name }}</span>
+              </div>
+            </td>
+            <td><span class="cat-chip-an">{{ p.category }}</span></td>
+            <td class="num">{{ p.sold }}</td>
+            <td class="num bold">{{ p.revenue }}</td>
+            <td class="num">
+              <span class="growth-badge" [class.up]="p.growth > 0" [class.dn]="p.growth < 0">
+                {{ p.growth > 0 ? '▲' : '▼' }} {{ p.growth | number:'1.0-0' }}%
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>

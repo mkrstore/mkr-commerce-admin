@@ -1,0 +1,201 @@
+<!-- ── ADD PRODUCT WIZARD ── -->
+<div class="overlay" *ngIf="wizardOpen" (click)="closeWizard()"></div>
+<div class="modal modal-lg" *ngIf="wizardOpen" (click)="$event.stopPropagation()">
+
+  <ng-container *ngIf="wizardStep === 1">
+    <div class="modal-hd">
+      <div><div class="modal-title">Add Product</div><div style="font-size:12px;color:var(--t3)">Step 1 of 2 — Basic Info</div></div>
+      <button class="modal-close" (click)="closeWizard()"><span class="icon icon-sm">close</span></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert-err" *ngIf="wizardError"><span class="icon icon-sm">error</span> {{ wizardError }}</div>
+      <app-input label="Product Name" [required]="true" [touched]="wizardTouched"
+        [value]="step1.name" (valueChange)="step1.name = $event" (blur)="autoSku()"
+        placeholder="e.g. Samsung 32 Smart TV" />
+      <app-input label="SKU" [required]="true" [touched]="wizardTouched"
+        [value]="step1.sku" (valueChange)="step1.sku = $event"
+        placeholder="e.g. SAM-TV-32" hint="Auto-filled from name — must be unique" />
+      <div class="field-row">
+        <app-select label="Category" [required]="true" [touched]="wizardTouched"
+          placeholder="Select category…" [options]="categoryWizardOpts"
+          [value]="step1.categoryId" (valueChange)="step1.categoryId = $event" />
+        <app-select label="Brand" optLabel="optional"
+          [options]="brandWizardOpts"
+          [value]="step1.brandId" (valueChange)="step1.brandId = $event" />
+      </div>
+      <app-textarea label="Short Description" optLabel="optional" [rows]="2"
+        [value]="step1.shortDescription" (valueChange)="step1.shortDescription = $event"
+        placeholder="Brief product description" />
+    </div>
+    <div class="modal-ft">
+      <app-btn variant="ghost" (clicked)="closeWizard()">Cancel</app-btn>
+      <app-btn variant="primary" icon="arrow_forward" [loading]="wizardLoading" (clicked)="submitStep1()">Next: Pricing</app-btn>
+    </div>
+  </ng-container>
+
+  <ng-container *ngIf="wizardStep === 2">
+    <div class="modal-hd">
+      <div><div class="modal-title">Add Product</div><div style="font-size:12px;color:var(--t3)">Step 2 of 2 — Pricing &amp; Stock</div></div>
+      <button class="modal-close" (click)="closeWizard()"><span class="icon icon-sm">close</span></button>
+    </div>
+    <div class="modal-body">
+      <div class="alert-err" *ngIf="wizardError"><span class="icon icon-sm">error</span> {{ wizardError }}</div>
+      <div class="field-row">
+        <app-input label="Retail Price ₹" type="number" [required]="true" [touched]="wizardTouched"
+          [minVal]="1" [value]="step2.priceRetail" (valueChange)="step2.priceRetail = $event"
+          hint="Walk-in customer price" placeholder="0.00" />
+        <app-input label="Wholesale Price ₹" type="number" optLabel="optional"
+          [minVal]="1" [value]="step2.priceWholesale" (valueChange)="step2.priceWholesale = $event"
+          hint="Bulk buyers" placeholder="0.00" />
+      </div>
+      <div class="field-row">
+        <app-input label="Broker Price ₹" type="number" optLabel="optional"
+          [minVal]="1" [value]="step2.priceBroker" (valueChange)="step2.priceBroker = $event"
+          placeholder="0.00" />
+        <app-select label="GST Rate" [options]="gstOpts"
+          [value]="step2.gstPercent" (valueChange)="step2.gstPercent = +$event" />
+      </div>
+      <div class="field-row">
+        <app-input label="Opening Stock (units)" type="number" [minVal]="0"
+          [value]="step2.stockQty" (valueChange)="step2.stockQty = $event" placeholder="0" />
+        <div class="field" style="padding-top:28px">
+          <app-checkbox label="GST included in price"
+            [checked]="step2.gstIncluded" (checkedChange)="step2.gstIncluded = $event" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-ft">
+      <app-btn variant="ghost" [disabled]="wizardLoading" (clicked)="wizardStep = 1">Back</app-btn>
+      <app-btn variant="primary" icon="check" [loading]="wizardLoading" (clicked)="submitStep2()">Publish Product</app-btn>
+    </div>
+  </ng-container>
+</div>
+
+<!-- ── STOCK MODAL ── -->
+<div class="overlay" *ngIf="showStockPanel" (click)="closeStock()"></div>
+<div class="modal" *ngIf="showStockPanel && selectedProduct" (click)="$event.stopPropagation()">
+  <div class="modal-hd">
+    <div>
+      <div class="modal-title">Add Stock</div>
+      <div style="font-size:12px;color:var(--t3)">{{ selectedProduct.name }} · <span style="font-family:monospace">{{ selectedProduct.sku }}</span></div>
+    </div>
+    <button class="modal-close" (click)="closeStock()"><span class="icon icon-sm">close</span></button>
+  </div>
+  <div class="modal-body">
+    <div style="display:flex;gap:12px;margin-bottom:4px">
+      <div class="stock-stat">
+        <div class="stock-stat-val">{{ selectedProduct.stockQty }}</div>
+        <div class="stock-stat-label">Current Stock</div>
+      </div>
+      <div class="stock-stat">
+        <div class="stock-stat-val"
+          [style.color]="(selectedProduct.stockQty + addQty) === 0 ? 'var(--red)' : (selectedProduct.stockQty + addQty) <= 5 ? 'var(--amber)' : 'var(--green)'">
+          {{ selectedProduct.stockQty + addQty }}
+        </div>
+        <div class="stock-stat-label">After Update</div>
+      </div>
+    </div>
+    <app-input label="Units to Add" type="number" [minVal]="0"
+      [value]="addQty" (valueChange)="addQty = $event" placeholder="0" />
+    <div class="stock-info-row">
+      <div class="stock-info-cell"><div class="stock-info-label">Retail Price</div><div class="stock-info-val">{{ formatPrice(selectedProduct.priceRetail) }}</div></div>
+      <div class="stock-info-cell"><div class="stock-info-label">GST</div><div class="stock-info-val">{{ selectedProduct.gstPercent }}%</div></div>
+    </div>
+  </div>
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeStock()">Cancel</app-btn>
+    <app-btn variant="primary" icon="add" [loading]="stockSaving" [disabled]="addQty <= 0" (clicked)="applyStock()">Add Stock</app-btn>
+  </div>
+</div>
+
+<!-- ── PAGE ── -->
+<div class="page">
+
+  <div class="page-hd">
+    <div class="page-hd-left">
+      <div class="page-hd-title">Inventory</div>
+      <div class="page-hd-sub" *ngIf="!loading">{{ filtered.length }} of {{ products.length }} products</div>
+    </div>
+    <div class="page-hd-right">
+      <app-btn variant="primary" icon="add" (clicked)="openWizard()">Add Product</app-btn>
+    </div>
+  </div>
+
+  <!-- Search + Filters + Sort -->
+  <div class="inv-toolbar">
+    <div class="search-bar" style="flex:1;min-width:200px">
+      <span class="sb-icon icon icon-sm">search</span>
+      <input type="text" [(ngModel)]="searchQ" placeholder="Search by name or SKU…" />
+    </div>
+    <div class="inv-filters">
+      <app-select placeholder="All categories" [options]="categoryOpts"
+        [value]="filterCategory" (valueChange)="filterCategory = $event" />
+      <app-select placeholder="All brands" [options]="brandOpts"
+        [value]="filterBrand" (valueChange)="filterBrand = $event" />
+      <app-select placeholder="All status" [options]="statusOpts"
+        [value]="filterStatus" (valueChange)="filterStatus = $event" />
+      <app-select placeholder="Sort: Newest" [options]="sortOpts"
+        [value]="sortKey" (valueChange)="sortKey = $event" />
+    </div>
+    <button class="btn btn-ghost btn-sm" *ngIf="hasFilters" (click)="clearFilters()">
+      <span class="icon icon-sm">close</span> Clear
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div class="prod-grid" *ngIf="loading">
+    <div class="prod-card sk-card" *ngFor="let i of [1,2,3,4,5,6]">
+      <div class="sk sk-img"></div>
+      <div style="padding:12px;display:flex;flex-direction:column;gap:8px">
+        <div class="sk sk-text" style="width:70%;height:13px"></div>
+        <div class="sk sk-text" style="width:40%;height:11px"></div>
+        <div class="sk sk-text" style="width:55%;height:11px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="alert alert-warn" *ngIf="!loading && error">
+    <span class="icon icon-sm">error</span> {{ error }}
+    <app-btn variant="ghost" size="sm" icon="refresh" (clicked)="load()" style="margin-left:auto">Retry</app-btn>
+  </div>
+
+  <!-- Product Cards -->
+  <div class="prod-grid" *ngIf="!loading && !error">
+    <div class="prod-card" *ngFor="let p of filtered">
+
+      <!-- Image -->
+      <div class="prod-img">
+        <img *ngIf="p.primaryImageUrl" [src]="p.primaryImageUrl" [alt]="p.name" />
+        <span *ngIf="!p.primaryImageUrl" class="icon icon-xl icon-muted">inventory_2</span>
+        <span [class]="statusClass(p)" style="position:absolute;top:8px;left:8px">{{ p.status }}</span>
+      </div>
+
+      <!-- Info -->
+      <div class="prod-body">
+        <div class="prod-cat">{{ p.categoryName }}<span *ngIf="p.brandName"> · {{ p.brandName }}</span></div>
+        <div class="prod-name" [title]="p.name">{{ p.name }}</div>
+        <div class="prod-sku">{{ p.sku }}</div>
+
+        <div class="prod-price">{{ formatPrice(p.priceRetail) }}</div>
+        <div class="prod-gst">GST {{ p.gstPercent }}%</div>
+
+        <div class="prod-foot">
+          <span [class]="stockBadgeClass(p)">{{ stockLabel(p) }}</span>
+          <button class="btn btn-ghost btn-sm" (click)="openStock(p, $event)">
+            <span class="icon icon-sm">add</span> Stock
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty -->
+  <div class="empty" *ngIf="!loading && !error && filtered.length === 0" style="padding:60px">
+    <div class="empty-icon"><span class="icon icon-xl icon-muted">inventory_2</span></div>
+    <div class="empty-title">{{ products.length === 0 ? 'No products yet' : 'No products match' }}</div>
+    <app-btn *ngIf="products.length === 0" variant="primary" icon="add" (clicked)="openWizard()">Add First Product</app-btn>
+    <app-btn *ngIf="hasFilters" variant="ghost" (clicked)="clearFilters()">Clear Filters</app-btn>
+  </div>
+
+</div>

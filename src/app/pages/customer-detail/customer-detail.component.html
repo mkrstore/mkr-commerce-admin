@@ -1,0 +1,529 @@
+<!-- Not found -->
+<div class="page" *ngIf="!customer">
+  <div class="empty" style="padding:80px">
+    <div class="empty-icon"><span class="icon icon-xl icon-muted">person</span></div>
+    <div class="empty-title">Customer not found</div>
+    <button class="btn btn-ghost btn-sm" (click)="goBack()">
+      <span class="icon icon-sm">arrow_back</span> Back to Customers
+    </button>
+  </div>
+</div>
+
+<!-- Detail page -->
+<div class="page" *ngIf="customer">
+
+  <!-- ── Top bar ── -->
+  <div class="page-hd">
+    <div class="page-hd-left">
+      <div style="display:flex;align-items:center;gap:14px">
+        <button class="btn btn-ghost btn-sm" (click)="goBack()">
+          <span class="icon icon-sm">arrow_back</span>
+        </button>
+        <div class="cd-avatar" [class]="'cd-avatar-' + customer.type.toLowerCase()">
+          {{ avatar(customer.name) }}
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--t1)">{{ customer.name }}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
+            <span class="badge"
+              [class.badge-blue]="customer.type === 'Retail'"
+              [class.badge-green]="customer.type === 'Wholesale'"
+              [class.badge-purple]="customer.type === 'Broker'">
+              {{ customer.type }}
+            </span>
+            <span class="badge"
+              [class.badge-blue]="customer.source === 'Online'"
+              [class.badge-green]="customer.source === 'In-Store'">
+              <span class="icon icon-xs">{{ customer.source === 'Online' ? 'language' : 'store' }}</span>
+              {{ customer.source }}
+            </span>
+            <span style="font-size:11px;color:var(--t3)">Customer since {{ customer.since }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="page-hd-right">
+      <button class="btn btn-amber" *ngIf="customer.pendingAmount > 0" (click)="openCollect()">
+        <span class="icon icon-sm">payments</span>
+        Collect {{ fmt(customer.pendingAmount) }}
+      </button>
+      <button class="btn btn-ghost" (click)="openEdit()">
+        <span class="icon icon-sm">edit</span> Edit
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Stat strip ── -->
+  <div class="stat-strip">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-blue"><span class="icon icon-sm icon-blue">payments</span></div>
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--t1)">{{ fmt(customer.totalSpent) }}</div>
+        <div style="font-size:11px;color:var(--t3)">Total Revenue</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-purple"><span class="icon icon-sm icon-purple">package_2</span></div>
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--t1)">{{ totalOrders }}</div>
+        <div style="font-size:11px;color:var(--t3)">Total Orders</div>
+      </div>
+    </div>
+    <div class="stat-card" [class.stat-card-warn]="customer.pendingAmount > 0">
+      <div class="stat-icon"
+        [class.stat-icon-amber]="customer.pendingAmount > 0"
+        [class.stat-icon-green]="customer.pendingAmount === 0">
+        <span class="icon icon-sm"
+          [class.icon-amber]="customer.pendingAmount > 0"
+          [class.icon-green]="customer.pendingAmount === 0">
+          {{ customer.pendingAmount > 0 ? 'warning' : 'check_circle' }}
+        </span>
+      </div>
+      <div>
+        <div style="font-size:15px;font-weight:800"
+          [style.color]="customer.pendingAmount > 0 ? 'var(--amber)' : 'var(--green)'">
+          {{ customer.pendingAmount > 0 ? fmt(customer.pendingAmount) : 'Clear' }}
+        </div>
+        <div style="font-size:11px;color:var(--t3)">Pending Balance</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-gray"><span class="icon icon-sm icon-muted">calendar_today</span></div>
+      <div>
+        <div style="font-size:15px;font-weight:800;color:var(--t1)">{{ customer.lastOrder }}</div>
+        <div style="font-size:11px;color:var(--t3)">Last Order</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main grid ── -->
+  <div class="cd-grid">
+
+    <!-- LEFT: Tabs content -->
+    <div class="cd-left">
+
+      <!-- Tab bar -->
+      <div class="tabs-pill" style="align-self:flex-start;margin-bottom:12px">
+        <button class="tab-btn" [class.active]="activeTab === 'orders'" (click)="activeTab = 'orders'">
+          <span class="icon icon-sm">package_2</span> Orders
+          <span style="font-size:11px">{{ totalOrders }}</span>
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'khata'" (click)="activeTab = 'khata'">
+          <span class="icon icon-sm">menu_book</span> Khata Book
+          <span style="font-size:11px;color:var(--amber)" *ngIf="customer.pendingAmount > 0">
+            {{ fmt(customer.pendingAmount) }}
+          </span>
+          <span style="font-size:11px" *ngIf="customer.pendingAmount === 0">Clear</span>
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'notes'" (click)="activeTab = 'notes'">
+          <span class="icon icon-sm">notes</span> Notes
+        </button>
+      </div>
+
+      <!-- Orders tab -->
+      <div *ngIf="activeTab === 'orders'" class="card">
+        <div class="card-hd">
+          <div class="card-hd-title">Order History</div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Items</th>
+                <th style="text-align:right">Amount</th>
+                <th>Status</th>
+                <th>Payment</th>
+                <th>Method</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let o of customer.orders">
+                <td>
+                  <span style="font-size:11px;color:var(--blue);font-family:monospace;
+                    background:var(--blue-light);padding:2px 6px;border-radius:4px">
+                    {{ o.id }}
+                  </span>
+                </td>
+                <td style="color:var(--t2);white-space:nowrap;font-size:12px">{{ o.date }}</td>
+                <td style="color:var(--t2);font-size:12px;max-width:220px">{{ o.items }}</td>
+                <td style="text-align:right;font-weight:700;color:var(--t1)">{{ fmt(o.amount) }}</td>
+                <td>
+                  <span class="badge"
+                    [class.badge-amber]="o.statusClass === 'pending'"
+                    [class.badge-blue]="o.statusClass === 'confirmed'"
+                    [class.badge-purple]="o.statusClass === 'shipped'"
+                    [class.badge-green]="o.statusClass === 'delivered'"
+                    [class.badge-red]="o.statusClass === 'cancelled'">
+                    {{ o.status }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge"
+                    [class.badge-green]="o.paymentStatus === 'Paid'"
+                    [class.badge-amber]="o.paymentStatus === 'Pending'">
+                    {{ o.paymentStatus === 'Paid' ? 'Paid' : 'Pending' }}
+                  </span>
+                </td>
+                <td style="color:var(--t3);font-size:12px;white-space:nowrap">{{ o.paymentMethod }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr style="background:var(--surface2)">
+                <td colspan="3" style="font-weight:700;color:var(--t2);font-size:13px;padding:11px 14px">
+                  Total Revenue from Customer
+                </td>
+                <td style="text-align:right;font-size:15px;font-weight:900;color:var(--blue);padding:11px 14px">
+                  {{ fmt(totalRevenue) }}
+                </td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Khata tab -->
+      <div *ngIf="activeTab === 'khata'" class="card">
+        <div class="card-hd">
+          <div class="card-hd-title">Khata Book</div>
+          <button class="btn btn-ghost btn-sm" (click)="openKhata()">
+            <span class="icon icon-sm">add</span> Add Entry
+          </button>
+        </div>
+
+        <div class="empty" style="padding:30px" *ngIf="customer.khata.length === 0">
+          <div class="empty-icon"><span class="icon icon-lg icon-muted">menu_book</span></div>
+          <div class="empty-sub">No khata entries. This customer has no outstanding balance.</div>
+        </div>
+
+        <div class="tbl-wrap" *ngIf="customer.khata.length > 0">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th style="text-align:right">Debit (Owes)</th>
+                <th style="text-align:right">Credit (Paid)</th>
+                <th style="text-align:right">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let k of customer.khata">
+                <td style="color:var(--t2);white-space:nowrap;font-size:12px">{{ k.date }}</td>
+                <td style="color:var(--t2);font-size:12px;max-width:240px">
+                  {{ k.description }}
+                  <a style="font-size:11px;color:var(--blue);font-family:monospace;margin-left:4px;cursor:pointer"
+                    *ngIf="k.orderId">{{ k.orderId }}</a>
+                </td>
+                <td>
+                  <span class="badge"
+                    [class.badge-blue]="k.entryType === 'auto-order'"
+                    [class.badge-red]="k.entryType === 'manual-debit'"
+                    [class.badge-green]="k.entryType === 'manual-credit'">
+                    {{ k.entryType === 'auto-order' ? 'Auto' : k.entryType === 'manual-debit' ? 'Credit Given' : 'Payment' }}
+                  </span>
+                </td>
+                <td style="text-align:right;color:var(--red);font-weight:700">
+                  {{ k.debit > 0 ? fmt(k.debit) : '—' }}
+                </td>
+                <td style="text-align:right;color:var(--green);font-weight:700">
+                  {{ k.credit > 0 ? fmt(k.credit) : '—' }}
+                </td>
+                <td style="text-align:right;font-weight:800"
+                  [style.color]="k.balance > 0 ? 'var(--red)' : 'var(--green)'">
+                  {{ fmt(k.balance) }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr style="background:var(--surface2)">
+                <td colspan="5" style="font-weight:700;color:var(--t2);font-size:13px;padding:11px 14px">
+                  Pending Balance
+                </td>
+                <td style="text-align:right;font-size:15px;font-weight:900;padding:11px 14px"
+                  [style.color]="customer.pendingAmount > 0 ? 'var(--red)' : 'var(--green)'">
+                  {{ customer.pendingAmount > 0 ? fmt(customer.pendingAmount) : 'Clear' }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <!-- Collect CTA -->
+        <div class="khata-cta" *ngIf="customer.pendingAmount > 0">
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--amber)">
+            <span class="icon icon-sm icon-amber">warning</span>
+            {{ fmt(customer.pendingAmount) }} is due from this customer
+          </div>
+          <button class="btn btn-amber btn-sm" (click)="openCollect()">
+            <span class="icon icon-sm">payments</span> Collect Payment
+          </button>
+        </div>
+      </div>
+
+      <!-- Notes tab -->
+      <div *ngIf="activeTab === 'notes'" class="card">
+        <div class="card-hd">
+          <div class="card-hd-title">Staff Notes</div>
+          <button class="btn btn-ghost btn-sm" (click)="openEdit()">
+            <span class="icon icon-sm">edit</span> Edit Notes
+          </button>
+        </div>
+        <div class="card-body">
+          <div style="font-size:14px;color:var(--t2);line-height:1.7" *ngIf="customer.notes">
+            {{ customer.notes }}
+          </div>
+          <div style="font-size:13px;color:var(--t3);font-style:italic" *ngIf="!customer.notes">
+            No notes added yet. Click Edit Notes to add.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Profile sidebar -->
+    <div class="cd-right">
+
+      <!-- Contact info -->
+      <div class="card">
+        <div class="card-hd"><div class="card-hd-title">Contact Info</div></div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="ir-label">Email</span>
+            <span class="ir-val">{{ customer.email }}</span>
+          </div>
+          <div class="info-row">
+            <span class="ir-label">Phone</span>
+            <span class="ir-val">{{ customer.phone }}</span>
+          </div>
+          <div class="info-row">
+            <span class="ir-label">Address</span>
+            <span class="ir-val">{{ customer.address }}</span>
+          </div>
+          <div class="info-row" *ngIf="customer.gstNumber">
+            <span class="ir-label">GST No.</span>
+            <code class="gst-code">{{ customer.gstNumber }}</code>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account info -->
+      <div class="card">
+        <div class="card-hd"><div class="card-hd-title">Account Info</div></div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="ir-label">ID</span>
+            <code class="gst-code">{{ customer.id }}</code>
+          </div>
+          <div class="info-row">
+            <span class="ir-label">Type</span>
+            <span class="badge"
+              [class.badge-blue]="customer.type === 'Retail'"
+              [class.badge-green]="customer.type === 'Wholesale'"
+              [class.badge-purple]="customer.type === 'Broker'">
+              {{ customer.type }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="ir-label">Channel</span>
+            <span class="badge"
+              [class.badge-blue]="customer.source === 'Online'"
+              [class.badge-green]="customer.source === 'In-Store'">
+              {{ customer.source }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="ir-label">Since</span>
+            <span class="ir-val">{{ customer.since }}</span>
+          </div>
+          <div class="info-row" style="border-bottom:none">
+            <span class="ir-label">Last Order</span>
+            <span class="ir-val">{{ customer.lastOrder }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="card">
+        <div class="card-hd"><div class="card-hd-title">Actions</div></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-amber" style="width:100%;justify-content:center"
+            *ngIf="customer.pendingAmount > 0" (click)="openCollect()">
+            <span class="icon icon-sm">payments</span> Collect Payment
+          </button>
+          <button class="btn btn-ghost" style="width:100%;justify-content:flex-start" (click)="openKhata()">
+            <span class="icon icon-sm">menu_book</span> Add Khata Entry
+          </button>
+          <button class="btn btn-ghost" style="width:100%;justify-content:flex-start" (click)="openEdit()">
+            <span class="icon icon-sm">edit</span> Edit Customer
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════
+     EDIT CUSTOMER MODAL
+══════════════════════ -->
+<div class="overlay" *ngIf="showEditModal" (click)="showEditModal = false"></div>
+<div class="modal modal-lg" *ngIf="showEditModal" (click)="$event.stopPropagation()">
+  <div class="modal-hd">
+    <span class="modal-title">Edit Customer — {{ customer?.name }}</span>
+    <button class="modal-close" (click)="showEditModal = false">
+      <span class="icon icon-sm">close</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">Full Name</label>
+        <input class="f-input" [(ngModel)]="editForm.name" placeholder="Full name" />
+      </div>
+      <div class="field">
+        <label class="field-label">Phone</label>
+        <input class="f-input" [(ngModel)]="editForm.phone" placeholder="+91 XXXXX XXXXX" />
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">Email</label>
+      <input class="f-input" [(ngModel)]="editForm.email" placeholder="email@example.com" />
+    </div>
+    <div class="field">
+      <label class="field-label">Address</label>
+      <input class="f-input" [(ngModel)]="editForm.address" placeholder="Full address with city & PIN" />
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">Customer Type</label>
+        <select class="f-select" [(ngModel)]="editForm.type">
+          <option value="Retail">Retail</option>
+          <option value="Wholesale">Wholesale</option>
+          <option value="Broker">Broker</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">GST Number <span class="opt">(optional)</span></label>
+        <input class="f-input" [(ngModel)]="editForm.gstNumber" placeholder="e.g. 27AABCM1234Z1Z2" />
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">Staff Notes <span class="opt">(optional)</span></label>
+      <textarea class="f-textarea" [(ngModel)]="editForm.notes" rows="3"
+        placeholder="Internal notes about this customer…"></textarea>
+    </div>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-ghost" (click)="showEditModal = false">Cancel</button>
+    <button class="btn btn-primary" (click)="saveEdit()">Save Changes</button>
+  </div>
+</div>
+
+<!-- ══════════════════════
+     COLLECT PAYMENT MODAL
+══════════════════════ -->
+<div class="overlay" *ngIf="showCollectModal" (click)="showCollectModal = false"></div>
+<div class="modal modal-sm" *ngIf="showCollectModal" (click)="$event.stopPropagation()">
+  <div class="modal-hd">
+    <span class="modal-title">Collect Payment</span>
+    <button class="modal-close" (click)="showCollectModal = false">
+      <span class="icon icon-sm">close</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--surface2);border-radius:var(--radius)">
+      <div class="cd-avatar cd-avatar-sm" [class]="'cd-avatar-' + customer!.type.toLowerCase()">
+        {{ avatar(customer!.name) }}
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--t1)">{{ customer!.name }}</div>
+        <div style="font-size:12px;color:var(--amber)">
+          Outstanding: <strong>{{ fmt(customer!.pendingAmount) }}</strong>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">Amount Received (₹)</label>
+      <input class="f-input" type="number" [(ngModel)]="collectAmount"
+        min="1" [max]="customer!.pendingAmount" />
+    </div>
+    <div class="field">
+      <label class="field-label">Payment Method</label>
+      <select class="f-select" [(ngModel)]="collectMethod">
+        <option *ngFor="let m of paymentMethods">{{ m }}</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label">Note <span class="opt">(optional)</span></label>
+      <input class="f-input" [(ngModel)]="collectNote" placeholder="e.g. Received at store counter" />
+    </div>
+    <div *ngIf="collectAmount > 0"
+      style="padding:10px 14px;background:var(--surface2);border-radius:var(--radius);font-size:13px;color:var(--t2)">
+      Remaining after collection:
+      <strong [style.color]="customer!.pendingAmount - collectAmount <= 0 ? 'var(--green)' : 'var(--amber)'">
+        {{ customer!.pendingAmount - collectAmount <= 0 ? 'Fully Cleared' : fmt(customer!.pendingAmount - collectAmount) }}
+      </strong>
+    </div>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-ghost" (click)="showCollectModal = false">Cancel</button>
+    <button class="btn btn-success" (click)="submitCollect()" [disabled]="collectAmount <= 0">
+      <span class="icon icon-sm">check</span> Mark Collected
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════
+     ADD KHATA ENTRY MODAL
+══════════════════════ -->
+<div class="overlay" *ngIf="showKhataModal" (click)="showKhataModal = false"></div>
+<div class="modal modal-sm" *ngIf="showKhataModal" (click)="$event.stopPropagation()">
+  <div class="modal-hd">
+    <span class="modal-title">Add Khata Entry</span>
+    <button class="modal-close" (click)="showKhataModal = false">
+      <span class="icon icon-sm">close</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <!-- Entry type toggle -->
+    <div style="display:flex;gap:8px">
+      <button class="entry-toggle"
+        [class.entry-toggle-debit]="khataEntryType === 'manual-debit'"
+        (click)="khataEntryType = 'manual-debit'">
+        <span class="icon icon-sm">arrow_outward</span>
+        Credit Given (Customer Owes)
+      </button>
+      <button class="entry-toggle"
+        [class.entry-toggle-credit]="khataEntryType === 'manual-credit'"
+        (click)="khataEntryType = 'manual-credit'">
+        <span class="icon icon-sm">arrow_downward</span>
+        Payment Received
+      </button>
+    </div>
+    <div class="field">
+      <label class="field-label">Description</label>
+      <input class="f-input" [(ngModel)]="khataDesc"
+        [placeholder]="khataEntryType === 'manual-debit' ? 'e.g. Goods given on credit' : 'e.g. Cash received at store'" />
+    </div>
+    <div class="field">
+      <label class="field-label">Amount (₹)</label>
+      <input class="f-input" type="number" [(ngModel)]="khataAmount" min="1" placeholder="0" />
+    </div>
+    <div class="field">
+      <label class="field-label">Note <span class="opt">(optional)</span></label>
+      <input class="f-input" [(ngModel)]="khataNote" placeholder="Any extra detail…" />
+    </div>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-ghost" (click)="showKhataModal = false">Cancel</button>
+    <button class="btn btn-primary" (click)="submitKhata()"
+      [disabled]="!khataDesc || khataAmount <= 0">
+      Add Entry
+    </button>
+  </div>
+</div>

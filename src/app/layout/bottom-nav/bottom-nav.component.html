@@ -1,0 +1,26 @@
+<nav class="bottom-nav">
+  <a
+    *ngFor="let item of items"
+    class="bnav-item"
+    [routerLink]="item.route"
+    routerLinkActive="on"
+    #rla="routerLinkActive"
+  >
+    <div class="bnav-icon-wrap">
+      <span class="bnav-icon icon"
+        [style.font-variation-settings]="rla.isActive ? '\'FILL\' 1,\'wght\' 500,\'GRAD\' 0,\'opsz\' 24' : '\'FILL\' 0,\'wght\' 400,\'GRAD\' 0,\'opsz\' 24'">
+        {{ item.icon }}
+      </span>
+      <span *ngIf="item.badge" class="bnav-badge">{{ item.badge }}</span>
+    </div>
+    <span class="bnav-label">{{ item.label }}</span>
+  </a>
+
+  <!-- More → opens sidebar -->
+  <button class="bnav-item" (click)="sidebar.toggle()">
+    <div class="bnav-icon-wrap">
+      <span class="bnav-icon icon">{{ menuIcon }}</span>
+    </div>
+    <span class="bnav-label">More</span>
+  </button>
+</nav>

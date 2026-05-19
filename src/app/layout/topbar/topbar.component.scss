@@ -1,0 +1,319 @@
+.adm-topbar {
+  background: var(--topbar-bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  height: 56px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  transition: background .3s, border-color .3s;
+}
+
+.menu-btn {
+  color: var(--t2);
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  &:hover { background: var(--surface2); color: var(--t1); }
+}
+
+.adm-pg-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--t1);
+  flex: 1;
+}
+
+.adm-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 7px 14px;
+  width: 200px;
+
+  input {
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 13px;
+    color: var(--t1);
+    width: 100%;
+    &::placeholder { color: var(--t3); }
+  }
+
+  .search-icon { color: var(--t3); line-height: 1; }
+}
+
+// ── Notification Bell ──────────────────────────────────────────────────────────
+
+.notif-wrap {
+  position: relative;
+}
+
+.notif-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--t2);
+  position: relative;
+  flex-shrink: 0;
+  transition: all .15s;
+
+  &:hover { border-color: var(--blue); background: var(--blue-light); color: var(--blue); }
+}
+
+.notif-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--red);
+  color: #fff;
+  border-radius: 9px;
+  font-size: .62rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--topbar-bg);
+}
+
+// ── Notification Panel ─────────────────────────────────────────────────────────
+
+.notif-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.14);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  max-height: 480px;
+  overflow: hidden;
+}
+
+.np-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .875rem 1rem .5rem;
+  flex-shrink: 0;
+}
+
+.np-title {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--t1);
+}
+
+.np-read-all {
+  font-size: .75rem;
+  color: var(--blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  &:hover { text-decoration: underline; }
+}
+
+// Tabs
+.np-tabs {
+  display: flex;
+  padding: 0 .75rem;
+  gap: .25rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.np-tab {
+  padding: .4rem .6rem;
+  border: none;
+  background: none;
+  font-size: .76rem;
+  font-weight: 500;
+  color: var(--t3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  transition: all .15s;
+  white-space: nowrap;
+
+  &.active {
+    color: var(--blue);
+    border-bottom-color: var(--blue);
+  }
+
+  &:hover:not(.active) { color: var(--t2); }
+}
+
+.np-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  background: var(--red);
+  color: #fff;
+  border-radius: 8px;
+  font-size: .6rem;
+  font-weight: 800;
+
+  &.red    { background: #ef4444; }
+  &.purple { background: #7c3aed; }
+}
+
+// List
+.np-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.np-item {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+  padding: .75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  transition: background .1s;
+
+  &:hover { background: var(--surface2); }
+  &:last-child { border-bottom: none; }
+
+  &.unread { background: var(--blue-light); }
+}
+
+.np-icon {
+  flex-shrink: 0;
+  margin-top: .1rem;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  color: var(--t2);
+}
+.np-item[class*="payment"] .np-icon,
+.np-item .np-icon { }
+/* Type-based icon colors set per notification type in template */
+
+.np-content { flex: 1; min-width: 0; }
+
+.np-item-title {
+  font-size: .84rem;
+  font-weight: 600;
+  color: var(--t1);
+  margin-bottom: .15rem;
+}
+
+.np-item-body {
+  font-size: .76rem;
+  color: var(--t2);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.np-item-time {
+  font-size: .7rem;
+  color: var(--t3);
+  margin-top: .2rem;
+}
+
+.np-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blue);
+  flex-shrink: 0;
+  margin-top: .35rem;
+}
+
+.np-empty {
+  padding: 2rem;
+  text-align: center;
+  font-size: .84rem;
+  color: var(--t3);
+}
+
+// Backdrop (closes panel when clicking outside)
+.notif-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+// ── User Avatar ────────────────────────────────────────────────────────────────
+
+.adm-avatar-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2874F0, #8B5CF6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  title: 'User';
+}
+
+// ── Responsive ─────────────────────────────────────────────────────────────────
+
+@media (max-width: 768px) {
+  .menu-btn   { display: flex; }
+  .adm-search { display: none; }
+  .adm-pg-title { font-size: 16px; }
+
+  .notif-panel {
+    position: fixed;
+    top: 56px; left: 0; right: 0;
+    width: 100%; max-width: 100%;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    max-height: calc(100vh - 56px - 62px);
+    box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  }
+}
+
+@media (max-width: 480px) {
+  .adm-topbar { padding: 0 12px; gap: 6px; }
+  .adm-pg-title { font-size: 15px; }
+  .adm-avatar-btn { width: 30px; height: 30px; font-size: 11px; }
+}

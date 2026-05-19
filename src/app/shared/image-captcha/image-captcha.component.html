@@ -1,0 +1,23 @@
+<div class="ic-wrap">
+  <div class="ic-canvas-row">
+    <canvas #captchaCanvas width="210" height="64" class="ic-canvas"></canvas>
+    <button type="button" class="ic-refresh" (click)="generate()" title="New CAPTCHA">↻</button>
+  </div>
+
+  <div class="ic-verify-row" *ngIf="!isVerified">
+    <input
+      type="text"
+      class="ic-input"
+      [(ngModel)]="input"
+      placeholder="Type the characters above"
+      maxlength="8"
+      autocomplete="off"
+      spellcheck="false"
+      (keydown.enter)="verify()"
+    />
+    <button type="button" class="ic-btn" (click)="verify()">Verify</button>
+  </div>
+
+  <div class="ic-msg ic-error" *ngIf="hasError">Incorrect — a new CAPTCHA has been generated.</div>
+  <div class="ic-msg ic-success" *ngIf="isVerified">✓ Verified</div>
+</div>

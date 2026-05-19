@@ -1,0 +1,321 @@
+<div class="page">
+
+  <div class="page-hd">
+    <div class="page-hd-left">
+      <div class="page-hd-title">Categories</div>
+      <div class="page-hd-sub" *ngIf="!loading()">{{ totalCount() }} categories</div>
+    </div>
+    <div class="page-hd-right">
+      <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreate()">New Category</app-btn>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-bar">
+      <span class="sb-icon icon icon-sm">search</span>
+      <input type="text" [(ngModel)]="searchQuery" placeholder="Search categories…" (ngModelChange)="onFilterChange()" />
+      <button class="sb-clear" *ngIf="searchQuery" (click)="searchQuery=''; onFilterChange()">
+        <span class="icon icon-xs">close</span>
+      </button>
+    </div>
+    <app-select placeholder="All Status" [options]="statusFilterOpts"
+      [value]="activeFilter" (valueChange)="activeFilter = $event; onFilterChange()" />
+    <app-btn variant="ghost" size="sm" *ngIf="searchQuery || activeFilter" (clicked)="clearFilters()">Clear</app-btn>
+  </div>
+
+  <!-- Skeleton -->
+  <div class="tbl-card" *ngIf="loading()">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>Name</th><th>Parent</th><th>Spec Fields</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let r of skeletonRows">
+            <td><div class="sk" style="width:120px;height:13px"></div></td>
+            <td><div class="sk" style="width:80px;height:13px"></div></td>
+            <td><div class="sk" style="width:60px;height:13px"></div></td>
+            <td><div class="sk" style="width:60px;height:20px;border-radius:99px"></div></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty" *ngIf="!loading() && categories().length === 0">
+    <div class="empty-icon"><span class="icon icon-xl icon-muted">folder</span></div>
+    <div class="empty-title">No categories found</div>
+    <div class="empty-sub" *ngIf="!searchQuery && !activeFilter && canManage()">
+      Create categories to organise products (e.g. Smartphones, Refrigerators, TVs)
+    </div>
+    <app-btn variant="primary" size="sm" icon="add"
+      *ngIf="!searchQuery && !activeFilter && canManage()" (clicked)="openCreate()">New Category</app-btn>
+  </div>
+
+  <!-- Table -->
+  <div class="tbl-card" *ngIf="!loading() && categories().length > 0">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Parent</th>
+            <th>Spec Fields</th>
+            <th>Status</th>
+            <th *ngIf="canManage()"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let cat of categories()" class="tbl-row" (click)="openEdit(cat)">
+            <td>
+              <div>
+                <div style="font-weight:600;color:var(--t1)">{{ cat.name }}</div>
+                <div style="font-size:11px;color:var(--t3);font-family:monospace">{{ cat.slug }}</div>
+              </div>
+            </td>
+            <td style="color:var(--t3)">{{ cat.parentName ?? '—' }}</td>
+            <td>
+              <span class="cat-spec-count" [class.has-specs]="(cat.attributeDefinitions?.length ?? 0) > 0">
+                <span class="icon icon-xs">tune</span>
+                {{ cat.attributeDefinitions?.length ?? 0 }} fields
+              </span>
+            </td>
+            <td>
+              <span class="badge" [class.badge-green]="cat.isActive" [class.badge-gray]="!cat.isActive">
+                {{ cat.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+            <td *ngIf="canManage()" (click)="$event.stopPropagation()">
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" (click)="openEdit(cat)">
+                  <span class="icon icon-sm">edit</span>
+                </button>
+                <button class="btn btn-ghost btn-sm" *ngIf="cat.isActive" (click)="openDelete(cat)">
+                  <span class="icon icon-sm icon-red">block</span>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pgn" *ngIf="totalPages() > 1">
+      <button class="pgn-btn" [disabled]="currentPage()===0" (click)="goToPage(currentPage()-1)">
+        <span class="icon icon-sm">chevron_left</span>
+      </button>
+      <ng-container *ngFor="let pg of pageNumbers()">
+        <span class="pgn-ellipsis" *ngIf="pg===-1">…</span>
+        <button class="pgn-btn" *ngIf="pg!==-1" [class.active]="pg===currentPage()" (click)="goToPage(pg)">{{ pg+1 }}</button>
+      </ng-container>
+      <button class="pgn-btn" [disabled]="currentPage()===totalPages()-1" (click)="goToPage(currentPage()+1)">
+        <span class="icon icon-sm">chevron_right</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── CREATE / EDIT MODAL (with tabs: Details + Spec Fields) ── -->
+<div class="overlay" *ngIf="modalMode !== 'closed'" (click)="closeModal()"></div>
+<div class="modal modal-lg" *ngIf="modalMode !== 'closed'" (click)="$event.stopPropagation()">
+  <div class="modal-hd">
+    <div>
+      <div class="modal-title">{{ modalMode === 'create' ? 'New Category' : editTarget?.name }}</div>
+      <div style="font-size:12px;color:var(--t3)" *ngIf="modalMode==='edit'">Edit category details and spec fields</div>
+    </div>
+    <button class="modal-close" (click)="closeModal()"><span class="icon icon-sm">close</span></button>
+  </div>
+
+  <!-- Tabs (only show spec fields tab when editing existing category) -->
+  <div class="tabs" style="padding:0 22px" *ngIf="modalMode === 'edit'">
+    <button class="tab-btn" [class.active]="activeTab === 'details'" (click)="activeTab = 'details'">Details</button>
+    <button class="tab-btn" [class.active]="activeTab === 'specs'" (click)="activeTab = 'specs'; loadAttrsIfNeeded()">
+      <span class="icon icon-sm">tune</span>
+      Spec Fields
+      <span class="tab-count" *ngIf="attrs.length > 0">{{ attrs.length }}</span>
+    </button>
+  </div>
+
+  <!-- ── TAB: Details ── -->
+  <ng-container *ngIf="activeTab === 'details'">
+    <div class="modal-body">
+      <div class="alert alert-error" *ngIf="modalError">
+        <span class="icon icon-sm">warning</span> {{ modalError }}
+      </div>
+      <app-input label="Name" [required]="true" [touched]="formTouched"
+        [value]="form.name" (valueChange)="form.name = $event" placeholder="e.g. Smartphones" />
+      <app-input label="Slug" optLabel="auto-generated if blank"
+        [value]="form.slug" (valueChange)="form.slug = $event" placeholder="e.g. smartphones" />
+      <app-textarea label="Description" optLabel="optional"
+        [value]="form.description" (valueChange)="form.description = $event"
+        placeholder="Short description of what products go in this category" [rows]="2" />
+      <div class="field-row">
+        <app-select label="Parent Category" optLabel="optional" placeholder="None (top-level)"
+          [options]="parentCategoryOpts"
+          [value]="form.parentId" (valueChange)="form.parentId = $event" />
+        <app-input label="Sort Order" type="number" style="max-width:110px"
+          [value]="form.sortOrder" (valueChange)="form.sortOrder = $event" />
+      </div>
+      <app-checkbox *ngIf="modalMode === 'edit'" label="Active"
+        [checked]="form.isActive" (checkedChange)="form.isActive = $event" />
+    </div>
+    <div class="modal-ft">
+      <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
+      <app-btn variant="primary" [loading]="saving" (clicked)="save()">
+        {{ modalMode === 'create' ? 'Create Category' : 'Save Changes' }}
+      </app-btn>
+    </div>
+  </ng-container>
+
+  <!-- ── TAB: Spec Fields ── -->
+  <ng-container *ngIf="activeTab === 'specs'">
+    <div class="modal-body">
+
+      <!-- Explain what spec fields are -->
+      <div class="spec-info-box">
+        <span class="icon icon-sm icon-blue">info</span>
+        <span>Spec fields define what product info is collected for <strong>{{ editTarget?.name }}</strong> — e.g. for Smartphones: RAM, Storage, Battery, OS. These appear as a form when adding products in this category.</span>
+      </div>
+
+      <!-- Attr error -->
+      <div class="alert alert-error" *ngIf="attrError">
+        <span class="icon icon-sm">warning</span> {{ attrError }}
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="attrLoading" style="display:flex;flex-direction:column;gap:8px">
+        <div class="sk" style="height:48px;border-radius:8px"></div>
+        <div class="sk" style="height:48px;border-radius:8px"></div>
+      </div>
+
+      <!-- Inline attr form -->
+      <div class="attr-form-panel" *ngIf="!attrLoading && attrView === 'form'">
+        <div class="attr-form-hd">
+          <button class="attr-back-btn" (click)="backToAttrList()">
+            <span class="icon icon-sm">arrow_back</span>
+          </button>
+          <span style="font-size:14px;font-weight:700;color:var(--t1)">
+            {{ attrEditTarget ? 'Edit Field' : 'New Spec Field' }}
+          </span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;padding:14px 16px">
+          <app-input label="Field Label" [required]="true" [touched]="attrFormTouched"
+            [value]="attrForm.label" (valueChange)="attrForm.label = $event"
+            placeholder="e.g. RAM, Screen Size, Battery" />
+          <app-input *ngIf="!attrEditTarget" label="Field Key" [required]="true" [touched]="attrFormTouched"
+            hint="Unique key in snake_case — cannot be changed after saving"
+            [value]="attrForm.fieldKey" (valueChange)="attrForm.fieldKey = $event"
+            placeholder="e.g. ram, screen_size, battery_mah" />
+          <div class="field-row">
+            <app-select label="Field Type" [required]="true" [options]="fieldTypeOpts"
+              [value]="attrForm.fieldType" (valueChange)="attrForm.fieldType = $event" />
+            <app-input label="Unit" optLabel="optional"
+              [value]="attrForm.unit" (valueChange)="attrForm.unit = $event" placeholder="e.g. GB, inch, mAh" />
+          </div>
+          <!-- Individual option inputs for SELECT / MULTISELECT -->
+          <div *ngIf="showOptionInputs" class="field">
+            <label class="field-label">Options <span class="req">*</span></label>
+            <div class="option-inputs">
+              <div *ngFor="let opt of optionInputs; let oi = index" class="option-input-row">
+                <input class="f-input" type="text"
+                  [value]="optionInputs[oi]"
+                  (input)="optionInputs[oi] = $any($event.target).value; syncOptions()"
+                  placeholder="Option {{ oi + 1 }}" />
+                <button class="opt-remove-btn" (click)="removeOption(oi)" [disabled]="optionInputs.length === 1">
+                  <span class="icon icon-sm">close</span>
+                </button>
+              </div>
+            </div>
+            <button class="opt-add-btn" (click)="addOption()">
+              <span class="icon icon-sm">add</span> Add option
+            </button>
+          </div>
+          <div class="field-row">
+            <app-input label="Default Value" optLabel="optional" style="flex:1"
+              [value]="attrForm.defaultValue" (valueChange)="attrForm.defaultValue = $event"
+              placeholder="Leave blank for no default" />
+            <div class="field" style="justify-content:flex-end;padding-bottom:4px">
+              <app-checkbox label="Required field"
+                [checked]="attrForm.required" (checkedChange)="attrForm.required = $event" />
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <app-btn variant="ghost" size="sm" (clicked)="backToAttrList()">Cancel</app-btn>
+            <app-btn variant="primary" size="sm" [loading]="attrSaving" (clicked)="saveAttr()">
+              {{ attrEditTarget ? 'Update Field' : 'Add Field' }}
+            </app-btn>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attr list -->
+      <ng-container *ngIf="!attrLoading && attrView === 'list'">
+        <div class="empty" style="padding:28px" *ngIf="attrs.length === 0">
+          <div class="empty-icon"><span class="icon icon-lg icon-muted">tune</span></div>
+          <div class="empty-title" style="font-size:14px">No spec fields yet</div>
+          <div class="empty-sub">Add fields like RAM, Screen Size, Battery etc. to collect product specs for this category.</div>
+          <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreateAttr()">Add First Field</app-btn>
+        </div>
+
+        <div *ngIf="attrs.length > 0" style="display:flex;flex-direction:column;gap:6px">
+          <div *ngFor="let a of attrs" class="attr-item">
+            <div class="attr-item-left">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:13px;font-weight:600;color:var(--t1)">{{ a.label }}</span>
+                <span class="badge badge-red" *ngIf="a.required" style="font-size:10px">required</span>
+              </div>
+              <div style="font-size:11px;color:var(--t3);margin-top:2px">
+                <span class="attr-type-chip">{{ fieldTypeLabel(a.fieldType) }}</span>
+                <span *ngIf="a.unit"> · {{ a.unit }}</span>
+                <span style="font-family:monospace;margin-left:6px;opacity:.6">{{ a.fieldKey }}</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:4px" *ngIf="canManage()">
+              <button class="btn btn-ghost btn-sm" (click)="openEditAttr(a)"><span class="icon icon-sm">edit</span></button>
+              <button class="btn btn-ghost btn-sm" (click)="openDeleteAttr(a)"><span class="icon icon-sm icon-red">delete</span></button>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="modal-ft" *ngIf="!attrLoading && attrView === 'list' && canManage()">
+      <app-btn variant="ghost" (clicked)="closeModal()">Close</app-btn>
+      <app-btn variant="primary" icon="add" (clicked)="openCreateAttr()">Add Spec Field</app-btn>
+    </div>
+    <div class="modal-ft" *ngIf="attrLoading || attrView === 'form'">
+      <app-btn variant="ghost" (clicked)="closeModal()">Close</app-btn>
+    </div>
+  </ng-container>
+</div>
+
+<!-- ── DEACTIVATE CONFIRM ── -->
+<div class="overlay" *ngIf="deleteTarget" (click)="closeDelete()"></div>
+<div class="modal modal-sm" *ngIf="deleteTarget" (click)="$event.stopPropagation()">
+  <div class="confirm-body">
+    <div class="confirm-icon warning"><span class="icon icon-lg">block</span></div>
+    <h3>Deactivate Category?</h3>
+    <p><strong>{{ deleteTarget.name }}</strong> will be hidden from the product catalogue.</p>
+    <div class="alert alert-error" *ngIf="deleteError">{{ deleteError }}</div>
+  </div>
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeDelete()">Cancel</app-btn>
+    <app-btn variant="danger" [loading]="deleting" (clicked)="confirmDelete()">Deactivate</app-btn>
+  </div>
+</div>
+
+<!-- ── DELETE ATTR CONFIRM ── -->
+<div class="overlay" *ngIf="attrDeleteTarget" style="z-index:302" (click)="closeDeleteAttr()"></div>
+<div class="modal modal-sm" *ngIf="attrDeleteTarget" style="z-index:303" (click)="$event.stopPropagation()">
+  <div class="confirm-body">
+    <div class="confirm-icon danger"><span class="icon icon-lg">delete</span></div>
+    <h3>Delete Spec Field?</h3>
+    <p>
+      <strong>{{ attrDeleteTarget.label }}</strong> and all its saved values on existing products will be permanently removed.
+    </p>
+  </div>
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeDeleteAttr()">Cancel</app-btn>
+    <app-btn variant="danger" [loading]="attrDeleting" (clicked)="confirmDeleteAttr()">Delete Field</app-btn>
+  </div>
+</div>
