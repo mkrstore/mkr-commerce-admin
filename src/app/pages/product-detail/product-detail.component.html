@@ -8,9 +8,7 @@
 <div class="detail-notfound" *ngIf="!loading() && notFound">
   <div class="dnf-icon"><span class="icon icon-xl icon-muted">inventory_2</span></div>
   <div class="dnf-title">Product not found</div>
-  <button class="btn btn-ghost btn-sm" (click)="back()">
-    <span class="icon icon-sm">arrow_back</span> Back to Products
-  </button>
+  <app-btn variant="ghost" size="sm" icon="arrow_back" (clicked)="back()">Back to Products</app-btn>
 </div>
 
 <!-- Product detail -->
@@ -18,19 +16,15 @@
 
   <!-- ── TOP BAR ── -->
   <div class="detail-topbar">
-    <button class="btn btn-ghost btn-sm" (click)="back()">
-      <span class="icon icon-sm">arrow_back</span> Products
-    </button>
+    <app-btn variant="ghost" size="sm" icon="arrow_back" (clicked)="back()">Products</app-btn>
     <div class="dt-center">
       <h1 class="dt-name">{{ p.name }}</h1>
       <span class="status-badge" [ngClass]="statusClass(p.status)">{{ p.status }}</span>
     </div>
     <div class="dt-actions" *ngIf="canEdit()">
-      <button class="btn btn-ghost btn-sm" (click)="clone()" title="Clone product">
-        <span class="icon icon-sm">content_copy</span> Clone
-      </button>
-      <button class="btn btn-success btn-sm" *ngIf="p.status !== 'ACTIVE'" (click)="setStatus('ACTIVE')">Activate</button>
-      <button class="btn btn-danger btn-sm" *ngIf="p.status === 'ACTIVE'" (click)="setStatus('INACTIVE')">Deactivate</button>
+      <app-btn variant="ghost" size="sm" icon="content_copy" (clicked)="clone()">Clone</app-btn>
+      <app-btn variant="primary" size="sm" *ngIf="p.status !== 'ACTIVE'" (clicked)="setStatus('ACTIVE')">Activate</app-btn>
+      <app-btn variant="danger" size="sm" *ngIf="p.status === 'ACTIVE'" (clicked)="setStatus('INACTIVE')">Deactivate</app-btn>
     </div>
   </div>
 
@@ -62,29 +56,12 @@
         [value]="infoForm.slug" (valueChange)="infoForm.slug = $event" />
       <app-input label="Barcode" optLabel="EAN / UPC"
         [value]="infoForm.barcode" (valueChange)="infoForm.barcode = $event" />
-      <div class="fg">
-        <label class="field-label">Status</label>
-        <select class="f-select" [(ngModel)]="infoForm.status">
-          <option *ngFor="let s of allStatuses" [value]="s">{{ s }}</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label class="field-label">Category</label>
-        <select class="f-select" [(ngModel)]="infoForm.categoryId">
-          <option value="">Select category…</option>
-          <ng-container *ngFor="let cat of categories()">
-            <option [value]="cat.id">{{ cat.name }}</option>
-            <option *ngFor="let child of cat.children" [value]="child.id">— {{ child.name }}</option>
-          </ng-container>
-        </select>
-      </div>
-      <div class="fg">
-        <label class="field-label">Brand</label>
-        <select class="f-select" [(ngModel)]="infoForm.brandId">
-          <option value="">No brand</option>
-          <option *ngFor="let b of brands()" [value]="b.id">{{ b.name }}</option>
-        </select>
-      </div>
+      <app-select label="Status" [options]="statusOpts"
+        [value]="infoForm.status" (valueChange)="infoForm.status = $event" />
+      <app-select label="Category" placeholder="Select category…" [options]="categoryOpts"
+        [value]="infoForm.categoryId" (valueChange)="infoForm.categoryId = $event" />
+      <app-select label="Brand" placeholder="No brand" [options]="brandOpts"
+        [value]="infoForm.brandId" (valueChange)="infoForm.brandId = $event" />
       <app-input class="span-2" label="Short Description"
         [value]="infoForm.shortDescription" (valueChange)="infoForm.shortDescription = $event"
         placeholder="One-liner shown in listing" />
@@ -96,10 +73,7 @@
     </div>
 
     <div class="save-bar" *ngIf="canEdit()">
-      <button class="btn btn-primary" [disabled]="infoSaving" (click)="saveInfo()">
-        <span class="btn-spinner" *ngIf="infoSaving"></span>
-        {{ infoSaving ? 'Saving…' : 'Save Changes' }}
-      </button>
+      <app-btn variant="primary" [loading]="infoSaving" (clicked)="saveInfo()">Save Changes</app-btn>
     </div>
   </div>
 
@@ -153,10 +127,7 @@
     </div>
 
     <div class="save-bar" *ngIf="canEdit()">
-      <button class="btn btn-primary" [disabled]="pricingSaving" (click)="savePricing()">
-        <span class="btn-spinner" *ngIf="pricingSaving"></span>
-        {{ pricingSaving ? 'Saving…' : 'Save Changes' }}
-      </button>
+      <app-btn variant="primary" [loading]="pricingSaving" (clicked)="savePricing()">Save Changes</app-btn>
     </div>
   </div>
 
@@ -184,17 +155,15 @@
 
         <div *ngIf="def.fieldType === 'BOOLEAN'" class="field">
           <label class="field-label">{{ def.label }}</label>
-          <app-checkbox [label]="'Yes'" [checked]="attrValues[def.id] === 'true'"
+          <app-checkbox label="Yes" [checked]="attrValues[def.id] === 'true'"
             (checkedChange)="attrValues[def.id] = $event ? 'true' : 'false'" />
         </div>
 
-        <div *ngIf="def.fieldType === 'SELECT'" class="field">
-          <label class="field-label">{{ def.label }} <span class="req" *ngIf="def.required">*</span></label>
-          <select class="f-select" [(ngModel)]="attrValues[def.id]">
-            <option value="">Select…</option>
-            <option *ngFor="let opt of parsedOptions(def)" [value]="opt">{{ opt }}</option>
-          </select>
-        </div>
+        <app-select *ngIf="def.fieldType === 'SELECT'"
+          [label]="def.label + (def.unit ? ' (' + def.unit + ')' : '')"
+          placeholder="Select…" [options]="getAttrOpts(def)"
+          [required]="def.required"
+          [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event" />
 
         <div *ngIf="def.fieldType === 'MULTISELECT'" class="field">
           <label class="field-label">{{ def.label }}</label>
@@ -208,10 +177,7 @@
     </div>
 
     <div class="save-bar" *ngIf="canEdit() && attrDefs.length > 0">
-      <button class="btn btn-primary" [disabled]="attrSaving" (click)="saveAttributes()">
-        <span class="btn-spinner" *ngIf="attrSaving"></span>
-        {{ attrSaving ? 'Saving…' : 'Save Attributes' }}
-      </button>
+      <app-btn variant="primary" [loading]="attrSaving" (clicked)="saveAttributes()">Save Attributes</app-btn>
     </div>
   </div>
 
@@ -248,12 +214,8 @@
     <div class="upload-section" *ngIf="canEdit()">
       <div class="us-title">Upload Media</div>
       <div class="form-grid">
-        <div class="fg">
-          <label class="field-label">Media Type</label>
-          <select class="f-select" [(ngModel)]="uploadMediaType">
-            <option *ngFor="let opt of mediaTypeOptions" [value]="opt.value">{{ opt.label }}</option>
-          </select>
-        </div>
+        <app-select label="Media Type" [options]="mediaTypeOpts"
+          [value]="uploadMediaType" (valueChange)="uploadMediaType = $event" />
         <app-input label="Alt Text" optLabel="optional"
           [value]="uploadAltText" (valueChange)="uploadAltText = $event"
           placeholder="Image description" />
@@ -263,10 +225,9 @@
           <input id="media-upload-input" type="file" accept="image/*,video/*" (change)="onFileSelected($event)" />
           <span>{{ uploadFile ? uploadFile.name : 'Choose file…' }}</span>
         </label>
-        <button class="btn btn-primary" [disabled]="!uploadFile || uploading" (click)="uploadMedia()">
-          <span class="btn-spinner" *ngIf="uploading"></span>
-          {{ uploading ? 'Uploading…' : 'Upload' }}
-        </button>
+        <app-btn variant="primary" [loading]="uploading" [disabled]="!uploadFile" (clicked)="uploadMedia()">
+          Upload
+        </app-btn>
       </div>
     </div>
   </div>
@@ -284,10 +245,7 @@
     <p>This <strong>{{ deleteConfirmMedia.mediaType.replace('_', ' ').toLowerCase() }}</strong> will be permanently removed from Cloudinary.</p>
   </div>
   <div class="modal-ft">
-    <button class="btn btn-ghost" (click)="closeDeleteMedia()">Cancel</button>
-    <button class="btn btn-danger" [disabled]="deletingMedia" (click)="confirmDeleteMedia()">
-      <span class="btn-spinner" *ngIf="deletingMedia"></span>
-      {{ deletingMedia ? 'Deleting…' : 'Delete' }}
-    </button>
+    <app-btn variant="ghost" (clicked)="closeDeleteMedia()">Cancel</app-btn>
+    <app-btn variant="danger" [loading]="deletingMedia" (clicked)="confirmDeleteMedia()">Delete</app-btn>
   </div>
 </div>

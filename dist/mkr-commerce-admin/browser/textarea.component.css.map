@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["textarea.component.ts"],
+  "sourcesContent": [":host { display: block; }"],
+  "mappings": ";AAAA;AAAQ,WAAA;;",
+  "names": []
+}

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/app.component.scss"],
+  "sourcesContent": [".app-shell {\n  display: flex;\n  height: 100vh;\n  overflow: hidden;\n  background: var(--bg);\n  transition: background .3s;\n}\n\n.app-content {\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  min-width: 0;\n  overflow: hidden;\n}\n\n.app-main {\n  flex: 1;\n  overflow-y: auto;\n  padding-bottom: 0;\n}\n\n/* Overlay for mobile sidebar */\n.sidebar-overlay {\n  display: none;\n  position: fixed;\n  inset: 0;\n  background: rgba(0,0,0,.45);\n  z-index: 200;\n  opacity: 0;\n  transition: opacity .25s;\n  &.open { opacity: 1; }\n}\n\n/* Mobile: show bottom nav, hide desktop sidebar, add bottom padding */\n@media (max-width: 768px) {\n  .sidebar-overlay { display: block; pointer-events: none; }\n  .sidebar-overlay.open { pointer-events: all; }\n  /* bottom-nav clearance handled per-page via .page class in styles.scss */\n}\n"],
+  "mappings": ";AAAA,CAAA;AACE,WAAA;AACA,UAAA;AACA,YAAA;AACA,cAAA,IAAA;AACA,cAAA,WAAA;;AAGF,CAAA;AACE,QAAA;AACA,WAAA;AACA,kBAAA;AACA,aAAA;AACA,YAAA;;AAGF,CAAA;AACE,QAAA;AACA,cAAA;AACA,kBAAA;;AAIF,CAAA;AACE,WAAA;AACA,YAAA;AACA,SAAA;AACA,cAAA,KAAA,CAAA,EAAA,CAAA,EAAA,CAAA,EAAA;AACA,WAAA;AACA,WAAA;AACA,cAAA,QAAA;;AACA,CARF,eAQE,CAAA;AAAS,WAAA;;AAIX,OAAA,CAAA,SAAA,EAAA;AACE,GAbF;AAaqB,aAAA;AAAgB,oBAAA;;AACnC,GAdF,eAcE,CANA;AAMwB,oBAAA;;;",
+  "names": []
+}

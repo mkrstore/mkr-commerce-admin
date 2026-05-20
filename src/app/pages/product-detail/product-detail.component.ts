@@ -6,7 +6,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService }     from '../../services/auth.service';
 import { PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
-import { AppInputComponent, AppSelectComponent, AppTextareaComponent, AppCheckboxComponent } from '../../shared/ui';
+import { AppInputComponent, AppSelectComponent, AppTextareaComponent, AppCheckboxComponent, AppBtnComponent } from '../../shared/ui';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ interface ProductDetail {
 @Component({
   selector: 'app-product-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, AppInputComponent, AppSelectComponent, AppTextareaComponent, AppCheckboxComponent],
+  imports: [CommonModule, FormsModule, AppInputComponent, AppSelectComponent, AppTextareaComponent, AppCheckboxComponent, AppBtnComponent],
   templateUrl: './product-detail.component.html',
   styleUrl: './product-detail.component.scss'
 })
@@ -132,6 +132,30 @@ export class ProductDetailComponent implements OnInit {
   });
 
   get productId(): string { return this.route.snapshot.paramMap.get('id') ?? ''; }
+
+  get statusOpts() { return this.allStatuses.map(s => ({ value: s, label: s })); }
+
+  get categoryOpts() {
+    const result: { value: string; label: string }[] = [];
+    const flatten = (nodes: CategoryNode[], prefix = '') => {
+      for (const n of nodes) {
+        result.push({ value: n.id, label: prefix + n.name });
+        if (n.children?.length) flatten(n.children, prefix + '— ');
+      }
+    };
+    flatten(this.categories());
+    return result;
+  }
+
+  get brandOpts() {
+    return [{ value: '', label: 'No brand' }, ...this.brands().map(b => ({ value: b.id, label: b.name }))];
+  }
+
+  get mediaTypeOpts() { return this.mediaTypeOptions; }
+
+  getAttrOpts(def: AttributeDefinitionDto) {
+    return this.parsedOptions(def).map(o => ({ value: o, label: o }));
+  }
 
   constructor(
     private http: HttpClient,

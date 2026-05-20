@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/pages/chat/chat.component.ts", "src/app/pages/chat/chat.component.html"],
+  "sourcesContent": ["import { Component } from '@angular/core';\r\n\r\n@Component({\r\n  selector: 'app-chat',\r\n  standalone: true,\r\n  imports: [],\r\n  templateUrl: './chat.component.html',\r\n  styleUrl: './chat.component.scss'\r\n})\r\nexport class ChatComponent {\r\n\r\n}\r\n", "<div class=\"page-placeholder\">\n  <div class=\"placeholder-icon\">💬</div>\n  <h2>Chat Support</h2>\n  <p>This module is under development.</p>\n</div>\n"],
+  "mappings": ";;;;;;;;;;AASM,IAAO,gBAAP,MAAO,eAAa;;qCAAb,gBAAa;EAAA;yEAAb,gBAAa,WAAA,CAAA,CAAA,UAAA,CAAA,GAAA,YAAA,MAAA,UAAA,CAAA,6BAAA,GAAA,OAAA,GAAA,MAAA,GAAA,QAAA,CAAA,CAAA,GAAA,kBAAA,GAAA,CAAA,GAAA,kBAAA,CAAA,GAAA,UAAA,SAAA,uBAAA,IAAA,KAAA;AAAA,QAAA,KAAA,GAAA;ACT1B,MAAA,yBAAA,GAAA,OAAA,CAAA,EAA8B,GAAA,OAAA,CAAA;AACE,MAAA,iBAAA,GAAA,WAAA;AAAE,MAAA,uBAAA;AAChC,MAAA,yBAAA,GAAA,IAAA;AAAI,MAAA,iBAAA,GAAA,cAAA;AAAY,MAAA,uBAAA;AAChB,MAAA,yBAAA,GAAA,GAAA;AAAG,MAAA,iBAAA,GAAA,mCAAA;AAAiC,MAAA,uBAAA,EAAI;;;;;6EDM7B,eAAa,EAAA,WAAA,iBAAA,UAAA,4CAAA,YAAA,GAAA,CAAA;AAAA,GAAA;",
+  "names": []
+}

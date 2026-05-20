@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["src/app/pages/brands/brands.component.scss"],
+  "sourcesContent": [".brand-logo-cell {\n  width: 36px; height: 36px; border-radius: 8px;\n  border: 1px solid var(--border); background: var(--surface2);\n  display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;\n  img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }\n}\n\n.slug-badge {\n  background: var(--surface2); color: var(--t3);\n  padding: 2px 7px; border-radius: 4px; font-family: monospace; font-size: 11px;\n}\n\n.icon-red { color: var(--red); }\n"],
+  "mappings": ";AAAA,CAAA;AACE,SAAA;AAAa,UAAA;AAAc,iBAAA;AAC3B,UAAA,IAAA,MAAA,IAAA;AAAiC,cAAA,IAAA;AACjC,WAAA;AAAe,eAAA;AAAqB,mBAAA;AAAyB,YAAA;AAAkB,eAAA;;AAC/E,CAJF,gBAIE;AAAM,SAAA;AAAa,UAAA;AAAc,cAAA;AAAqB,WAAA;;AAGxD,CAAA;AACE,cAAA,IAAA;AAA6B,SAAA,IAAA;AAC7B,WAAA,IAAA;AAAkB,iBAAA;AAAoB,eAAA;AAAwB,aAAA;;AAGhE,CAAA;AAAY,SAAA,IAAA;;",
+  "names": []
+}

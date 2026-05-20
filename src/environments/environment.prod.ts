@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiBase: 'https://api.mkr.com',   // replace with real backend URL before deploying
+  apiBase: 'https://mkr-commerce-backend.onrender.com',  // update with actual Render service URL
 };

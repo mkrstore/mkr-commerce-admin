@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["oauth2-callback.component.ts"],
+  "sourcesContent": ["\n    .cb-wrap {\n      display: flex; flex-direction: column;\n      align-items: center; justify-content: center;\n      height: 100vh; font-family: sans-serif; gap: 14px;\n      background: #F9FAFB;\n    }\n    .cb-spinner {\n      width: 38px; height: 38px;\n      border: 3px solid #E5E7EB;\n      border-top-color: #6366F1;\n      border-radius: 50%;\n      animation: spin 0.75s linear infinite;\n    }\n    @keyframes spin { to { transform: rotate(360deg); } }\n    .cb-msg { color: #6B7280; font-size: 14px; }\n  "],
+  "mappings": ";AACI,CAAA;AACE,WAAA;AAAe,kBAAA;AACf,eAAA;AAAqB,mBAAA;AACrB,UAAA;AAAe,eAAA;AAAyB,OAAA;AACxC,cAAA;;AAEF,CAAA;AACE,SAAA;AAAa,UAAA;AACb,UAAA,IAAA,MAAA;AACA,oBAAA;AACA,iBAAA;AACA,aAAA,KAAA,MAAA,OAAA;;AAEF,WAFE;AAEgB;AAAK,eAAA,OAAA;;;AACvB,CAAA;AAAU,SAAA;AAAgB,aAAA;;",
+  "names": []
+}
