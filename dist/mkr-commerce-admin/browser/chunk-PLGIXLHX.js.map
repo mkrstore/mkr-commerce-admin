@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/services/shop-settings.service.ts"],
-  "sourcesContent": ["import { Injectable } from '@angular/core';\n\nexport interface ShopSettings {\n  name:       string;\n  tagline:    string;\n  address:    string;\n  phone:      string;\n  phone2:     string;\n  email:      string;\n  gstin:      string;\n}\n\nconst KEY = 'mkr_shop_settings';\n\nconst DEFAULTS: ShopSettings = {\n  name:    'MKR Store',\n  tagline: 'Home Appliances & Electronics',\n  address: '',\n  phone:   '',\n  phone2:  '',\n  email:   '',\n  gstin:   '',\n};\n\n@Injectable({ providedIn: 'root' })\nexport class ShopSettingsService {\n\n  get(): ShopSettings {\n    try {\n      const raw = localStorage.getItem(KEY);\n      return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : { ...DEFAULTS };\n    } catch {\n      return { ...DEFAULTS };\n    }\n  }\n\n  save(s: ShopSettings): void {\n    localStorage.setItem(KEY, JSON.stringify(s));\n  }\n}\n"],
-  "mappings": ";;;;;;AAYA,IAAM,MAAM;AAEZ,IAAM,WAAyB;EAC7B,MAAS;EACT,SAAS;EACT,SAAS;EACT,OAAS;EACT,QAAS;EACT,OAAS;EACT,OAAS;;AAIL,IAAO,sBAAP,MAAO,qBAAmB;EAE9B,MAAG;AACD,QAAI;AACF,YAAM,MAAM,aAAa,QAAQ,GAAG;AACpC,aAAO,MAAM,kCAAK,WAAa,KAAK,MAAM,GAAG,KAAM,mBAAK;IAC1D,QAAQ;AACN,aAAO,mBAAK;IACd;EACF;EAEA,KAAK,GAAe;AAClB,iBAAa,QAAQ,KAAK,KAAK,UAAU,CAAC,CAAC;EAC7C;;qCAbW,sBAAmB;EAAA;4EAAnB,sBAAmB,SAAnB,qBAAmB,WAAA,YADN,OAAM,CAAA;;",
-  "names": []
-}

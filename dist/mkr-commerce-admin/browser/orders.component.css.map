@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/pages/orders/orders.component.scss"],
-  "sourcesContent": [".status-opt {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  padding: 10px 14px;\n  border: 1.5px solid var(--border);\n  border-radius: var(--radius);\n  cursor: pointer;\n\n  input { display: none; }\n\n  &.selected {\n    border-color: var(--blue);\n    background: var(--blue-light);\n  }\n}\n"],
-  "mappings": ";AAAA,CAAA;AACE,WAAA;AACA,eAAA;AACA,OAAA;AACA,WAAA,KAAA;AACA,UAAA,MAAA,MAAA,IAAA;AACA,iBAAA,IAAA;AACA,UAAA;;AAEA,CATF,WASE;AAAQ,WAAA;;AAER,CAXF,UAWE,CAAA;AACE,gBAAA,IAAA;AACA,cAAA,IAAA;;",
-  "names": []
-}

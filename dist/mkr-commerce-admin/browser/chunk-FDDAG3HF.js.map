@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/pages/promotions/promotions.component.ts", "src/app/pages/promotions/promotions.component.html"],
-  "sourcesContent": ["import { Component } from '@angular/core';\r\n\r\n@Component({\r\n  selector: 'app-promotions',\r\n  standalone: true,\r\n  imports: [],\r\n  templateUrl: './promotions.component.html',\r\n  styleUrl: './promotions.component.scss'\r\n})\r\nexport class PromotionsComponent {\r\n\r\n}\r\n", "<div class=\"page-placeholder\">\n  <div class=\"placeholder-icon\">🎫</div>\n  <h2>Promotions</h2>\n  <p>This module is under development.</p>\n</div>\n"],
-  "mappings": ";;;;;;;;;;AASM,IAAO,sBAAP,MAAO,qBAAmB;;qCAAnB,sBAAmB;EAAA;yEAAnB,sBAAmB,WAAA,CAAA,CAAA,gBAAA,CAAA,GAAA,YAAA,MAAA,UAAA,CAAA,6BAAA,GAAA,OAAA,GAAA,MAAA,GAAA,QAAA,CAAA,CAAA,GAAA,kBAAA,GAAA,CAAA,GAAA,kBAAA,CAAA,GAAA,UAAA,SAAA,6BAAA,IAAA,KAAA;AAAA,QAAA,KAAA,GAAA;ACThC,MAAA,yBAAA,GAAA,OAAA,CAAA,EAA8B,GAAA,OAAA,CAAA;AACE,MAAA,iBAAA,GAAA,WAAA;AAAE,MAAA,uBAAA;AAChC,MAAA,yBAAA,GAAA,IAAA;AAAI,MAAA,iBAAA,GAAA,YAAA;AAAU,MAAA,uBAAA;AACd,MAAA,yBAAA,GAAA,GAAA;AAAG,MAAA,iBAAA,GAAA,mCAAA;AAAiC,MAAA,uBAAA,EAAI;;;;;6EDM7B,qBAAmB,EAAA,WAAA,uBAAA,UAAA,wDAAA,YAAA,GAAA,CAAA;AAAA,GAAA;",
-  "names": []
-}

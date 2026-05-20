@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["src/app/pages/delivery/delivery.component.ts", "src/app/pages/delivery/delivery.component.html"],
-  "sourcesContent": ["import { Component } from '@angular/core';\r\n\r\n@Component({\r\n  selector: 'app-delivery',\r\n  standalone: true,\r\n  imports: [],\r\n  templateUrl: './delivery.component.html',\r\n  styleUrl: './delivery.component.scss'\r\n})\r\nexport class DeliveryComponent {\r\n\r\n}\r\n", "<div class=\"page-placeholder\">\n  <div class=\"placeholder-icon\">🚚</div>\n  <h2>Delivery</h2>\n  <p>This module is under development.</p>\n</div>\n"],
-  "mappings": ";;;;;;;;;;AASM,IAAO,oBAAP,MAAO,mBAAiB;;qCAAjB,oBAAiB;EAAA;yEAAjB,oBAAiB,WAAA,CAAA,CAAA,cAAA,CAAA,GAAA,YAAA,MAAA,UAAA,CAAA,6BAAA,GAAA,OAAA,GAAA,MAAA,GAAA,QAAA,CAAA,CAAA,GAAA,kBAAA,GAAA,CAAA,GAAA,kBAAA,CAAA,GAAA,UAAA,SAAA,2BAAA,IAAA,KAAA;AAAA,QAAA,KAAA,GAAA;ACT9B,MAAA,yBAAA,GAAA,OAAA,CAAA,EAA8B,GAAA,OAAA,CAAA;AACE,MAAA,iBAAA,GAAA,WAAA;AAAE,MAAA,uBAAA;AAChC,MAAA,yBAAA,GAAA,IAAA;AAAI,MAAA,iBAAA,GAAA,UAAA;AAAQ,MAAA,uBAAA;AACZ,MAAA,yBAAA,GAAA,GAAA;AAAG,MAAA,iBAAA,GAAA,mCAAA;AAAiC,MAAA,uBAAA,EAAI;;;;;6EDM7B,mBAAiB,EAAA,WAAA,qBAAA,UAAA,oDAAA,YAAA,GAAA,CAAA;AAAA,GAAA;",
-  "names": []
-}
