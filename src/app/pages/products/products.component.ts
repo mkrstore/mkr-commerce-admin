@@ -157,7 +157,7 @@ export class ProductsComponent implements OnInit {
     return !!(this.searchQuery || this.selectedCategoryId || this.selectedBrandId || this.selectedStatus);
   }
 
-  constructor(private http: HttpClient, private router: Router, public auth: AuthService) {}
+  constructor(private http: HttpClient, public router: Router, public auth: AuthService) {}
 
   ngOnInit() {
     this.loadCategories();
