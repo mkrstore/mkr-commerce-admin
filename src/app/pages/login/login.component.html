@@ -12,7 +12,7 @@
     </div>
     <div class="lp-roles">
       <div class="rc" *ngFor="let r of roleCards">
-        <span class="rc-icon" [style.background]="r.color + '22'" [style.color]="r.color">{{ r.icon }}</span>
+        <span class="rc-icon" [style.background]="r.color + '22'" [style.color]="r.color"><span class="icon icon-sm">{{ r.icon }}</span></span>
         <div class="rc-body">
           <div class="rc-name">{{ r.name }}</div>
           <div class="rc-desc">{{ r.desc }}</div>

@@ -7,6 +7,7 @@ import { AuthService }                  from '../../services/auth.service';
 import { ThemeService }                 from '../../services/theme.service';
 import { ROLE_META, ROLE_ORDER }        from '../../core/constants/roles.constants';
 import { extractErrorMessage }          from '../../core/models/api.models';
+import { PASSWORD_MIN_LENGTH }          from '../../core/constants/app.constants';
 
 type ModalState = 'closed' | 'form' | 'sent';
 
@@ -68,18 +69,48 @@ export class LoginComponent {
 
   login() {
     this.error = '';
-    if (!this.identifier.trim() || !this.password) {
-      this.error = 'Please enter your email or phone and password.';
+    const id = this.identifier.trim();
+
+    if (!id) {
+      this.error = 'Please enter your email or phone number.';
       return;
     }
+    if (id.includes('@')) {
+      if (!this.isValidEmail(id)) {
+        this.error = 'Please enter a valid email address (e.g. you@company.com).';
+        return;
+      }
+    } else {
+      if (!this.isValidPhone(id)) {
+        this.error = 'Please enter a valid 10-digit mobile number starting with 6–9.';
+        return;
+      }
+    }
+    if (!this.password) {
+      this.error = 'Please enter your password.';
+      return;
+    }
+    if (this.password.length < PASSWORD_MIN_LENGTH) {
+      this.error = `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`;
+      return;
+    }
+
     this.loading = true;
-    this.auth.login(this.identifier.trim(), this.password).subscribe({
+    this.auth.login(id, this.password).subscribe({
       next: () => this.router.navigate(['/dashboard']),
       error: (e) => {
         this.error   = extractErrorMessage(e, 'Sign in failed. Please try again.');
         this.loading = false;
       }
     });
+  }
+
+  private isValidEmail(v: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+  }
+
+  private isValidPhone(v: string): boolean {
+    return /^[6-9]\d{9}$/.test(v);
   }
 
   loginWithGoogle() { this.auth.loginWithGoogle(); }
@@ -101,8 +132,13 @@ export class LoginComponent {
 
   sendResetLink() {
     this.fpError = '';
-    if (!this.fpEmail.trim()) {
+    const email = this.fpEmail.trim();
+    if (!email) {
       this.fpError = 'Please enter your email address.';
+      return;
+    }
+    if (!this.isValidEmail(email)) {
+      this.fpError = 'Please enter a valid email address (e.g. you@company.com).';
       return;
     }
     this.fpLoading = true;

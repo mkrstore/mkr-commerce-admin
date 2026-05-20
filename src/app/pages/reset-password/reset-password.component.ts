@@ -4,7 +4,7 @@ import { FormsModule }              from '@angular/forms';
 import { ActivatedRoute, Router }   from '@angular/router';
 import { AuthService }              from '../../services/auth.service';
 import { ThemeService }             from '../../services/theme.service';
-import { PASSWORD_REQUIREMENTS }    from '../../core/constants/app.constants';
+import { PASSWORD_REQUIREMENTS, PASSWORD_PATTERN } from '../../core/constants/app.constants';
 import { extractErrorMessage }      from '../../core/models/api.models';
 
 type PageState = 'validating' | 'invalid' | 'form' | 'submitting' | 'success';
@@ -84,6 +84,14 @@ export class ResetPasswordComponent implements OnInit {
 
   submit() {
     this.error = '';
+    if (!this.newPassword) {
+      this.error = 'Please enter a new password.';
+      return;
+    }
+    if (!PASSWORD_PATTERN.test(this.newPassword)) {
+      this.error = 'Password must be 8+ characters with uppercase, lowercase, number and symbol (@$!%*?&_#^).';
+      return;
+    }
     if (this.newPassword !== this.confirmPassword) {
       this.error = 'Passwords do not match.';
       return;
