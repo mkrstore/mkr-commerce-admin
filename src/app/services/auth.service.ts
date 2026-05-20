@@ -1,7 +1,7 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, catchError, map } from 'rxjs';
+import { Observable, tap, catchError, map, timeout } from 'rxjs';
 import { AUTH_ENDPOINTS }             from '../core/constants/api.constants';
 import { ROLE_META }                  from '../core/constants/roles.constants';
 import { ApiResponse }                from '../core/models/api.models';
@@ -52,6 +52,7 @@ export class AuthService {
   initAuth(): Promise<void> {
     return new Promise(resolve => {
       this.http.post<ApiResponse<LoginResponse>>(this.EP.REFRESH, {})
+        .pipe(timeout(5000))
         .subscribe({
           next: res => {
             if (res.data) {
@@ -60,10 +61,7 @@ export class AuthService {
             }
             resolve();
           },
-          error: () => {
-            // No valid session — authGuard will redirect to /login when needed.
-            resolve();
-          }
+          error: () => resolve()
         });
     });
   }
