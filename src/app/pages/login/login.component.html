@@ -46,7 +46,7 @@
         <div class="fg-input" [class.fg-input-err]="error && !loading">
           <span class="fgi-icon">👤</span>
           <input type="text" [(ngModel)]="identifier" placeholder="your@company.com or 9876543210"
-            autocomplete="off" (keydown.enter)="login()" [disabled]="loading"/>
+            autocomplete="off" (ngModelChange)="error=''" (keydown.enter)="login()" [disabled]="loading"/>
         </div>
       </div>
 
@@ -60,7 +60,7 @@
           <span class="fgi-icon">🔒</span>
           <input [type]="showPwd ? 'text' : 'password'" [(ngModel)]="password"
             placeholder="••••••••" autocomplete="new-password"
-            (keydown.enter)="login()" [disabled]="loading"/>
+            (ngModelChange)="error=''" (keydown.enter)="login()" [disabled]="loading"/>
           <button class="fgi-eye" type="button" (click)="showPwd=!showPwd">
             {{ showPwd ? '🙈' : '👁️' }}
           </button>

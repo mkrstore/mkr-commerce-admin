@@ -97,10 +97,10 @@ export class UsersComponent implements OnInit {
     return CREATABLE_BY[role ?? 'SUPPORT'] ?? [];
   });
 
-  previewFullName = computed(() =>
-    [this.form.firstName, this.form.middleName, this.form.lastName]
-      .filter(p => p.trim()).join(' ')
-  );
+  previewFullName(): string {
+    return [this.form.firstName, this.form.middleName, this.form.lastName]
+      .filter(p => (p ?? '').trim()).join(' ');
+  }
 
   pageNumbers = computed<(number | -1)[]>(() => {
     const total = this.totalPages();

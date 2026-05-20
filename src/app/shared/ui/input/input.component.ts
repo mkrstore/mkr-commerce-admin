@@ -21,6 +21,7 @@ import { CommonModule } from '@angular/common';
         [disabled]="disabled"
         [class.error]="showError"
         (input)="onInput($event)"
+        (blur)="blurred.emit()"
         (wheel)="onWheel($event)"
         (keydown)="onKeyDown($event)"
       />
@@ -46,6 +47,7 @@ export class AppInputComponent {
   @Input() minVal: number | null = null;
 
   @Output() valueChange = new EventEmitter<any>();
+  @Output() blurred     = new EventEmitter<void>();
 
   get showError(): boolean {
     if (!this.touched || !this.required) return false;
