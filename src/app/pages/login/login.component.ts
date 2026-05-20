@@ -26,6 +26,8 @@ export class LoginComponent {
   showPwd     = false;
   loading = false;
   error   = '';
+  identifierError = '';
+  passwordError   = '';
 
   // ── Forgot password modal ───────────────────────────────────────────────
   modal: ModalState = 'closed';
@@ -69,6 +71,8 @@ export class LoginComponent {
 
   login() {
     this.error = '';
+    this.identifierError = '';
+    this.passwordError = '';
     const id = this.identifier.trim();
 
     if (!id) {
@@ -114,6 +118,25 @@ export class LoginComponent {
   }
 
   loginWithGoogle() { this.auth.loginWithGoogle(); }
+
+  onIdentifierInput() {
+    this.error = '';
+    const id = this.identifier;
+    if (!id) { this.identifierError = ''; return; }
+    if (id.includes('@')) {
+      this.identifierError = this.isValidEmail(id) ? '' : 'Enter a valid email address.';
+    } else {
+      if (id.length < 10) { this.identifierError = ''; return; }
+      this.identifierError = this.isValidPhone(id) ? '' : 'Enter a valid 10-digit mobile number starting with 6–9.';
+    }
+  }
+
+  onPasswordInput() {
+    this.error = '';
+    this.passwordError = this.password.length > 0 && this.password.length < PASSWORD_MIN_LENGTH
+      ? `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`
+      : '';
+  }
 
   // ── Forgot password modal ───────────────────────────────────────────────
 

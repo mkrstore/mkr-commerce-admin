@@ -50,14 +50,18 @@ export class AppInputComponent {
   @Output() blurred     = new EventEmitter<void>();
 
   get showError(): boolean {
-    if (!this.touched || !this.required) return false;
+    if (!this.required) return false;
+    if (!this.touched && !this.dirty) return false;
     const v = this.value;
     if (v === null || v === undefined || String(v).trim() === '') return true;
     if (this.type === 'number' && this.minVal !== null) return Number(v) < this.minVal;
     return false;
   }
 
+  dirty = false;
+
   onInput(e: Event) {
+    this.dirty = true;
     const raw = (e.target as HTMLInputElement).value;
     this.valueChange.emit(this.type === 'number' ? (raw === '' ? null : Number(raw)) : raw);
   }

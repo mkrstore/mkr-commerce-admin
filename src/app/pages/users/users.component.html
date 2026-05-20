@@ -190,13 +190,13 @@
       <div class="form-row three-col">
         <app-input label="First Name" [required]="true" [touched]="step1Touched"
           [value]="form.firstName" (valueChange)="form.firstName = $event"
-          (blurred)="step1Touched = true" placeholder="e.g. Ravi" />
+          placeholder="e.g. Ravi" />
         <app-input label="Middle Name" optLabel="optional"
           [value]="form.middleName" (valueChange)="form.middleName = $event"
           placeholder="optional" />
         <app-input label="Last Name" [required]="true" [touched]="step1Touched"
           [value]="form.lastName" (valueChange)="form.lastName = $event"
-          (blurred)="step1Touched = true" placeholder="e.g. Kumar" />
+          placeholder="e.g. Kumar" />
       </div>
       <div class="name-preview" *ngIf="form.firstName || form.lastName">
         <span class="preview-label">Full Name</span>
@@ -206,7 +206,7 @@
         <app-input label="Company Email" type="email" [required]="true" [touched]="step1Touched"
           errorMsg="Valid email is required"
           [value]="form.email" (valueChange)="form.email = $event"
-          (blurred)="step1Touched = true" placeholder="ravi.kumar@mkr.com" />
+          placeholder="ravi.kumar@mkr.com" />
         <app-select label="Role" [required]="true" [touched]="step1Touched"
           placeholder="Select role"
           [options]="roleSelectOptions()"
@@ -214,7 +214,7 @@
       </div>
       <app-input label="Department" [required]="true" [touched]="step1Touched"
         [value]="form.department" (valueChange)="form.department = $event"
-        (blurred)="step1Touched = true" placeholder="e.g. Operations, Sales, Warehouse" />
+        placeholder="e.g. Operations, Sales, Warehouse" />
       <div class="modal-actions">
         <button class="btn btn-ghost" (click)="closeCreate()">Cancel</button>
         <button class="btn btn-primary" (click)="tryNextStep()">
@@ -228,7 +228,7 @@
         <app-input label="Mobile Number" type="tel" [required]="true" [touched]="step2Touched"
           errorMsg="Mobile number is required"
           [value]="form.mobileNumber" (valueChange)="form.mobileNumber = $event"
-          (blurred)="step2Touched = true" placeholder="+91 9876543210" />
+          placeholder="+91 9876543210" />
         <app-input label="Alternative Phone" optLabel="optional" type="tel"
           [value]="form.alternativePhone" (valueChange)="form.alternativePhone = $event"
           placeholder="optional" />
