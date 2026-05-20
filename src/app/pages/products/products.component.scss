@@ -145,10 +145,17 @@
 .ft-actions { display: flex; gap: 10px; }
 .multi-check-group { display: flex; flex-direction: column; gap: 8px; }
 
+// ── Tablet ────────────────────────────────────────────────────────────────────
+@media (min-width: 769px) and (max-width: 1024px) {
+  .prod-sidebar { width: 160px; }
+}
+
 // ── Mobile ────────────────────────────────────────────────────────────────────
 @media (max-width: 768px) {
-  .prod-body { flex-direction: column; overflow: visible; }
+  // Page scrolls vertically on mobile; no clipping
+  .prod-page-layout { overflow-y: auto; }
+  .prod-body { flex-direction: column; overflow: visible; flex: 0 0 auto; }
   .prod-sidebar { width: 100%; overflow-y: visible; flex-direction: row; flex-wrap: wrap; gap: 4px; }
   .prod-sidebar .ps-title { width: 100%; }
-  .prod-main { overflow-y: visible; }
+  .prod-main { overflow-y: visible; flex: 0 0 auto; }
 }
