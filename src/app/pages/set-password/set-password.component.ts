@@ -27,6 +27,16 @@ export class SetPasswordComponent implements OnInit {
   showNew         = false;
   showConfirm     = false;
   error           = '';
+  newPwDirty      = false;
+
+  get newPwInvalid(): boolean {
+    return this.newPwDirty && this.newPassword.length > 0 && !PASSWORD_PATTERN.test(this.newPassword);
+  }
+
+  onNewPwInput() {
+    this.newPwDirty = true;
+    this.error = '';
+  }
 
   readonly requirements = PASSWORD_REQUIREMENTS;
 
