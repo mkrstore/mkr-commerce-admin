@@ -4,6 +4,7 @@ import { FormsModule }   from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient }    from '@angular/common/http';
 import { AuthService, UserRole } from '../../services/auth.service';
+import { ConfirmService }        from '../../services/confirm.service';
 import { USER_ENDPOINTS }        from '../../core/constants/api.constants';
 import { ROLE_META, ROLE_ORDER } from '../../core/constants/roles.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
@@ -95,6 +96,18 @@ export class UserDetailComponent implements OnInit {
   actionLoading = false;
   actionError   = '';
 
+  // ── Inline edit: Contact ──────────────────────────────────────────────────
+  editContact = false;
+  editContactForm = { email: '', mobile: '', altPhone: '' };
+
+  // ── Inline edit: Address ──────────────────────────────────────────────────
+  editAddress = false;
+  editAddressForm = { building: '', street: '', city: '', state: '', postalCode: '', country: '' };
+
+  // ── Shared edit state ─────────────────────────────────────────────────────
+  editSaving = false;
+  editError  = '';
+
   // ── Static data ───────────────────────────────────────────────────────────
   readonly allRoles = ROLE_ORDER as UserRole[];
 
@@ -117,10 +130,11 @@ export class UserDetailComponent implements OnInit {
   });
 
   constructor(
-    private route:  ActivatedRoute,
-    private router: Router,
-    private http:   HttpClient,
-    public  auth:   AuthService
+    private route:   ActivatedRoute,
+    private router:  Router,
+    private http:    HttpClient,
+    public  auth:    AuthService,
+    private confirm: ConfirmService
   ) {}
 
   ngOnInit() {
@@ -166,6 +180,86 @@ export class UserDetailComponent implements OnInit {
   onDocumentClick(e: Event) {
     const target = e.target as HTMLElement;
     if (!target.closest('.ud-actions-wrap')) this.actionsOpen = false;
+  }
+
+  // ── Inline edit: Contact ──────────────────────────────────────────────────
+
+  startEditContact(s: StaffDto) {
+    this.editContactForm = {
+      email:    s.email,
+      mobile:   s.mobileNumber,
+      altPhone: s.alternativePhone ?? ''
+    };
+    this.editError   = '';
+    this.editContact = true;
+  }
+
+  cancelEditContact() { this.editContact = false; this.editError = ''; }
+
+  async saveContact(id: string) {
+    const ok = await this.confirm.ask({ title: 'Save Contact', message: 'Save contact details changes?', confirmLabel: 'Save', variant: 'primary' });
+    if (!ok) return;
+    this.editSaving = true;
+    this.editError  = '';
+    const body = {
+      email:           this.editContactForm.email.trim(),
+      mobileNumber:    this.editContactForm.mobile.trim(),
+      alternativePhone: this.editContactForm.altPhone.trim() || ''
+    };
+    this.http.patch<ApiResponse<StaffDto>>(this.EP.UPDATE(id), body).subscribe({
+      next: res => {
+        this.staff.set(res.data ?? this.staff());
+        this.editSaving  = false;
+        this.editContact = false;
+      },
+      error: e => {
+        this.editError  = extractErrorMessage(e, 'Failed to update contact details.');
+        this.editSaving = false;
+      }
+    });
+  }
+
+  // ── Inline edit: Address ──────────────────────────────────────────────────
+
+  startEditAddress(s: StaffDto) {
+    this.editAddressForm = {
+      building:   s.addressBuilding   ?? '',
+      street:     s.addressStreet     ?? '',
+      city:       s.addressCity       ?? '',
+      state:      s.addressState      ?? '',
+      postalCode: s.addressPostalCode ?? '',
+      country:    s.addressCountry    ?? ''
+    };
+    this.editError   = '';
+    this.editAddress = true;
+  }
+
+  cancelEditAddress() { this.editAddress = false; this.editError = ''; }
+
+  async saveAddress(id: string) {
+    const ok = await this.confirm.ask({ title: 'Save Address', message: 'Save address changes?', confirmLabel: 'Save', variant: 'primary' });
+    if (!ok) return;
+    this.editSaving = true;
+    this.editError  = '';
+    const body = {
+      addressBuilding:   this.editAddressForm.building,
+      addressStreet:     this.editAddressForm.street,
+      addressCity:       this.editAddressForm.city,
+      addressState:      this.editAddressForm.state,
+      addressPostalCode: this.editAddressForm.postalCode,
+      addressCountry:    this.editAddressForm.country
+    };
+    this.http.patch<ApiResponse<StaffDto>>(this.EP.UPDATE(id), body).subscribe({
+      next: res => {
+        this.staff.set(res.data ?? this.staff());
+        this.editSaving  = false;
+        this.editAddress = false;
+      },
+      error: e => {
+        this.editError  = extractErrorMessage(e, 'Failed to update address.');
+        this.editSaving = false;
+      }
+    });
   }
 
   // ── Status change ─────────────────────────────────────────────────────────
@@ -242,11 +336,11 @@ export class UserDetailComponent implements OnInit {
 
   roleName(role: UserRole):  string { return ROLE_META[role]?.name  ?? role; }
   roleColor(role: UserRole): string { return ROLE_META[role]?.color ?? '#6B7280'; }
-  roleIcon(role: UserRole):  string { return ROLE_META[role]?.icon  ?? '👤'; }
+  roleIcon(role: UserRole):  string { return ROLE_META[role]?.icon  ?? 'person'; }
 
   auditLabel(action: string): string { return ACTION_META[action]?.label ?? action; }
   auditColor(action: string): string { return ACTION_META[action]?.color ?? '#6B7280'; }
-  auditIcon(action: string):  string { return ACTION_META[action]?.icon  ?? '•'; }
+  auditIcon(action: string):  string { return ACTION_META[action]?.icon  ?? 'circle'; }
 
   formatEmpId(id: number): string {
     return 'EMP-' + String(id).padStart(4, '0');

@@ -177,7 +177,7 @@
     </div>
 
     <div class="save-bar" *ngIf="canEdit() && attrDefs.length > 0">
-      <app-btn variant="primary" [loading]="attrSaving" (clicked)="saveAttributes()">Save Attributes</app-btn>
+      <app-btn variant="primary" [loading]="attrSaving" [disabled]="!attrDirty" (clicked)="saveAttributes()">Save Attributes</app-btn>
     </div>
   </div>
 
@@ -200,7 +200,7 @@
           </span>
           <span class="mc-alt" *ngIf="m.altText">{{ m.altText }}</span>
         </div>
-        <button class="mc-delete" *ngIf="canEdit()" (click)="openDeleteMedia(m)" title="Delete">
+        <button class="mc-delete" *ngIf="canEdit()" (click)="deleteConfirmMedia = m; confirmDeleteMedia()" title="Delete">
           <span class="icon icon-xs">close</span>
         </button>
       </div>
@@ -222,30 +222,28 @@
       </div>
       <div class="upload-row">
         <label class="upload-file-label">
-          <input id="media-upload-input" type="file" accept="image/*,video/*" (change)="onFileSelected($event)" />
-          <span>{{ uploadFile ? uploadFile.name : 'Choose file…' }}</span>
+          <input id="media-upload-input" type="file" accept="image/*,video/*" multiple (change)="onFileSelected($event)" />
+          <span>{{ uploadFiles.length ? uploadFiles.length + ' file(s) selected' : 'Choose files…' }}</span>
         </label>
-        <app-btn variant="primary" [loading]="uploading" [disabled]="!uploadFile" (clicked)="uploadMedia()">
-          Upload
+        <app-btn variant="primary" [loading]="uploading" [disabled]="!uploadFiles.length" (clicked)="uploadMedia()">
+          Upload<ng-container *ngIf="uploadFiles.length > 1"> ({{ uploadFiles.length }})</ng-container>
         </app-btn>
+      </div>
+      <!-- Preview grid -->
+      <div class="upload-preview-grid" *ngIf="uploadPreviews.length > 0">
+        <div class="up-item" *ngFor="let preview of uploadPreviews; let i = index">
+          <div class="up-thumb">
+            <img *ngIf="!isVideoFile(uploadFiles[i])" [src]="preview" [alt]="uploadFiles[i].name" />
+            <span class="icon icon-lg icon-muted" *ngIf="isVideoFile(uploadFiles[i])">videocam</span>
+          </div>
+          <div class="up-name">{{ uploadFiles[i].name }}</div>
+          <button class="up-remove" (click)="removeUploadFile(i)" title="Remove">
+            <span class="icon icon-xs">close</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
 </div>
 
-<!-- ── DELETE MEDIA CONFIRM ── -->
-<div class="overlay" *ngIf="deleteConfirmMedia" (click)="closeDeleteMedia()"></div>
-<div class="modal modal-sm" *ngIf="deleteConfirmMedia">
-  <div class="confirm-body">
-    <div class="confirm-icon danger">
-      <span class="icon icon-lg">delete</span>
-    </div>
-    <h3>Delete Media?</h3>
-    <p>This <strong>{{ deleteConfirmMedia.mediaType.replace('_', ' ').toLowerCase() }}</strong> will be permanently removed from Cloudinary.</p>
-  </div>
-  <div class="modal-ft">
-    <app-btn variant="ghost" (clicked)="closeDeleteMedia()">Cancel</app-btn>
-    <app-btn variant="danger" [loading]="deletingMedia" (clicked)="confirmDeleteMedia()">Delete</app-btn>
-  </div>
-</div>

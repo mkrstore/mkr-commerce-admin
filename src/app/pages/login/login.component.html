@@ -45,7 +45,7 @@
         <label class="fg-label">Email or Phone number</label>
         <div class="fg-input" [class.fg-input-err]="identifierError && !loading">
           <span class="fgi-icon">👤</span>
-          <input type="text" [(ngModel)]="identifier" placeholder="your@company.com or 9876543210"
+          <input type="text" [(ngModel)]="identifier" placeholder="your@company.com"
             autocomplete="off" (ngModelChange)="onIdentifierInput()" (keydown.enter)="login()" [disabled]="loading"/>
         </div>
         <div class="fg-field-err" *ngIf="identifierError">{{ identifierError }}</div>
@@ -60,7 +60,7 @@
         <div class="fg-input" [class.fg-input-err]="passwordError && !loading">
           <span class="fgi-icon">🔒</span>
           <input [type]="showPwd ? 'text' : 'password'" [(ngModel)]="password"
-            placeholder="••••••••" autocomplete="new-password"
+            placeholder="••••••••" autocomplete="off"
             (ngModelChange)="onPasswordInput()" (keydown.enter)="login()" [disabled]="loading"/>
           <button class="fgi-eye" type="button" (click)="showPwd=!showPwd">
             {{ showPwd ? '🙈' : '👁️' }}

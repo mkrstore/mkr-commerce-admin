@@ -277,14 +277,15 @@
   z-index: 200;
 }
 
-// ── User Avatar ────────────────────────────────────────────────────────────────
+// ── User Avatar + Dropdown ─────────────────────────────────────────────────────
+
+.adm-user-wrap { position: relative; }
 
 .adm-avatar-btn {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2874F0, #8B5CF6);
-  color: #fff;
+  border: none;
   font-size: 12px;
   font-weight: 800;
   display: flex;
@@ -292,7 +293,82 @@
   justify-content: center;
   flex-shrink: 0;
   cursor: pointer;
-  title: 'User';
+  transition: opacity .15s, box-shadow .15s;
+  &:hover { opacity: .85; box-shadow: 0 0 0 3px var(--blue-soft); }
+}
+
+.adm-user-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 400;
+  overflow: hidden;
+}
+
+.aum-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.aum-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.aum-info { flex: 1; min-width: 0; }
+
+.aum-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--t1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aum-role {
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: 2px;
+}
+
+.aum-divider { height: 1px; background: var(--border); }
+
+.aum-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: var(--t2);
+  font-family: var(--font);
+  cursor: pointer;
+  text-align: left;
+  transition: background .1s, color .1s;
+  &:hover { background: var(--red-bg); color: var(--red); }
+}
+
+.adm-user-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 399;
 }
 
 // ── Responsive ─────────────────────────────────────────────────────────────────

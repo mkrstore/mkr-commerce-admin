@@ -76,10 +76,49 @@
     <div class="notif-backdrop" *ngIf="notifOpen" (click)="notifOpen=false"></div>
   </div>
 
-  <!-- Avatar / User -->
-  <div class="adm-avatar-btn"
-    [title]="(auth.currentUser()?.name ?? '') + ' — ' + auth.roleName(auth.currentUser()!.role)"
-    [style.background]="auth.roleColor(auth.currentUser()!.role) + '22'"
-    [style.color]="auth.roleColor(auth.currentUser()!.role)"
-  >{{ auth.userInitials(auth.currentUser()) }}</div>
+  <!-- Avatar / User menu -->
+  <div class="adm-user-wrap">
+    <button class="adm-avatar-btn"
+      (click)="toggleUserMenu()"
+      [title]="auth.currentUser()?.name ?? ''"
+      [style.background]="auth.roleColor(auth.currentUser()!.role) + '22'"
+      [style.color]="auth.roleColor(auth.currentUser()!.role)"
+    >{{ auth.userInitials(auth.currentUser()) }}</button>
+
+    <div class="adm-user-menu" *ngIf="userMenuOpen">
+      <div class="aum-profile">
+        <div class="aum-avatar"
+          [style.background]="auth.roleColor(auth.currentUser()!.role) + '22'"
+          [style.color]="auth.roleColor(auth.currentUser()!.role)"
+        >{{ auth.userInitials(auth.currentUser()) }}</div>
+        <div class="aum-info">
+          <div class="aum-name">{{ auth.currentUser()?.name }}</div>
+          <div class="aum-role">{{ auth.roleName(auth.currentUser()!.role) }}</div>
+        </div>
+      </div>
+      <div class="aum-divider"></div>
+      <button class="aum-item" (click)="openLogout()">
+        <span class="icon icon-sm">logout</span>
+        Sign out
+      </button>
+    </div>
+    <div class="adm-user-backdrop" *ngIf="userMenuOpen" (click)="userMenuOpen = false"></div>
+  </div>
+
 </header>
+
+<!-- Logout confirm -->
+<ng-container *ngIf="logoutConfirm">
+  <div class="overlay" (click)="cancelLogout()"></div>
+  <div class="modal modal-sm" (click)="$event.stopPropagation()">
+    <div class="confirm-body">
+      <div class="confirm-icon danger"><span class="icon icon-lg">logout</span></div>
+      <h3>Sign out?</h3>
+      <p>You'll need to sign in again to access the portal.</p>
+    </div>
+    <div class="modal-ft">
+      <button class="btn btn-ghost" (click)="cancelLogout()">Cancel</button>
+      <button class="btn btn-danger" (click)="confirmLogout()">Sign out</button>
+    </div>
+  </div>
+</ng-container>

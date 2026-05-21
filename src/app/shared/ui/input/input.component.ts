@@ -71,7 +71,7 @@ export class AppInputComponent {
   }
 
   onKeyDown(e: KeyboardEvent) {
-    if (this.type === 'number' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+    if (this.type === 'number' && ['e', 'E', '+', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
       e.preventDefault();
     }
   }

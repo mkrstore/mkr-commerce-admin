@@ -274,12 +274,12 @@
 
   <!-- ── Footer ── -->
   <div class="pnew-footer">
-    <app-btn variant="ghost" (clicked)="back()">
-      {{ step === 1 ? 'Cancel' : 'Back' }}
-    </app-btn>
+    <div class="pnew-footer-actions">
+      <app-btn variant="ghost" (clicked)="back()">
+        <span class="icon icon-sm">arrow_back</span>
+        {{ step === 1 ? 'Cancel' : 'Back' }}
+      </app-btn>
 
-    <div style="display:flex;gap:8px;align-items:center">
-      <!-- Skip spec fields if no attrs defined or step 4 (skip variants) -->
       <app-btn variant="ghost" *ngIf="step === 3 && hasNoAttrs" (clicked)="skipToNext()">Skip</app-btn>
       <app-btn variant="ghost" *ngIf="step === 4 && variants.length === 0" [loading]="saving" (clicked)="publish()">
         Publish without variants
@@ -288,7 +288,7 @@
       <app-btn variant="primary" [loading]="saving"
         [icon]="isLastStep ? 'rocket_launch' : 'arrow_forward'"
         (clicked)="next()">
-        {{ isLastStep ? 'Publish Product' : 'Next' }}
+        {{ isLastStep ? 'Publish' : 'Next' }}
       </app-btn>
     </div>
   </div>

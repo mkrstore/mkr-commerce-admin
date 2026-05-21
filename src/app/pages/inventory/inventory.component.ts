@@ -157,6 +157,10 @@ export class InventoryComponent implements OnInit {
   clearFilters() { this.searchQ = ''; this.filterCategory = ''; this.filterBrand = ''; this.filterStatus = ''; }
   get hasFilters() { return !!(this.searchQ || this.filterCategory || this.filterBrand || this.filterStatus); }
 
+  navigateToProduct(p: ProductSummary) {
+    this.router.navigate(['/products', p.id]);
+  }
+
   // ── Stock modal ───────────────────────────────────────────────────────────
   openStock(p: ProductSummary, e: Event) {
     e.stopPropagation();

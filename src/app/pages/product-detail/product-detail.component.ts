@@ -4,6 +4,7 @@ import { FormsModule }     from '@angular/forms';
 import { HttpClient }      from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService }     from '../../services/auth.service';
+import { ConfirmService }  from '../../services/confirm.service';
 import { PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
 import { AppInputComponent, AppSelectComponent, AppTextareaComponent, AppCheckboxComponent, AppBtnComponent } from '../../shared/ui';
@@ -100,15 +101,18 @@ export class ProductDetailComponent implements OnInit {
   pricingError  = '';
 
   // ── Attributes tab ────────────────────────────────────────────────────────
-  attrDefs:       AttributeDefinitionDto[] = [];
-  attrValues:     Record<string, string>   = {};
-  attrMultiValues: Record<string, string[]> = {};
+  attrDefs:              AttributeDefinitionDto[] = [];
+  attrValues:            Record<string, string>   = {};
+  attrMultiValues:       Record<string, string[]> = {};
+  attrOriginalValues:      Record<string, string>   = {};
+  attrOriginalMultiValues: Record<string, string[]> = {};
   attrSaving = false;
   attrSaved  = false;
   attrError  = '';
 
   // ── Media tab ─────────────────────────────────────────────────────────────
-  uploadFile: File | null = null;
+  uploadFiles:    File[]   = [];
+  uploadPreviews: string[] = [];
   uploadMediaType: MediaType = 'IMAGE_GALLERY';
   uploadAltText = '';
   uploading  = false;
@@ -161,7 +165,8 @@ export class ProductDetailComponent implements OnInit {
     private http: HttpClient,
     private route: ActivatedRoute,
     private router: Router,
-    public auth: AuthService
+    public auth: AuthService,
+    private confirm: ConfirmService
   ) {}
 
   ngOnInit() {
@@ -238,13 +243,36 @@ export class ProductDetailComponent implements OnInit {
             this.attrValues[def.id] = existing?.value ?? def.defaultValue ?? '';
           }
         });
+        this.snapshotAttrOriginals();
       }
     });
   }
 
+  private snapshotAttrOriginals() {
+    this.attrOriginalValues = { ...this.attrValues };
+    this.attrOriginalMultiValues = Object.fromEntries(
+      Object.entries(this.attrMultiValues).map(([k, v]) => [k, [...v]])
+    );
+  }
+
+  get attrDirty(): boolean {
+    for (const def of this.attrDefs) {
+      if (def.fieldType === 'MULTISELECT') {
+        const orig = [...(this.attrOriginalMultiValues[def.id] ?? [])].sort().join('\0');
+        const curr = [...(this.attrMultiValues[def.id] ?? [])].sort().join('\0');
+        if (orig !== curr) return true;
+      } else {
+        if ((this.attrValues[def.id] ?? '') !== (this.attrOriginalValues[def.id] ?? '')) return true;
+      }
+    }
+    return false;
+  }
+
   // ── Info save ─────────────────────────────────────────────────────────────
 
-  saveInfo() {
+  async saveInfo() {
+    const ok = await this.confirm.ask({ title: 'Save Changes', message: 'Save basic info changes for this product?', confirmLabel: 'Save', variant: 'primary' });
+    if (!ok) return;
     this.infoSaving = true; this.infoError = ''; this.infoSaved = false;
     const tags = this.infoForm.tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
     const payload: any = {
@@ -271,7 +299,9 @@ export class ProductDetailComponent implements OnInit {
 
   // ── Pricing save ──────────────────────────────────────────────────────────
 
-  savePricing() {
+  async savePricing() {
+    const ok = await this.confirm.ask({ title: 'Save Pricing', message: 'Save pricing and stock changes?', confirmLabel: 'Save', variant: 'primary' });
+    if (!ok) return;
     this.pricingSaving = true; this.pricingError = ''; this.pricingSaved = false;
     const payload: any = {
       priceRetail:     this.pricingForm.priceRetail,
@@ -296,7 +326,9 @@ export class ProductDetailComponent implements OnInit {
 
   // ── Attributes save ───────────────────────────────────────────────────────
 
-  saveAttributes() {
+  async saveAttributes() {
+    const ok = await this.confirm.ask({ title: 'Save Attributes', message: 'Save attribute changes for this product?', confirmLabel: 'Save', variant: 'primary' });
+    if (!ok) return;
     this.attrSaving = true; this.attrError = ''; this.attrSaved = false;
     const attributes = this.attrDefs.map(d => ({
       definitionId: d.id,
@@ -307,6 +339,7 @@ export class ProductDetailComponent implements OnInit {
     this.http.put<ApiResponse<any>>(this.EP.ATTRIBUTES(this.productId), { attributes }).subscribe({
       next: () => {
         this.attrSaving = false; this.attrSaved = true;
+        this.snapshotAttrOriginals();
         setTimeout(() => this.attrSaved = false, 2500);
       },
       error: e => { this.attrSaving = false; this.attrError = extractErrorMessage(e, 'Save failed.'); }
@@ -317,37 +350,71 @@ export class ProductDetailComponent implements OnInit {
 
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
-    this.uploadFile = input.files?.[0] ?? null;
+    if (!input.files?.length) return;
+    this.uploadPreviews.forEach(u => URL.revokeObjectURL(u));
+    this.uploadFiles    = Array.from(input.files);
+    this.uploadPreviews = this.uploadFiles.map(f => URL.createObjectURL(f));
+    input.value = '';
+  }
+
+  isVideoFile(f: File): boolean { return f.type.startsWith('video/'); }
+
+  removeUploadFile(i: number) {
+    URL.revokeObjectURL(this.uploadPreviews[i]);
+    this.uploadFiles    = this.uploadFiles.filter((_, idx) => idx !== i);
+    this.uploadPreviews = this.uploadPreviews.filter((_, idx) => idx !== i);
+    if (!this.uploadFiles.length) {
+      const inp = document.getElementById('media-upload-input') as HTMLInputElement;
+      if (inp) inp.value = '';
+    }
   }
 
   uploadMedia() {
-    if (!this.uploadFile) return;
+    if (!this.uploadFiles.length) return;
     this.uploading = true; this.uploadError = '';
-    const fd = new FormData();
-    fd.append('file', this.uploadFile);
-    fd.append('mediaType', this.uploadMediaType);
-    if (this.uploadAltText.trim()) fd.append('altText', this.uploadAltText.trim());
+    const files = [...this.uploadFiles];
+    let idx = 0;
 
-    this.http.post<ApiResponse<ProductImageDto>>(this.EP.MEDIA(this.productId), fd).subscribe({
-      next: res => {
-        if (res.data) {
-          const p = this.product();
-          if (p) this.product.set({ ...p, media: [...p.media, res.data] });
-        }
-        this.uploading = false; this.uploadFile = null; this.uploadAltText = '';
-        this.uploadMediaType = 'IMAGE_GALLERY';
-        const input = document.getElementById('media-upload-input') as HTMLInputElement;
-        if (input) input.value = '';
-      },
-      error: e => { this.uploading = false; this.uploadError = extractErrorMessage(e, 'Upload failed.'); }
-    });
+    const uploadOne = () => {
+      if (idx >= files.length) {
+        this.uploading = false;
+        this.clearUploadState();
+        return;
+      }
+      const fd = new FormData();
+      fd.append('file', files[idx++]);
+      fd.append('mediaType', this.uploadMediaType);
+      if (this.uploadAltText.trim()) fd.append('altText', this.uploadAltText.trim());
+      this.http.post<ApiResponse<ProductImageDto>>(this.EP.MEDIA(this.productId), fd).subscribe({
+        next: res => {
+          if (res.data) {
+            const p = this.product();
+            if (p) this.product.set({ ...p, media: [...(p.media ?? []), res.data] });
+          }
+          uploadOne();
+        },
+        error: e => { this.uploading = false; this.uploadError = extractErrorMessage(e, 'Upload failed.'); }
+      });
+    };
+
+    uploadOne();
+  }
+
+  private clearUploadState() {
+    this.uploadPreviews.forEach(u => URL.revokeObjectURL(u));
+    this.uploadFiles = []; this.uploadPreviews = [];
+    this.uploadAltText = ''; this.uploadMediaType = 'IMAGE_GALLERY';
+    const inp = document.getElementById('media-upload-input') as HTMLInputElement;
+    if (inp) inp.value = '';
   }
 
   openDeleteMedia(m: ProductImageDto) { this.deleteConfirmMedia = m; }
   closeDeleteMedia() { this.deleteConfirmMedia = null; }
 
-  confirmDeleteMedia() {
+  async confirmDeleteMedia() {
     if (!this.deleteConfirmMedia) return;
+    const ok = await this.confirm.ask({ title: 'Delete Media', message: 'This media file will be permanently removed.', confirmLabel: 'Delete', variant: 'danger' });
+    if (!ok) return;
     this.deletingMedia = true;
     this.http.delete<ApiResponse<void>>(this.EP.MEDIA_BY_ID(this.productId, this.deleteConfirmMedia.id)).subscribe({
       next: () => {
@@ -365,7 +432,15 @@ export class ProductDetailComponent implements OnInit {
 
   // ── Status actions ────────────────────────────────────────────────────────
 
-  setStatus(status: ProductStatus) {
+  async setStatus(status: ProductStatus) {
+    const label = status === 'ACTIVE' ? 'Activate' : 'Deactivate';
+    const ok = await this.confirm.ask({
+      title: `${label} Product`,
+      message: `${label} this product? It will ${status === 'ACTIVE' ? 'become visible to customers' : 'be hidden from customers'}.`,
+      confirmLabel: label,
+      variant: status === 'ACTIVE' ? 'success' : 'danger'
+    });
+    if (!ok) return;
     this.http.patch<ApiResponse<ProductDetail>>(this.EP.BY_ID(this.productId), { status }).subscribe({
       next: res => {
         if (res.data) { this.product.set(res.data); this.populateForms(res.data); }

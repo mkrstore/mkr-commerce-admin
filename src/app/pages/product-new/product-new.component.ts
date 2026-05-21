@@ -298,8 +298,8 @@ export class ProductNewComponent implements OnInit {
   publish() {
     // Validate variants if any
     if (this.variants.length > 0) {
-      const bad = this.variants.find(v => !v.colorName.trim() && !v.size.trim());
-      if (bad) { this.variantError = 'Each variant needs at least a colour name or size.'; return; }
+      const bad = this.variants.find(v => !v.colorName.trim());
+      if (bad) { this.variantError = 'Each variant needs a Colour Name.'; return; }
     }
     this.variantError = '';
     this.saving = true;
@@ -307,11 +307,11 @@ export class ProductNewComponent implements OnInit {
     const saveVariants$ = this.variants.length > 0
       ? Promise.all(this.variants.map(v =>
           this.http.post<ApiResponse<any>>(PRODUCT_ENDPOINTS.VARIANTS(this.productId), {
-            colorName:     v.colorName.trim()  || null,
-            colorHex:      v.colorHex          || null,
-            size:          v.size.trim()        || null,
-            priceOverride: v.priceOverride      || null,
-            stockQty:      v.stockQty           || 0,
+            colorName:     v.colorName.trim(),
+            colorHex:      v.colorHex || null,
+            size:          v.size.trim() || null,
+            priceOverride: v.priceOverride || null,
+            stockQty:      v.stockQty || 0,
           }).toPromise()
         ))
       : Promise.resolve([]);

@@ -172,10 +172,10 @@
   .adm-aside { width: 64px; }
   .adm-logo-main { font-size: 0; }
   .adm-logo-main::before { content: 'M'; font-size: 18px; font-weight: 900; color: var(--blue); }
-  .adm-logo-sub, .adm-item-lbl, .nav-grp-lbl, .adm-item-badge, .adm-user-info, .adm-logout { display: none; }
+  .adm-logo-sub, .adm-item-lbl, .nav-grp-lbl, .adm-item-badge { display: none; }
   .adm-item { padding: 13px; justify-content: center; }
   .adm-item-icon { width: auto; }
-  .adm-user { justify-content: center; padding: 12px; }
+  .adm-user { display: none; }
 }
 
 /* ── Mobile: hidden by default, slides in as overlay ── */

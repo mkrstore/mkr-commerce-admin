@@ -7,7 +7,7 @@
 
 // ── Skeleton helpers ──────────────────────────────────────────────────────────
 .sk {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--skeleton) 50%, var(--surface2) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
   border-radius: 6px;
@@ -15,9 +15,7 @@
 }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
-.ud-sk-avatar {
-  width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
-}
+.ud-sk-avatar { width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0; }
 .sk-hero { display: flex; gap: 20px; align-items: flex-start; }
 .ud-sk-lines { flex: 1; padding-top: 6px; }
 
@@ -25,8 +23,7 @@
 .ud-error-state {
   display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 12px; padding: 80px 24px; text-align: center;
-  .ud-error-icon { font-size: 2.2rem; }
-  .ud-error-msg  { color: #EF4444; font-size: 14px; max-width: 320px; line-height: 1.5; }
+  .ud-error-msg { color: var(--red); font-size: 14px; max-width: 320px; line-height: 1.5; }
 }
 
 // ── Top bar ───────────────────────────────────────────────────────────────────
@@ -38,11 +35,10 @@
 .ud-back {
   display: inline-flex; align-items: center; gap: 6px;
   background: none; border: none; cursor: pointer;
-  color: #6B7280; font-size: 13px; font-weight: 500;
+  color: var(--t2); font-size: 13px; font-weight: 500;
   padding: 6px 10px 6px 6px;
-  border-radius: 8px; transition: all .15s;
-  svg { flex-shrink: 0; }
-  &:hover { color: #111827; background: #F3F4F6; }
+  border-radius: var(--radius); transition: all .15s;
+  &:hover { color: var(--t1); background: var(--hover); }
 }
 
 // ── Actions dropdown ──────────────────────────────────────────────────────────
@@ -50,16 +46,16 @@
 
 .ud-actions-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500;
-  background: #fff; border: 1px solid #E5E7EB; color: #374151; cursor: pointer;
+  padding: 8px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 500;
+  background: var(--surface); border: 1px solid var(--border); color: var(--t2); cursor: pointer;
   transition: all .15s;
-  &:hover { background: #F9FAFB; border-color: #D1D5DB; }
+  &:hover { background: var(--surface2); border-color: var(--border2); }
 }
 
 .ud-actions-menu {
   position: absolute; right: 0; top: calc(100% + 6px);
-  background: #fff; border: 1px solid #E5E7EB; border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.1); min-width: 200px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md); min-width: 200px;
   overflow: hidden; z-index: 50;
   opacity: 0; pointer-events: none; transform: translateY(-4px);
   transition: opacity .15s, transform .15s;
@@ -69,23 +65,23 @@
 .ud-action-item {
   display: flex; align-items: center; gap: 10px; width: 100%;
   background: none; border: none; padding: 11px 16px;
-  text-align: left; font-size: 13px; color: #374151; cursor: pointer;
+  text-align: left; font-size: 13px; color: var(--t2); cursor: pointer;
   transition: background .1s;
-  &:hover { background: #F9FAFB; }
-  &.danger { color: #EF4444; }
-  &.success { color: #16A34A; }
+  &:hover { background: var(--hover); }
+  &.danger { color: var(--red); }
+  &.success { color: var(--green); }
 }
 
 .ud-action-icon { font-size: 12px; width: 16px; text-align: center; }
 
-.ud-action-divider { height: 1px; background: #F3F4F6; margin: 2px 0; }
+.ud-action-divider { height: 1px; background: var(--border); margin: 2px 0; }
 
 // ── Hero card ─────────────────────────────────────────────────────────────────
 .ud-hero-card {
   display: flex; align-items: flex-start; gap: 20px;
-  background: #fff; border: 1px solid #E5E7EB; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 24px;
-  border-left: 4px solid var(--role-color, #6366F1);
+  border-left: 4px solid var(--role-color, var(--blue));
   margin-bottom: 4px;
 }
 
@@ -102,17 +98,17 @@
   margin-bottom: 8px;
 }
 
-.ud-name {
-  font-size: 20px; font-weight: 700; color: #111827; margin: 0;
-}
+.ud-name { font-size: 20px; font-weight: 700; color: var(--t1); margin: 0; }
 
 .ud-status-pill {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500;
-  background: #FEE2E2; color: #B91C1C;
-  .ud-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #B91C1C; }
-  &.active { background: #DCFCE7; color: #15803D;
-    .ud-status-dot { background: #15803D; } }
+  background: var(--red-bg); color: var(--red);
+  .ud-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+  &.active {
+    background: var(--green-bg); color: var(--green);
+    .ud-status-dot { background: var(--green); }
+  }
   &.inline { display: inline-flex; }
 }
 
@@ -121,16 +117,16 @@
   margin-bottom: 8px;
 }
 
-.ud-meta-sep { color: #D1D5DB; }
-.ud-empid    { font-size: 13px; color: #6B7280; font-weight: 500; }
-.ud-dept     { font-size: 13px; color: #6B7280; }
+.ud-meta-sep { color: var(--border2); }
+.ud-empid    { font-size: 13px; color: var(--t2); font-weight: 500; }
+.ud-dept     { font-size: 13px; color: var(--t2); }
 
 .ud-hero-sub {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-  font-size: 13px; color: #6B7280;
+  font-size: 13px; color: var(--t2);
 }
-.ud-email  { color: #4B5563; }
-.ud-joined { }
+.ud-email  { color: var(--t2); word-break: break-all; }
+.ud-joined { color: var(--t3); }
 
 .ud-role-badge {
   display: inline-flex; align-items: center; gap: 4px;
@@ -142,28 +138,31 @@
 .ud-invite-badge {
   display: inline-flex; align-items: center; padding: 2px 8px;
   border-radius: 99px; font-size: 11.5px; font-weight: 500;
-  background: #FEF9C3; color: #92400E; border: 1px solid #FDE68A;
+  background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,158,11,.2);
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 .ud-tabs {
-  display: flex; gap: 0; border-bottom: 2px solid #F3F4F6;
+  display: flex; gap: 0; border-bottom: 1px solid var(--border);
   margin-bottom: 20px; margin-top: 24px;
+  overflow-x: auto; white-space: nowrap;
+  &::-webkit-scrollbar { display: none; }
+  scrollbar-width: none;
 }
 
 .ud-tab {
   display: inline-flex; align-items: center; gap: 6px;
   background: none; border: none; cursor: pointer;
-  padding: 10px 18px; font-size: 13.5px; font-weight: 500;
-  color: #6B7280; border-bottom: 2px solid transparent;
-  margin-bottom: -2px; transition: all .15s;
-  &:hover { color: #374151; }
-  &.active { color: #6366F1; border-bottom-color: #6366F1; }
+  padding: 10px 18px; font-size: 13px; font-weight: 500;
+  color: var(--t3); border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: all .15s;
+  &:hover { color: var(--t1); }
+  &.active { color: var(--blue); border-bottom-color: var(--blue); }
 }
 
 .ud-tab-count {
   display: inline-flex; align-items: center; justify-content: center;
-  background: #E0E7FF; color: #4338CA;
+  background: var(--blue-soft); color: var(--blue);
   border-radius: 99px; font-size: 10.5px; font-weight: 600;
   min-width: 18px; height: 18px; padding: 0 5px;
 }
@@ -174,41 +173,91 @@
 
 // ── Info card ─────────────────────────────────────────────────────────────────
 .ud-card {
-  background: #fff; border: 1px solid #E5E7EB; border-radius: 12px;
-  padding: 24px; margin-bottom: 16px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 20px; margin-bottom: 16px;
+}
+
+.ud-card-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
 
 .ud-card-title {
-  font-size: 13px; font-weight: 600; color: #374151;
-  text-transform: uppercase; letter-spacing: 0.05em;
-  margin-bottom: 20px; padding-bottom: 14px;
-  border-bottom: 1px solid #F3F4F6;
+  font-size: 12px; font-weight: 700; color: var(--t2);
+  text-transform: uppercase; letter-spacing: 0.06em;
 }
 
-.ud-info-grid {
-  display: grid; grid-template-columns: 140px 1fr;
-  gap: 0;
+.ud-edit-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 5px 12px; font-size: 12px; font-weight: 500;
+  color: var(--t2); cursor: pointer; transition: all .15s;
+  &:hover { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
 }
 
-.ud-label {
-  padding: 11px 0; font-size: 13px; color: #6B7280;
-  font-weight: 500; border-bottom: 1px solid #F9FAFB;
+// ── Row layout ────────────────────────────────────────────────────────────────
+.ud-info-rows { display: flex; flex-direction: column; }
+
+.ud-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 10px 0;
+}
+
+.ud-row-icon {
+  color: var(--t3); width: 18px; text-align: center; flex-shrink: 0; margin-top: 1px;
+}
+
+.ud-row-label {
+  font-size: 12px; color: var(--t3); font-weight: 600;
+  min-width: 130px; flex-shrink: 0; padding-top: 1px;
+}
+
+.ud-row-val {
+  font-size: 13px; color: var(--t1); flex: 1;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  word-break: break-word; overflow-wrap: anywhere;
+}
+
+.ud-link { color: var(--blue); text-decoration: none; &:hover { text-decoration: underline; } }
+.ud-empty { color: var(--t3); }
+.ud-pending-label { color: var(--amber); font-weight: 500; }
+
+.ud-no-address {
+  display: flex; align-items: center; gap: 8px;
+  color: var(--t3); font-size: 13px; padding: 8px 0;
+}
+
+// ── Edit form ──────────────────────────────────────────────────────────────────
+.ud-edit-form { display: flex; flex-direction: column; gap: 14px; }
+
+.ud-edit-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.ud-edit-actions {
+  display: flex; justify-content: flex-end; gap: 10px;
+  padding-top: 4px;
+}
+
+// ── Phone prefix input ─────────────────────────────────────────────────────────
+.ud-phone-wrap {
   display: flex; align-items: center;
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; background: var(--input-bg); transition: border-color .15s;
+  &:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
 }
 
-.ud-value {
-  padding: 11px 0; font-size: 13px; color: #111827;
-  border-bottom: 1px solid #F9FAFB;
-  display: flex; align-items: center;
+.ud-phone-prefix {
+  padding: 0 12px; font-size: 13px; font-weight: 600;
+  color: var(--t2); background: var(--surface2);
+  border-right: 1.5px solid var(--border);
+  height: 38px; display: flex; align-items: center; flex-shrink: 0;
 }
 
-.ud-label:last-of-type, .ud-value:last-of-type { border-bottom: none; }
-
-.ud-link { color: #6366F1; text-decoration: none; &:hover { text-decoration: underline; } }
-.ud-empty { color: #9CA3AF; }
-.ud-pending-label { color: #D97706; font-weight: 500; }
-
-.ud-no-address { color: #9CA3AF; font-size: 13px; padding: 8px 0; }
+.ud-phone-input {
+  border: none !important; border-radius: 0 !important; background: transparent !important;
+  flex: 1; min-width: 0;
+  &:focus { box-shadow: none !important; }
+}
 
 // ── Timeline ──────────────────────────────────────────────────────────────────
 .ud-timeline { padding: 4px 0; }
@@ -221,60 +270,40 @@
 
 .ud-tl-line {
   position: absolute; left: 15px; top: 28px; bottom: 0;
-  width: 1px; background: #F3F4F6;
+  width: 1px; background: var(--border);
 }
 
 .ud-tl-dot {
   width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; color: #fff;
-  border: 3px solid transparent; box-sizing: border-box;
+  border: 2px solid transparent; box-sizing: border-box;
 }
 
 .ud-tl-body { flex: 1; padding-top: 4px; }
 
-.ud-tl-label {
-  font-size: 13.5px; font-weight: 500; color: #111827; margin-bottom: 3px;
-}
+.ud-tl-label { font-size: 13px; font-weight: 500; color: var(--t1); margin-bottom: 3px; }
 
-.ud-tl-detail { color: #6B7280; font-weight: 400; }
+.ud-tl-detail { color: var(--t2); font-weight: 400; }
 
-.ud-tl-meta {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: #9CA3AF;
-}
+.ud-tl-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--t3); }
 
-.ud-tl-sep { color: #E5E7EB; }
-.ud-tl-actor { font-weight: 500; color: #6B7280; }
+.ud-tl-sep { color: var(--border2); }
+.ud-tl-actor { font-weight: 500; color: var(--t2); }
 
 .ud-audit-loading { padding: 8px 0; }
-.ud-audit-empty   { color: #9CA3AF; font-size: 13px; padding: 8px 0; }
-
-// Modals now use global .overlay / .modal / .btn / .btn-spinner / .alert classes
-
-// ── Dark mode ─────────────────────────────────────────────────────────────────
-:host-context(.dark-mode) {
-  .ud-hero-card, .ud-card, .ud-actions-menu {
-    background: var(--surface); border-color: var(--border); color: var(--t1);
-  }
-  .ud-topbar, .ud-tabs { border-color: var(--border); }
-  .ud-tab { color: var(--t3); &.active { color: var(--blue); border-color: var(--blue); } }
-  .ud-label { color: var(--t2); }
-  .ud-value, .ud-name, h3 { color: var(--t1); }
-  .ud-label, .ud-value { border-color: var(--border); }
-  .ud-card-title { color: var(--t2); border-color: var(--border); }
-  .ud-back { color: var(--t2); &:hover { color: var(--t1); background: var(--hover); } }
-  .ud-actions-btn { background: var(--surface); border-color: var(--border); color: var(--t1); }
-  .ud-action-item { color: var(--t1); &:hover { background: var(--hover); } }
-  .ud-action-divider { background: var(--border); }
-  .ud-tl-line { background: var(--border); }
-}
+.ud-audit-empty   { color: var(--t3); font-size: 13px; padding: 8px 0; }
 
 // ── Mobile ────────────────────────────────────────────────────────────────────
 @media (max-width: 600px) {
-  .ud-page { padding: 16px 16px 60px; }
+  .ud-page { padding: 14px 14px 74px; }
   .ud-hero-card { flex-direction: column; gap: 14px; }
   .ud-avatar { width: 56px; height: 56px; font-size: 18px; }
-  .ud-info-grid { grid-template-columns: 110px 1fr; }
-  .ud-tab { padding: 10px 12px; font-size: 13px; }
+  .ud-row-label { min-width: 90px; font-size: 11px; }
+  .ud-tab { padding: 10px 12px; font-size: 12px; }
+  .ud-edit-2col { grid-template-columns: 1fr; }
+  .ud-card { padding: 16px; }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .ud-page { padding: 16px 16px 80px; }
 }

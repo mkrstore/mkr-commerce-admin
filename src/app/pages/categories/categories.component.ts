@@ -64,6 +64,7 @@ export class CategoriesComponent implements OnInit {
   editTarget: CategoryDto | null = null;
 
   form = { name: '', slug: '', description: '', parentId: '', sortOrder: 0, isActive: true };
+  slugEdited = false;
 
   // ── Delete confirm ────────────────────────────────────────────────────────
   deleteTarget: CategoryDto | null = null;
@@ -89,6 +90,7 @@ export class CategoriesComponent implements OnInit {
     label: '', fieldKey: '', fieldType: 'TEXT' as FieldType,
     options: '', unit: '', defaultValue: '', required: false, sortOrder: 0
   };
+  fieldKeyEdited = false;
 
   // Individual option inputs for SELECT/MULTISELECT (replaces JSON textarea)
   optionInputs: string[] = [''];
@@ -192,8 +194,21 @@ export class CategoriesComponent implements OnInit {
 
   openCreate() {
     this.form = { name: '', slug: '', description: '', parentId: '', sortOrder: 0, isActive: true };
+    this.slugEdited = false;
     this.modalError = ''; this.formTouched = false; this.editTarget = null;
     this.activeTab = 'details'; this.modalMode = 'create';
+  }
+
+  onNameChange(v: string) {
+    this.form.name = v;
+    if (this.modalMode === 'create' && !this.slugEdited) {
+      this.form.slug = v.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+    }
+  }
+
+  onSlugChange(v: string) {
+    this.form.slug = v;
+    this.slugEdited = v.trim().length > 0;
   }
 
   closeModal() { this.modalMode = 'closed'; this.modalError = ''; this.attrError = ''; }
@@ -264,6 +279,7 @@ export class CategoriesComponent implements OnInit {
       label: '', fieldKey: '', fieldType: 'TEXT',
       options: '', unit: '', defaultValue: '', required: false, sortOrder: this.attrs.length
     };
+    this.fieldKeyEdited = false;
     this.optionInputs = [''];
     this.attrEditTarget = null; this.attrError = ''; this.attrFormTouched = false; this.attrView = 'form';
   }
@@ -345,6 +361,18 @@ export class CategoriesComponent implements OnInit {
       next: () => { this.attrDeleting = false; this.attrDeleteTarget = null; this.loadAttrs(); },
       error: e => { this.attrDeleting = false; this.attrError = extractErrorMessage(e, 'Delete failed.'); }
     });
+  }
+
+  onAttrLabelChange(v: string) {
+    this.attrForm.label = v;
+    if (!this.attrEditTarget && !this.fieldKeyEdited) {
+      this.attrForm.fieldKey = v.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    }
+  }
+
+  onFieldKeyChange(v: string) {
+    this.attrForm.fieldKey = v;
+    this.fieldKeyEdited = v.trim().length > 0;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

@@ -227,15 +227,19 @@
 .pnew-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 14px 24px;
   background: var(--surface);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
+.pnew-footer-actions {
+  display: flex; align-items: center; gap: 8px;
+}
 
 /* ── Mobile ── */
 @media (max-width: 768px) {
+  :host { padding-bottom: 62px; }
   .pnew-hd   { padding: 12px 16px; }
   .pnew-steps { padding: 12px 16px; overflow-x: auto; }
   .pnew-step-lbl { display: none; .pnew-step.active & { display: block; } }

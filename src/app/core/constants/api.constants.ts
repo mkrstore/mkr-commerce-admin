@@ -29,6 +29,7 @@ export const AUTH_ENDPOINTS = {
 export const USER_ENDPOINTS = {
   BASE:               `${API}/users`,
   BY_ID:              (id: string) => `${API}/users/${id}`,
+  UPDATE:             (id: string) => `${API}/users/${id}`,
   STATUS:             (id: string) => `${API}/users/${id}/status`,
   ROLE:               (id: string) => `${API}/users/${id}/role`,
   RESEND_INVITATION:  (id: string) => `${API}/users/${id}/resend-invitation`,

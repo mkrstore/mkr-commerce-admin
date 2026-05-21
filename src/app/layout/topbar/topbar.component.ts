@@ -42,7 +42,14 @@ export class TopbarComponent {
     ).subscribe(t => { this.title = t; this.notifOpen = false; });
   }
 
+  userMenuOpen = false;
+  logoutConfirm = false;
+
   toggleNotif() { this.notifOpen = !this.notifOpen; }
+  toggleUserMenu() { this.userMenuOpen = !this.userMenuOpen; this.notifOpen = false; }
+  openLogout()  { this.logoutConfirm = true; this.userMenuOpen = false; }
+  cancelLogout() { this.logoutConfirm = false; }
+  confirmLogout() { this.logoutConfirm = false; this.sidebar.close(); this.auth.logout(); }
 
   get tabItems() {
     switch (this.notifTab) {

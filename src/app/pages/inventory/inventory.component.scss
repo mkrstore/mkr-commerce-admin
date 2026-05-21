@@ -23,7 +23,7 @@
   transition: box-shadow .18s, transform .18s;
   display: flex;
   flex-direction: column;
-  cursor: default;
+  cursor: pointer;
 
   &:hover {
     box-shadow: var(--shadow-md);

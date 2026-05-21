@@ -143,9 +143,9 @@
         <span class="icon icon-sm">warning</span> {{ modalError }}
       </div>
       <app-input label="Name" [required]="true" [touched]="formTouched"
-        [value]="form.name" (valueChange)="form.name = $event" placeholder="e.g. Smartphones" />
+        [value]="form.name" (valueChange)="onNameChange($event)" placeholder="e.g. Smartphones" />
       <app-input label="Slug" optLabel="auto-generated if blank"
-        [value]="form.slug" (valueChange)="form.slug = $event" placeholder="e.g. smartphones" />
+        [value]="form.slug" (valueChange)="onSlugChange($event)" placeholder="e.g. smartphones" />
       <app-textarea label="Description" optLabel="optional"
         [value]="form.description" (valueChange)="form.description = $event"
         placeholder="Short description of what products go in this category" [rows]="2" />
@@ -200,11 +200,11 @@
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;padding:14px 16px">
           <app-input label="Field Label" [required]="true" [touched]="attrFormTouched"
-            [value]="attrForm.label" (valueChange)="attrForm.label = $event"
+            [value]="attrForm.label" (valueChange)="onAttrLabelChange($event)"
             placeholder="e.g. RAM, Screen Size, Battery" />
           <app-input *ngIf="!attrEditTarget" label="Field Key" [required]="true" [touched]="attrFormTouched"
             hint="Unique key in snake_case — cannot be changed after saving"
-            [value]="attrForm.fieldKey" (valueChange)="attrForm.fieldKey = $event"
+            [value]="attrForm.fieldKey" (valueChange)="onFieldKeyChange($event)"
             placeholder="e.g. ram, screen_size, battery_mah" />
           <div class="field-row">
             <app-select label="Field Type" [required]="true" [options]="fieldTypeOpts"

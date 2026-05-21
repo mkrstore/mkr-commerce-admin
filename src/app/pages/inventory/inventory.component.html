@@ -162,7 +162,7 @@
 
   <!-- Product Cards -->
   <div class="prod-grid" *ngIf="!loading && !error">
-    <div class="prod-card" *ngFor="let p of filtered">
+    <div class="prod-card" *ngFor="let p of filtered" (click)="navigateToProduct(p)">
 
       <!-- Image -->
       <div class="prod-img">

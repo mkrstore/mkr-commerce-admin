@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ContentChild, TemplateRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, ElementRef, ViewChild, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface SelectOption {
@@ -7,11 +7,60 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
+const STYLES = `
+:host { display: block; }
+
+.csel-wrap { position: relative; }
+
+.csel-btn {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--input-bg); border: 1.5px solid var(--border); border-radius: var(--radius);
+  padding: 9px 11px; font-size: 13px; color: var(--t1); font-family: var(--font);
+  cursor: pointer; text-align: left;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.csel-btn:hover:not(:disabled) { border-color: var(--border2); background: var(--hover); }
+.csel-wrap.open .csel-btn {
+  border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft);
+}
+.csel-wrap.error .csel-btn {
+  border-color: var(--red) !important; box-shadow: 0 0 0 3px var(--red-bg) !important; background: var(--red-bg);
+}
+.csel-wrap.is-disabled .csel-btn { opacity: 0.5; cursor: not-allowed; }
+
+.csel-val { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.csel-ph  { color: var(--t3); }
+.csel-arrow { color: var(--t3); flex-shrink: 0; transition: transform .15s; font-size: 18px !important; }
+.csel-wrap.open .csel-arrow { transform: rotate(180deg); color: var(--blue); }
+
+.csel-dropdown {
+  position: fixed; z-index: 9999;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,.14); max-height: 240px; overflow-y: auto; padding: 4px;
+  max-width: min(400px, 90vw);
+}
+
+.csel-opt {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; font-size: 13px; color: var(--t1); font-family: var(--font);
+  border-radius: var(--radius); cursor: pointer; transition: background .1s;
+  user-select: none;
+}
+.csel-opt:hover:not(.csel-opt-disabled) { background: var(--hover); }
+.csel-opt.csel-opt-sel {
+  background: var(--blue-soft); color: var(--blue); font-weight: 600;
+}
+.csel-opt-disabled { opacity: 0.4; cursor: not-allowed; }
+
+.csel-check { font-size: 15px !important; color: var(--blue); flex-shrink: 0; }
+.csel-check-ph { width: 15px; flex-shrink: 0; }
+`;
+
 @Component({
   selector: 'app-select',
   standalone: true,
   imports: [CommonModule],
-  styles: [':host { display: block; }'],
+  styles: [STYLES],
   template: `
     <div class="field">
       <label class="field-label" *ngIf="label">
@@ -19,21 +68,34 @@ export interface SelectOption {
         <span class="req" *ngIf="required">*</span>
         <span class="opt" *ngIf="optLabel"> ({{ optLabel }})</span>
       </label>
-      <select
-        class="f-select"
-        [value]="value ?? ''"
-        [disabled]="disabled"
-        [class.error]="showError"
-        (change)="onChange($event)"
-      >
-        <option *ngIf="placeholder" value="">{{ placeholder }}</option>
-        <option
-          *ngFor="let opt of options"
-          [value]="opt.value"
-          [disabled]="opt.disabled ?? false"
-        >{{ opt.label }}</option>
-        <ng-content></ng-content>
-      </select>
+
+      <div class="csel-wrap" [class.open]="open()" [class.is-disabled]="disabled" [class.error]="showError">
+        <button class="csel-btn" type="button" #triggerBtn [disabled]="disabled" (click)="toggle()">
+          <span class="csel-val" [class.csel-ph]="!selectedLabel">{{ selectedLabel || placeholder }}</span>
+          <span class="icon icon-sm csel-arrow">expand_more</span>
+        </button>
+
+        <div class="csel-dropdown" *ngIf="open()" [ngStyle]="dropdownStyle">
+          <div class="csel-opt"
+            *ngIf="placeholder"
+            [class.csel-opt-sel]="isPlaceholderSelected"
+            (click)="pick('')">
+            <span class="icon csel-check" *ngIf="isPlaceholderSelected">check</span>
+            <span class="csel-check-ph" *ngIf="!isPlaceholderSelected"></span>
+            <span style="color:var(--t3)">{{ placeholder }}</span>
+          </div>
+          <div class="csel-opt"
+            *ngFor="let opt of options"
+            [class.csel-opt-sel]="opt.value == value"
+            [class.csel-opt-disabled]="opt.disabled"
+            (click)="!opt.disabled && pick(opt.value)">
+            <span class="icon csel-check" *ngIf="opt.value == value">check</span>
+            <span class="csel-check-ph" *ngIf="opt.value != value"></span>
+            {{ opt.label }}
+          </div>
+        </div>
+      </div>
+
       <div class="field-error" *ngIf="showError">
         <span class="icon icon-xs">error</span>
         {{ errorMsg || label + ' is required' }}
@@ -55,12 +117,56 @@ export class AppSelectComponent {
   @Input() optLabel = '';
 
   @Output() valueChange = new EventEmitter<any>();
+  @ViewChild('triggerBtn') triggerBtn!: ElementRef<HTMLButtonElement>;
+
+  open = signal(false);
+  dropdownStyle: Record<string, string> = {};
+
+  get selectedLabel(): string {
+    return this.options.find(o => o.value == this.value)?.label ?? '';
+  }
+
+  get isPlaceholderSelected(): boolean {
+    return this.value === '' || this.value === null || this.value === undefined;
+  }
 
   get showError(): boolean {
-    return this.touched && this.required && (this.value === null || this.value === undefined || this.value === '');
+    return this.touched && this.required && this.isPlaceholderSelected;
   }
 
-  onChange(e: Event) {
-    this.valueChange.emit((e.target as HTMLSelectElement).value);
+  toggle() {
+    if (this.disabled) return;
+    if (!this.open()) {
+      const rect = this.triggerBtn.nativeElement.getBoundingClientRect();
+      this.dropdownStyle = {
+        top:      (rect.bottom + 4) + 'px',
+        left:     rect.left + 'px',
+        minWidth: rect.width + 'px',
+      };
+    }
+    this.open.set(!this.open());
   }
+
+  pick(val: any) {
+    this.valueChange.emit(val);
+    this.open.set(false);
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocClick(e: MouseEvent) {
+    if (this.open() && !this.el.nativeElement.contains(e.target as Node)) {
+      this.open.set(false);
+    }
+  }
+
+  @HostListener('window:scroll', ['$event'])
+  onWindowScroll() { this.open.set(false); }
+
+  @HostListener('window:resize')
+  onWindowResize() { this.open.set(false); }
+
+  @HostListener('document:keydown.escape')
+  onEsc() { this.open.set(false); }
+
+  constructor(private el: ElementRef) {}
 }
