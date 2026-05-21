@@ -6,12 +6,17 @@
       <div class="page-hd-sub" *ngIf="!loading()">{{ totalCount() }} categories</div>
     </div>
     <div class="page-hd-right">
+      <div class="view-toggle">
+        <button class="vt-btn" [class.active]="view === 'cards'"   (click)="setView('cards')"   title="Cards"><span class="icon icon-sm">grid_view</span></button>
+        <button class="vt-btn" [class.active]="view === 'table'"   (click)="setView('table')"   title="Table"><span class="icon icon-sm">view_list</span></button>
+        <button class="vt-btn" [class.active]="view === 'compact'" (click)="setView('compact')" title="Compact"><span class="icon icon-sm">density_small</span></button>
+      </div>
       <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreate()">New Category</app-btn>
     </div>
   </div>
 
   <div class="filter-bar">
-    <div class="search-bar">
+    <div class="search-bar" style="flex:1;min-width:180px">
       <span class="sb-icon icon icon-sm">search</span>
       <input type="text" [(ngModel)]="searchQuery" placeholder="Search categories…" (ngModelChange)="onFilterChange()" />
       <button class="sb-clear" *ngIf="searchQuery" (click)="searchQuery=''; onFilterChange()">
@@ -23,25 +28,160 @@
     <app-btn variant="ghost" size="sm" *ngIf="searchQuery || activeFilter" (clicked)="clearFilters()">Clear</app-btn>
   </div>
 
-  <!-- Skeleton -->
-  <div class="tbl-card" *ngIf="loading()">
-    <div class="tbl-wrap">
-      <table class="tbl">
-        <thead><tr><th>Name</th><th>Parent</th><th>Spec Fields</th><th>Status</th><th></th></tr></thead>
-        <tbody>
-          <tr *ngFor="let r of skeletonRows">
-            <td><div class="sk" style="width:120px;height:13px"></div></td>
-            <td><div class="sk" style="width:80px;height:13px"></div></td>
-            <td><div class="sk" style="width:60px;height:13px"></div></td>
-            <td><div class="sk" style="width:60px;height:20px;border-radius:99px"></div></td>
-            <td></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <!-- ══════════════ CARDS VIEW ══════════════ -->
+  <ng-container *ngIf="view === 'cards'">
 
-  <!-- Empty state -->
+    <!-- Skeleton -->
+    <div class="cat-grid" *ngIf="loading()">
+      <div class="cat-card sk-card" *ngFor="let i of skeletonRows">
+        <div class="sk cc-sk-logo"></div>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+          <div class="sk" style="height:14px;width:60%"></div>
+          <div class="sk" style="height:11px;width:40%"></div>
+          <div class="sk" style="height:11px;width:70%;margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid -->
+    <div class="cat-grid" *ngIf="!loading() && categories().length > 0">
+      <div class="cat-card" *ngFor="let cat of categories()" (click)="openEdit(cat)">
+        <!-- Icon area -->
+        <div class="cc-logo" [style.background]="cat.imageUrl ? '' : categoryColor(cat.name) + '18'">
+          <img *ngIf="cat.imageUrl && !cat.imageIsVideo" [src]="cat.imageUrl" [alt]="cat.name" />
+          <video *ngIf="cat.imageUrl && cat.imageIsVideo" [src]="cat.imageUrl" autoplay muted loop playsinline style="width:80px;height:80px;object-fit:contain"></video>
+          <span *ngIf="!cat.imageUrl" class="cc-initials" [style.color]="categoryColor(cat.name)">{{ initials(cat.name) }}</span>
+          <span class="badge cc-status-pill" [class.badge-green]="cat.isActive" [class.badge-gray]="!cat.isActive">
+            {{ cat.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+        <!-- Body -->
+        <div class="cc-body">
+          <div class="cc-name">{{ cat.name }}</div>
+          <div class="cc-slug"><span class="icon icon-xs" style="opacity:.5">link</span> {{ cat.slug }}</div>
+          <div class="cc-parent" *ngIf="cat.parentName">
+            <span class="icon icon-xs" style="opacity:.4">subdirectory_arrow_right</span> {{ cat.parentName }}
+          </div>
+          <div class="cc-specs">
+            <span class="cat-spec-count" [class.has-specs]="(cat.attributeDefinitions?.length ?? 0) > 0">
+              <span class="icon icon-xs">tune</span>
+              {{ cat.attributeDefinitions?.length ?? 0 }} spec fields
+            </span>
+          </div>
+        </div>
+        <!-- Footer -->
+        <div class="cc-foot" *ngIf="canManage()" (click)="$event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" style="flex:1" (click)="openEdit(cat)">
+            <span class="icon icon-sm">edit</span> Edit
+          </button>
+          <button class="btn btn-ghost btn-sm cc-deact" *ngIf="cat.isActive" (click)="openDelete(cat)">
+            <span class="icon icon-sm">block</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ══════════════ TABLE VIEW ══════════════ -->
+  <ng-container *ngIf="view === 'table'">
+    <div class="tbl-card" *ngIf="loading()">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Name</th><th>Parent</th><th>Spec Fields</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let r of skeletonRows">
+              <td><div class="sk" style="width:120px;height:13px"></div></td>
+              <td><div class="sk" style="width:80px;height:13px"></div></td>
+              <td><div class="sk" style="width:60px;height:13px"></div></td>
+              <td><div class="sk" style="width:60px;height:20px;border-radius:99px"></div></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tbl-card" *ngIf="!loading() && categories().length > 0">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Category</th><th>Parent</th><th>Spec Fields</th><th>Status</th><th>Created</th><th *ngIf="canManage()"></th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let cat of categories()" class="tbl-row" (click)="openEdit(cat)">
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="cat-logo-cell" [style.background]="cat.imageUrl ? '' : categoryColor(cat.name) + '18'">
+                    <img *ngIf="cat.imageUrl" [src]="cat.imageUrl" [alt]="cat.name" />
+                    <span *ngIf="!cat.imageUrl" class="cat-cell-initials" [style.color]="categoryColor(cat.name)">{{ initials(cat.name) }}</span>
+                  </div>
+                  <div>
+                    <div style="font-weight:600;color:var(--t1)">{{ cat.name }}</div>
+                    <div style="font-size:11px;color:var(--t3);font-family:monospace">{{ cat.slug }}</div>
+                  </div>
+                </div>
+              </td>
+              <td style="color:var(--t3)">{{ cat.parentName ?? '—' }}</td>
+              <td>
+                <span class="cat-spec-count" [class.has-specs]="(cat.attributeDefinitions?.length ?? 0) > 0">
+                  <span class="icon icon-xs">tune</span>
+                  {{ cat.attributeDefinitions?.length ?? 0 }} fields
+                </span>
+              </td>
+              <td><span class="badge" [class.badge-green]="cat.isActive" [class.badge-gray]="!cat.isActive">{{ cat.isActive ? 'Active' : 'Inactive' }}</span></td>
+              <td style="color:var(--t3);font-size:12px">{{ formatDate(cat.createdAt) }}</td>
+              <td *ngIf="canManage()" (click)="$event.stopPropagation()">
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-ghost btn-sm" (click)="openEdit(cat)"><span class="icon icon-sm">edit</span></button>
+                  <button class="btn btn-ghost btn-sm" *ngIf="cat.isActive" (click)="openDelete(cat)"><span class="icon icon-sm icon-red">block</span></button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pgn" *ngIf="totalPages() > 1">
+        <button class="pgn-btn" [disabled]="currentPage()===0" (click)="goToPage(currentPage()-1)"><span class="icon icon-sm">chevron_left</span></button>
+        <ng-container *ngFor="let pg of pageNumbers()">
+          <span class="pgn-ellipsis" *ngIf="pg===-1">…</span>
+          <button class="pgn-btn" *ngIf="pg!==-1" [class.active]="pg===currentPage()" (click)="goToPage(pg)">{{ pg+1 }}</button>
+        </ng-container>
+        <button class="pgn-btn" [disabled]="currentPage()===totalPages()-1" (click)="goToPage(currentPage()+1)"><span class="icon icon-sm">chevron_right</span></button>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ══════════════ COMPACT VIEW ══════════════ -->
+  <ng-container *ngIf="view === 'compact'">
+    <div class="compact-list" *ngIf="!loading() && categories().length > 0">
+      <div class="compact-item" *ngFor="let cat of categories()" (click)="openEdit(cat)">
+        <div class="ci-logo" [style.background]="cat.imageUrl ? '' : categoryColor(cat.name) + '18'">
+          <img *ngIf="cat.imageUrl" [src]="cat.imageUrl" [alt]="cat.name" />
+          <span *ngIf="!cat.imageUrl" class="ci-initials" [style.color]="categoryColor(cat.name)">{{ initials(cat.name) }}</span>
+        </div>
+        <div class="ci-info">
+          <span class="ci-name">{{ cat.name }}</span>
+          <span class="ci-slug">{{ cat.slug }}</span>
+        </div>
+        <span class="ci-parent">{{ cat.parentName || '—' }}</span>
+        <span class="cat-spec-count ci-specs" [class.has-specs]="(cat.attributeDefinitions?.length ?? 0) > 0">
+          <span class="icon icon-xs">tune</span> {{ cat.attributeDefinitions?.length ?? 0 }}
+        </span>
+        <span class="badge" [class.badge-green]="cat.isActive" [class.badge-gray]="!cat.isActive">{{ cat.isActive ? 'Active' : 'Inactive' }}</span>
+        <div class="ci-actions" *ngIf="canManage()" (click)="$event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" (click)="openEdit(cat)"><span class="icon icon-sm">edit</span></button>
+          <button class="btn btn-ghost btn-sm" *ngIf="cat.isActive" (click)="openDelete(cat)"><span class="icon icon-sm icon-red">block</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-card" *ngIf="loading()">
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Category</th><th>Status</th></tr></thead>
+        <tbody><tr *ngFor="let r of skeletonRows"><td><div class="sk" style="height:13px;width:120px"></div></td><td><div class="sk" style="height:20px;width:60px;border-radius:99px"></div></td></tr></tbody>
+      </table></div>
+    </div>
+  </ng-container>
+
+  <!-- ══════════════ EMPTY ══════════════ -->
   <div class="empty" *ngIf="!loading() && categories().length === 0">
     <div class="empty-icon"><span class="icon icon-xl icon-muted">folder</span></div>
     <div class="empty-title">No categories found</div>
@@ -50,67 +190,6 @@
     </div>
     <app-btn variant="primary" size="sm" icon="add"
       *ngIf="!searchQuery && !activeFilter && canManage()" (clicked)="openCreate()">New Category</app-btn>
-  </div>
-
-  <!-- Table -->
-  <div class="tbl-card" *ngIf="!loading() && categories().length > 0">
-    <div class="tbl-wrap">
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>Category</th>
-            <th>Parent</th>
-            <th>Spec Fields</th>
-            <th>Status</th>
-            <th *ngIf="canManage()"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let cat of categories()" class="tbl-row" (click)="openEdit(cat)">
-            <td>
-              <div>
-                <div style="font-weight:600;color:var(--t1)">{{ cat.name }}</div>
-                <div style="font-size:11px;color:var(--t3);font-family:monospace">{{ cat.slug }}</div>
-              </div>
-            </td>
-            <td style="color:var(--t3)">{{ cat.parentName ?? '—' }}</td>
-            <td>
-              <span class="cat-spec-count" [class.has-specs]="(cat.attributeDefinitions?.length ?? 0) > 0">
-                <span class="icon icon-xs">tune</span>
-                {{ cat.attributeDefinitions?.length ?? 0 }} fields
-              </span>
-            </td>
-            <td>
-              <span class="badge" [class.badge-green]="cat.isActive" [class.badge-gray]="!cat.isActive">
-                {{ cat.isActive ? 'Active' : 'Inactive' }}
-              </span>
-            </td>
-            <td *ngIf="canManage()" (click)="$event.stopPropagation()">
-              <div style="display:flex;gap:6px">
-                <button class="btn btn-ghost btn-sm" (click)="openEdit(cat)">
-                  <span class="icon icon-sm">edit</span>
-                </button>
-                <button class="btn btn-ghost btn-sm" *ngIf="cat.isActive" (click)="openDelete(cat)">
-                  <span class="icon icon-sm icon-red">block</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="pgn" *ngIf="totalPages() > 1">
-      <button class="pgn-btn" [disabled]="currentPage()===0" (click)="goToPage(currentPage()-1)">
-        <span class="icon icon-sm">chevron_left</span>
-      </button>
-      <ng-container *ngFor="let pg of pageNumbers()">
-        <span class="pgn-ellipsis" *ngIf="pg===-1">…</span>
-        <button class="pgn-btn" *ngIf="pg!==-1" [class.active]="pg===currentPage()" (click)="goToPage(pg)">{{ pg+1 }}</button>
-      </ng-container>
-      <button class="pgn-btn" [disabled]="currentPage()===totalPages()-1" (click)="goToPage(currentPage()+1)">
-        <span class="icon icon-sm">chevron_right</span>
-      </button>
-    </div>
   </div>
 
 </div>
@@ -142,6 +221,44 @@
       <div class="alert alert-error" *ngIf="modalError">
         <span class="icon icon-sm">warning</span> {{ modalError }}
       </div>
+
+      <!-- Image/video section (edit only) -->
+      <div class="logo-section" *ngIf="modalMode === 'edit'">
+        <div class="ls-label">Category Image / Video</div>
+        <div class="ls-row">
+          <div class="ls-preview" [style.background]="editTarget?.imageUrl ? '' : categoryColor(editTarget?.name ?? '') + '18'">
+            <img *ngIf="editTarget?.imageUrl && !editTarget?.imageIsVideo" [src]="editTarget!.imageUrl!" [alt]="editTarget!.name" />
+            <video *ngIf="editTarget?.imageUrl && editTarget?.imageIsVideo" [src]="editTarget!.imageUrl!" autoplay muted loop playsinline></video>
+            <span *ngIf="!editTarget?.imageUrl" class="ls-initials" [style.color]="categoryColor(editTarget?.name ?? '')">
+              {{ initials(editTarget?.name ?? '') }}
+            </span>
+            <div class="ls-uploading" *ngIf="imageUploading"><span class="ls-spinner"></span></div>
+          </div>
+          <div class="ls-actions">
+            <div class="ls-type-toggle">
+              <button class="ls-type-btn" [class.active]="uploadImageType === 'image'" (click)="uploadImageType = 'image'">
+                <span class="icon icon-xs">image</span> Image
+              </button>
+              <button class="ls-type-btn" [class.active]="uploadImageType === 'video'" (click)="uploadImageType = 'video'">
+                <span class="icon icon-xs">videocam</span> Video
+              </button>
+            </div>
+            <label class="btn btn-ghost btn-sm ls-upload-btn">
+              <span class="icon icon-sm">upload</span>
+              {{ editTarget?.imageUrl ? 'Replace' : 'Upload' }}
+              <input type="file" [attr.accept]="uploadImageType === 'video' ? 'video/*' : 'image/*'"
+                (change)="onImageSelected($event)" style="display:none" />
+            </label>
+            <button class="btn btn-ghost btn-sm" *ngIf="editTarget?.imageUrl" (click)="removeImage()" [disabled]="imageUploading">
+              <span class="icon icon-sm icon-red">delete</span>
+            </button>
+          </div>
+        </div>
+        <div class="alert alert-error" style="margin-top:6px;padding:8px 10px;font-size:12px" *ngIf="imageError">
+          <span class="icon icon-xs">warning</span> {{ imageError }}
+        </div>
+      </div>
+
       <app-input label="Name" [required]="true" [touched]="formTouched"
         [value]="form.name" (valueChange)="onNameChange($event)" placeholder="e.g. Smartphones" />
       <app-input label="Slug" optLabel="auto-generated if blank"
@@ -171,24 +288,20 @@
   <ng-container *ngIf="activeTab === 'specs'">
     <div class="modal-body">
 
-      <!-- Explain what spec fields are -->
       <div class="spec-info-box">
         <span class="icon icon-sm icon-blue">info</span>
         <span>Spec fields define what product info is collected for <strong>{{ editTarget?.name }}</strong> — e.g. for Smartphones: RAM, Storage, Battery, OS. These appear as a form when adding products in this category.</span>
       </div>
 
-      <!-- Attr error -->
       <div class="alert alert-error" *ngIf="attrError">
         <span class="icon icon-sm">warning</span> {{ attrError }}
       </div>
 
-      <!-- Loading -->
       <div *ngIf="attrLoading" style="display:flex;flex-direction:column;gap:8px">
         <div class="sk" style="height:48px;border-radius:8px"></div>
         <div class="sk" style="height:48px;border-radius:8px"></div>
       </div>
 
-      <!-- Inline attr form -->
       <div class="attr-form-panel" *ngIf="!attrLoading && attrView === 'form'">
         <div class="attr-form-hd">
           <button class="attr-back-btn" (click)="backToAttrList()">
@@ -212,7 +325,6 @@
             <app-input label="Unit" optLabel="optional"
               [value]="attrForm.unit" (valueChange)="attrForm.unit = $event" placeholder="e.g. GB, inch, mAh" />
           </div>
-          <!-- Individual option inputs for SELECT / MULTISELECT -->
           <div *ngIf="showOptionInputs" class="field">
             <label class="field-label">Options <span class="req">*</span></label>
             <div class="option-inputs">
@@ -248,7 +360,6 @@
         </div>
       </div>
 
-      <!-- Attr list -->
       <ng-container *ngIf="!attrLoading && attrView === 'list'">
         <div class="empty" style="padding:28px" *ngIf="attrs.length === 0">
           <div class="empty-icon"><span class="icon icon-lg icon-muted">tune</span></div>

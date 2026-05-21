@@ -62,6 +62,9 @@ export class ProductsComponent implements OnInit {
   selectedStatus: ProductStatus | '' = '';
   searchQuery = '';
 
+  // ── View ──────────────────────────────────────────────────────────────────
+  view: 'cards' | 'table' | 'compact' = 'cards';
+
   // ── Category tree nav ─────────────────────────────────────────────────────
   expandedCats = new Set<string>();
 
@@ -99,7 +102,10 @@ export class ProductsComponent implements OnInit {
     ];
   }
 
-  constructor(private http: HttpClient, public router: Router, public auth: AuthService) {}
+  constructor(private http: HttpClient, public router: Router, public auth: AuthService) {
+    const saved = localStorage.getItem('products_view');
+    if (saved === 'table' || saved === 'compact') this.view = saved;
+  }
 
   ngOnInit() {
     this.loadCategories();
@@ -141,6 +147,11 @@ export class ProductsComponent implements OnInit {
       },
       error: () => this.loading.set(false)
     });
+  }
+
+  setView(v: 'cards' | 'table' | 'compact') {
+    this.view = v;
+    localStorage.setItem('products_view', v);
   }
 
   onFilterChange() { this.loadProducts(0); }

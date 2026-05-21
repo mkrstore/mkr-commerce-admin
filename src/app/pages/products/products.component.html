@@ -49,9 +49,9 @@
     <!-- RIGHT: Products list -->
     <div class="prod-main">
 
-      <!-- Filters -->
+      <!-- Filters + view toggle -->
       <div class="filter-bar">
-        <div class="search-bar">
+        <div class="search-bar" style="flex:1;min-width:160px">
           <span class="sb-icon icon icon-sm">search</span>
           <input type="text" [(ngModel)]="searchQuery" placeholder="Search by name or SKU…"
             (ngModelChange)="onFilterChange()" />
@@ -64,22 +64,41 @@
         <app-select placeholder="All Status" [options]="statusFilterOpts"
           [value]="selectedStatus" (valueChange)="selectedStatus = $event; onFilterChange()" />
         <app-btn variant="ghost" size="sm" *ngIf="hasFilters" (clicked)="clearFilters()">Clear</app-btn>
+        <div class="view-toggle">
+          <button class="vt-btn" [class.active]="view === 'cards'"   (click)="setView('cards')"   title="Cards"><span class="icon icon-sm">grid_view</span></button>
+          <button class="vt-btn" [class.active]="view === 'table'"   (click)="setView('table')"   title="Table"><span class="icon icon-sm">view_list</span></button>
+          <button class="vt-btn" [class.active]="view === 'compact'" (click)="setView('compact')" title="Compact"><span class="icon icon-sm">density_small</span></button>
+        </div>
       </div>
 
-      <!-- Skeleton -->
+      <!-- ══ SKELETON ══ -->
       <ng-container *ngIf="loading()">
-        <div class="psk-list">
-          <div class="psk-row" *ngFor="let r of skeletonRows">
-            <div class="sk psk-img"></div>
-            <div class="psk-lines">
-              <div class="sk" style="height:14px;width:60%"></div>
-              <div class="sk" style="height:11px;width:40%;margin-top:6px"></div>
+        <!-- Cards skeleton -->
+        <div class="prod-grid" *ngIf="view === 'cards'">
+          <div class="prod-card sk-card" *ngFor="let r of skeletonRows">
+            <div class="sk sk-img"></div>
+            <div style="padding:12px 14px;display:flex;flex-direction:column;gap:7px">
+              <div class="sk" style="height:13px;width:65%"></div>
+              <div class="sk" style="height:10px;width:40%"></div>
+              <div class="sk" style="height:14px;width:50%;margin-top:2px"></div>
             </div>
           </div>
         </div>
+        <!-- List skeleton -->
+        <ng-container *ngIf="view !== 'cards'">
+          <div class="psk-list">
+            <div class="psk-row" *ngFor="let r of skeletonRows">
+              <div class="sk psk-img"></div>
+              <div class="psk-lines">
+                <div class="sk" style="height:14px;width:60%"></div>
+                <div class="sk" style="height:11px;width:40%;margin-top:6px"></div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
       </ng-container>
 
-      <!-- Empty state -->
+      <!-- ══ EMPTY ══ -->
       <div class="empty" *ngIf="!loading() && products().length === 0">
         <div class="empty-icon"><span class="icon icon-xl icon-muted">inventory_2</span></div>
         <div class="empty-title">No products found</div>
@@ -91,18 +110,34 @@
         </app-btn>
       </div>
 
-      <!-- Product table -->
-      <div class="tbl-wrap" *ngIf="!loading() && products().length > 0">
+      <!-- ══ CARDS VIEW ══ -->
+      <div class="prod-grid" *ngIf="!loading() && products().length > 0 && view === 'cards'">
+        <div class="prod-card" *ngFor="let p of products()" (click)="openDetail(p.id)">
+          <div class="pc-img">
+            <img *ngIf="p.primaryImageUrl" [src]="p.primaryImageUrl" [alt]="p.name" />
+            <span *ngIf="!p.primaryImageUrl" class="icon icon-lg icon-muted">inventory_2</span>
+            <span class="pc-status" [ngClass]="statusClass(p.status)">{{ p.status }}</span>
+          </div>
+          <div class="pc-body">
+            <div class="pc-cat">{{ p.categoryName }}</div>
+            <div class="pc-name">{{ p.name }}</div>
+            <div class="pc-brand" *ngIf="p.brandName">{{ p.brandName }}</div>
+            <div class="pc-sku">{{ p.sku }}</div>
+          </div>
+          <div class="pc-foot">
+            <span class="pc-price">{{ inr(p.priceRetail) }}</span>
+            <span class="stock-badge" [ngClass]="stockClass(p.stockQty)">{{ stockLabel(p.stockQty) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ TABLE VIEW ══ -->
+      <div class="tbl-wrap" *ngIf="!loading() && products().length > 0 && view === 'table'">
         <table class="tbl">
           <thead>
             <tr>
-              <th>Product</th>
-              <th>SKU</th>
-              <th>Category</th>
-              <th>Price</th>
-              <th>Stock</th>
-              <th>Status</th>
-              <th>Created</th>
+              <th>Product</th><th>SKU</th><th>Category</th>
+              <th>Price</th><th>Stock</th><th>Status</th><th>Created</th>
             </tr>
           </thead>
           <tbody>
@@ -128,6 +163,24 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- ══ COMPACT VIEW ══ -->
+      <div class="compact-list" *ngIf="!loading() && products().length > 0 && view === 'compact'">
+        <div class="compact-item" *ngFor="let p of products()" (click)="openDetail(p.id)">
+          <div class="ci-img">
+            <img *ngIf="p.primaryImageUrl" [src]="p.primaryImageUrl" [alt]="p.name" />
+            <span *ngIf="!p.primaryImageUrl" class="icon icon-xs icon-muted">inventory_2</span>
+          </div>
+          <div class="ci-info">
+            <span class="ci-name">{{ p.name }}</span>
+            <span class="ci-sku">{{ p.sku }}</span>
+          </div>
+          <span class="ci-cat">{{ p.categoryName }}</span>
+          <span class="ci-price">{{ inr(p.priceRetail) }}</span>
+          <span class="stock-badge" [ngClass]="stockClass(p.stockQty)">{{ stockLabel(p.stockQty) }}</span>
+          <span class="status-badge" [ngClass]="statusClass(p.status)">{{ p.status }}</span>
+        </div>
       </div>
 
       <!-- Pagination -->

@@ -9,7 +9,7 @@ import { AppInputComponent, AppTextareaComponent, AppCheckboxComponent, AppBtnCo
 
 interface BrandDto {
   id: string; name: string; slug: string;
-  logoUrl: string | null; description: string | null;
+  logoUrl: string | null; logoIsVideo: boolean; description: string | null;
   isActive: boolean; createdAt: string; updatedAt: string;
 }
 
@@ -34,8 +34,11 @@ export class BrandsComponent implements OnInit {
   currentPage = signal(0);
   skeletonRows = Array(8);
 
+  view: 'cards' | 'table' | 'compact' = 'cards';
+
   activeFilter: '' | 'true' | 'false' = '';
   searchQuery = '';
+  slugEdited = false;
 
   // ── Modal ─────────────────────────────────────────────────────────────────
   modalMode: 'closed' | 'create' | 'edit' = 'closed';
@@ -45,6 +48,11 @@ export class BrandsComponent implements OnInit {
   editTarget: BrandDto | null = null;
 
   form = { name: '', slug: '', description: '', isActive: true };
+
+  // ── Logo upload ───────────────────────────────────────────────────────────
+  logoUploading  = false;
+  logoError      = '';
+  uploadLogoType: 'image' | 'video' = 'image';
 
   // ── Delete ────────────────────────────────────────────────────────────────
   deleteTarget: BrandDto | null = null;
@@ -68,7 +76,10 @@ export class BrandsComponent implements OnInit {
     return pages;
   });
 
-  constructor(private http: HttpClient, public auth: AuthService) {}
+  constructor(private http: HttpClient, public auth: AuthService) {
+    const saved = localStorage.getItem('brands_view');
+    if (saved === 'table' || saved === 'compact') this.view = saved;
+  }
 
   ngOnInit() { this.load(0); }
 
@@ -105,8 +116,33 @@ export class BrandsComponent implements OnInit {
 
   // ── Create / Edit ─────────────────────────────────────────────────────────
 
+  setView(v: 'cards' | 'table' | 'compact') {
+    this.view = v;
+    localStorage.setItem('brands_view', v);
+  }
+
+  brandColor(name: string): string {
+    const palette = ['#2874F0','#E53935','#43A047','#FB8C00','#8E24AA','#00ACC1','#D81B60','#546E7A'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
+    return palette[hash % palette.length];
+  }
+
+  onNameChange(v: string) {
+    this.form.name = v;
+    if (this.modalMode === 'create' && !this.slugEdited) {
+      this.form.slug = v.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
+    }
+  }
+
+  onSlugChange(v: string) {
+    this.form.slug = v;
+    this.slugEdited = v.trim().length > 0;
+  }
+
   openCreate() {
     this.form = { name: '', slug: '', description: '', isActive: true };
+    this.slugEdited = false;
     this.modalError = ''; this.formTouched = false; this.editTarget = null; this.modalMode = 'create';
   }
 
@@ -150,6 +186,45 @@ export class BrandsComponent implements OnInit {
     this.http.delete<ApiResponse<void>>(`${this.BASE}/${this.deleteTarget.id}`).subscribe({
       next: () => { this.deleting = false; this.deleteTarget = null; this.load(this.currentPage()); },
       error: e  => { this.deleting = false; this.deleteError = extractErrorMessage(e, 'Failed to deactivate.'); }
+    });
+  }
+
+  onLogoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length || !this.editTarget) return;
+    const file = input.files[0];
+    input.value = '';
+    this.logoUploading = true;
+    this.logoError = '';
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('type', this.uploadLogoType);
+    this.http.post<ApiResponse<BrandDto>>(`${this.BASE}/${this.editTarget.id}/logo`, fd).subscribe({
+      next: res => {
+        this.logoUploading = false;
+        if (res.data) {
+          this.editTarget = res.data;
+          // Update in-list brand so cards refresh
+          this.brands.update(list => list.map(b => b.id === res.data!.id ? res.data! : b));
+        }
+      },
+      error: e => { this.logoUploading = false; this.logoError = extractErrorMessage(e, 'Upload failed.'); }
+    });
+  }
+
+  removeLogo() {
+    if (!this.editTarget) return;
+    this.logoUploading = true;
+    this.logoError = '';
+    this.http.delete<ApiResponse<BrandDto>>(`${this.BASE}/${this.editTarget.id}/logo`).subscribe({
+      next: res => {
+        this.logoUploading = false;
+        if (res.data) {
+          this.editTarget = res.data;
+          this.brands.update(list => list.map(b => b.id === res.data!.id ? res.data! : b));
+        }
+      },
+      error: e => { this.logoUploading = false; this.logoError = extractErrorMessage(e, 'Remove failed.'); }
     });
   }
 

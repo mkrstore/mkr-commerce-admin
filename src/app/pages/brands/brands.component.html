@@ -1,16 +1,24 @@
 <div class="page">
+
+  <!-- ── HEADER ── -->
   <div class="page-hd">
     <div class="page-hd-left">
       <div class="page-hd-title">Brands</div>
       <div class="page-hd-sub" *ngIf="!loading()">{{ totalCount() }} brands</div>
     </div>
     <div class="page-hd-right">
+      <div class="view-toggle">
+        <button class="vt-btn" [class.active]="view === 'cards'"   (click)="setView('cards')"   title="Cards"><span class="icon icon-sm">grid_view</span></button>
+        <button class="vt-btn" [class.active]="view === 'table'"   (click)="setView('table')"   title="Table"><span class="icon icon-sm">view_list</span></button>
+        <button class="vt-btn" [class.active]="view === 'compact'" (click)="setView('compact')" title="Compact"><span class="icon icon-sm">density_small</span></button>
+      </div>
       <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreate()">New Brand</app-btn>
     </div>
   </div>
 
+  <!-- ── FILTERS ── -->
   <div class="filter-bar">
-    <div class="search-bar">
+    <div class="search-bar" style="flex:1;min-width:180px">
       <span class="sb-icon icon icon-sm">search</span>
       <input type="text" [(ngModel)]="searchQuery" placeholder="Search brands…" (ngModelChange)="onFilterChange()" />
       <button class="sb-clear" *ngIf="searchQuery" (click)="searchQuery = ''; onFilterChange()">
@@ -22,100 +30,156 @@
     <app-btn variant="ghost" size="sm" *ngIf="searchQuery || activeFilter" (clicked)="clearFilters()">Clear</app-btn>
   </div>
 
-  <!-- Skeleton -->
-  <div class="tbl-card" *ngIf="loading()">
-    <div class="tbl-wrap">
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>Brand</th><th>Slug</th><th>Status</th><th>Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let r of skeletonRows">
-            <td><div class="sk" style="width:120px;height:13px"></div></td>
-            <td><div class="sk" style="width:80px;height:13px"></div></td>
-            <td><div class="sk" style="width:60px;height:20px;border-radius:99px"></div></td>
-            <td><div class="sk" style="width:80px;height:13px"></div></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <!-- ══════════════ CARDS VIEW ══════════════ -->
+  <ng-container *ngIf="view === 'cards'">
 
-  <!-- Empty state -->
+    <!-- Skeleton -->
+    <div class="brand-grid" *ngIf="loading()">
+      <div class="brand-card sk-card" *ngFor="let i of skeletonRows">
+        <div class="sk bc-sk-logo"></div>
+        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+          <div class="sk" style="height:15px;width:60%"></div>
+          <div class="sk" style="height:11px;width:40%"></div>
+          <div class="sk" style="height:11px;width:80%;margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid -->
+    <div class="brand-grid" *ngIf="!loading() && brands().length > 0">
+      <div class="brand-card" *ngFor="let b of brands()" (click)="openEdit(b)">
+        <!-- Logo / Initials -->
+        <div class="bc-logo" [style.background]="b.logoUrl ? '' : brandColor(b.name) + '18'">
+          <img *ngIf="b.logoUrl && !b.logoIsVideo" [src]="b.logoUrl" [alt]="b.name" />
+          <video *ngIf="b.logoUrl && b.logoIsVideo" [src]="b.logoUrl" autoplay muted loop playsinline></video>
+          <span *ngIf="!b.logoUrl" class="bc-initials" [style.color]="brandColor(b.name)">{{ initials(b.name) }}</span>
+          <span class="badge bc-status-pill" [class.badge-green]="b.isActive" [class.badge-gray]="!b.isActive">
+            {{ b.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+        <!-- Body -->
+        <div class="bc-body">
+          <div class="bc-name">{{ b.name }}</div>
+          <div class="bc-slug"><span class="icon icon-xs" style="opacity:.5">link</span> {{ b.slug }}</div>
+          <div class="bc-desc" *ngIf="b.description">{{ b.description }}</div>
+          <div class="bc-meta">
+            <span class="icon icon-xs" style="opacity:.4">calendar_today</span> {{ formatDate(b.createdAt) }}
+          </div>
+        </div>
+        <!-- Footer actions -->
+        <div class="bc-foot" *ngIf="canManage()" (click)="$event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" style="flex:1" (click)="openEdit(b)">
+            <span class="icon icon-sm">edit</span> Edit
+          </button>
+          <button class="btn btn-ghost btn-sm bc-deact" *ngIf="b.isActive" (click)="openDelete(b)">
+            <span class="icon icon-sm">block</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ══════════════ TABLE VIEW ══════════════ -->
+  <ng-container *ngIf="view === 'table'">
+    <div class="tbl-card" *ngIf="loading()">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Brand</th><th>Slug</th><th>Description</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let r of skeletonRows">
+              <td><div class="sk" style="width:120px;height:13px"></div></td>
+              <td><div class="sk" style="width:80px;height:13px"></div></td>
+              <td><div class="sk" style="width:140px;height:13px"></div></td>
+              <td><div class="sk" style="width:60px;height:20px;border-radius:99px"></div></td>
+              <td><div class="sk" style="width:80px;height:13px"></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="tbl-card" *ngIf="!loading() && brands().length > 0">
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr><th>Brand</th><th>Slug</th><th>Description</th><th>Status</th><th>Created</th><th *ngIf="canManage()"></th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let b of brands()" class="tbl-row" (click)="openEdit(b)">
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="brand-logo-cell">
+                    <img *ngIf="b.logoUrl && !b.logoIsVideo" [src]="b.logoUrl" [alt]="b.name" />
+                    <video *ngIf="b.logoUrl && b.logoIsVideo" [src]="b.logoUrl" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:contain"></video>
+                    <span *ngIf="!b.logoUrl" class="icon icon-sm icon-muted">label</span>
+                  </div>
+                  <span style="font-weight:600;color:var(--t1)">{{ b.name }}</span>
+                </div>
+              </td>
+              <td><span class="slug-badge">{{ b.slug }}</span></td>
+              <td style="color:var(--t3);font-size:12px;max-width:200px">
+                {{ b.description ? (b.description | slice:0:60) + (b.description.length > 60 ? '…' : '') : '—' }}
+              </td>
+              <td><span class="badge" [class.badge-green]="b.isActive" [class.badge-gray]="!b.isActive">{{ b.isActive ? 'Active' : 'Inactive' }}</span></td>
+              <td style="color:var(--t3);font-size:12px">{{ formatDate(b.createdAt) }}</td>
+              <td *ngIf="canManage()" (click)="$event.stopPropagation()">
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-ghost btn-sm" (click)="openEdit(b)"><span class="icon icon-sm">edit</span></button>
+                  <button class="btn btn-ghost btn-sm" *ngIf="b.isActive" (click)="openDelete(b)"><span class="icon icon-sm icon-red">block</span></button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pgn" *ngIf="totalPages() > 1">
+        <button class="pgn-btn" [disabled]="currentPage()===0" (click)="goToPage(currentPage()-1)"><span class="icon icon-sm">chevron_left</span></button>
+        <ng-container *ngFor="let pg of pageNumbers()">
+          <span class="pgn-ellipsis" *ngIf="pg===-1">…</span>
+          <button class="pgn-btn" *ngIf="pg!==-1" [class.active]="pg===currentPage()" (click)="goToPage(pg)">{{ pg+1 }}</button>
+        </ng-container>
+        <button class="pgn-btn" [disabled]="currentPage()===totalPages()-1" (click)="goToPage(currentPage()+1)"><span class="icon icon-sm">chevron_right</span></button>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ══════════════ COMPACT VIEW ══════════════ -->
+  <ng-container *ngIf="view === 'compact'">
+    <div class="compact-list" *ngIf="!loading() && brands().length > 0">
+      <div class="compact-item" *ngFor="let b of brands()" (click)="openEdit(b)">
+        <div class="ci-logo" [style.background]="b.logoUrl ? '' : brandColor(b.name) + '18'">
+          <img *ngIf="b.logoUrl && !b.logoIsVideo" [src]="b.logoUrl" [alt]="b.name" />
+          <video *ngIf="b.logoUrl && b.logoIsVideo" [src]="b.logoUrl" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:contain"></video>
+          <span *ngIf="!b.logoUrl" class="ci-initials" [style.color]="brandColor(b.name)">{{ initials(b.name) }}</span>
+        </div>
+        <div class="ci-info">
+          <span class="ci-name">{{ b.name }}</span>
+          <span class="ci-slug">{{ b.slug }}</span>
+        </div>
+        <span class="ci-desc">{{ b.description || '—' }}</span>
+        <span class="badge" [class.badge-green]="b.isActive" [class.badge-gray]="!b.isActive">{{ b.isActive ? 'Active' : 'Inactive' }}</span>
+        <span class="ci-date">{{ formatDate(b.createdAt) }}</span>
+        <div class="ci-actions" *ngIf="canManage()" (click)="$event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" (click)="openEdit(b)"><span class="icon icon-sm">edit</span></button>
+          <button class="btn btn-ghost btn-sm" *ngIf="b.isActive" (click)="openDelete(b)"><span class="icon icon-sm icon-red">block</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="tbl-card" *ngIf="loading()">
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Brand</th><th>Status</th></tr></thead>
+        <tbody><tr *ngFor="let r of skeletonRows"><td><div class="sk" style="height:13px;width:120px"></div></td><td><div class="sk" style="height:20px;width:60px;border-radius:99px"></div></td></tr></tbody>
+      </table></div>
+    </div>
+  </ng-container>
+
+  <!-- ══════════════ EMPTY ══════════════ -->
   <div class="empty" *ngIf="!loading() && brands().length === 0">
     <div class="empty-icon"><span class="icon icon-xl icon-muted">label</span></div>
     <div class="empty-title">No brands found</div>
-    <div class="empty-sub" *ngIf="!searchQuery && !activeFilter && canManage()">
-      Add brands to associate them with your products
-    </div>
-    <app-btn variant="primary" size="sm" icon="add"
-      *ngIf="!searchQuery && !activeFilter && canManage()" (clicked)="openCreate()">New Brand</app-btn>
+    <div class="empty-sub" *ngIf="!searchQuery && !activeFilter && canManage()">Add brands to associate them with your products</div>
+    <app-btn variant="primary" size="sm" icon="add" *ngIf="!searchQuery && !activeFilter && canManage()" (clicked)="openCreate()">New Brand</app-btn>
   </div>
 
-  <!-- Table -->
-  <div class="tbl-card" *ngIf="!loading() && brands().length > 0">
-    <div class="tbl-wrap">
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>Brand</th>
-            <th>Slug</th>
-            <th>Description</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th *ngIf="canManage()"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let brand of brands()" class="tbl-row" (click)="openEdit(brand)">
-            <td>
-              <div style="display:flex;align-items:center;gap:10px">
-                <div class="brand-logo-cell">
-                  <img *ngIf="brand.logoUrl" [src]="brand.logoUrl" [alt]="brand.name" />
-                  <span *ngIf="!brand.logoUrl" class="icon icon-sm icon-muted">label</span>
-                </div>
-                <span style="font-weight:600;color:var(--t1)">{{ brand.name }}</span>
-              </div>
-            </td>
-            <td><span class="slug-badge">{{ brand.slug }}</span></td>
-            <td style="color:var(--t3);font-size:12px;max-width:200px">
-              {{ brand.description ? (brand.description | slice:0:60) + (brand.description.length > 60 ? '…' : '') : '—' }}
-            </td>
-            <td>
-              <span class="badge" [class.badge-green]="brand.isActive" [class.badge-gray]="!brand.isActive">
-                {{ brand.isActive ? 'Active' : 'Inactive' }}
-              </span>
-            </td>
-            <td style="color:var(--t3);font-size:12px">{{ formatDate(brand.createdAt) }}</td>
-            <td *ngIf="canManage()" (click)="$event.stopPropagation()">
-              <div style="display:flex;gap:6px">
-                <button class="btn btn-ghost btn-sm" (click)="openEdit(brand)">
-                  <span class="icon icon-sm">edit</span>
-                </button>
-                <button class="btn btn-ghost btn-sm" *ngIf="brand.isActive" (click)="openDelete(brand)">
-                  <span class="icon icon-sm icon-red">block</span>
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="pgn" *ngIf="totalPages() > 1">
-      <button class="pgn-btn" [disabled]="currentPage()===0" (click)="goToPage(currentPage()-1)">
-        <span class="icon icon-sm">chevron_left</span>
-      </button>
-      <ng-container *ngFor="let pg of pageNumbers()">
-        <span class="pgn-ellipsis" *ngIf="pg===-1">…</span>
-        <button class="pgn-btn" *ngIf="pg!==-1" [class.active]="pg===currentPage()" (click)="goToPage(pg)">{{ pg+1 }}</button>
-      </ng-container>
-      <button class="pgn-btn" [disabled]="currentPage()===totalPages()-1" (click)="goToPage(currentPage()+1)">
-        <span class="icon icon-sm">chevron_right</span>
-      </button>
-    </div>
-  </div>
 </div>
 
 <!-- ── CREATE / EDIT MODAL ── -->
@@ -126,13 +190,51 @@
     <button class="modal-close" (click)="closeModal()"><span class="icon icon-sm">close</span></button>
   </div>
   <div class="modal-body">
-    <div class="alert alert-error" *ngIf="modalError">
-      <span class="icon icon-sm">warning</span> {{ modalError }}
+    <div class="alert alert-error" *ngIf="modalError"><span class="icon icon-sm">warning</span> {{ modalError }}</div>
+
+    <!-- Logo section (edit only) -->
+    <div class="logo-section" *ngIf="modalMode === 'edit'">
+      <div class="ls-label">Brand Logo / Media</div>
+      <div class="ls-row">
+        <div class="ls-preview" [style.background]="editTarget?.logoUrl ? '' : brandColor(editTarget?.name ?? '') + '18'">
+          <img *ngIf="editTarget?.logoUrl && !editTarget?.logoIsVideo" [src]="editTarget!.logoUrl!" [alt]="editTarget!.name" />
+          <video *ngIf="editTarget?.logoUrl && editTarget?.logoIsVideo" [src]="editTarget!.logoUrl!" autoplay muted loop playsinline></video>
+          <span *ngIf="!editTarget?.logoUrl" class="ls-initials" [style.color]="brandColor(editTarget?.name ?? '')">
+            {{ initials(editTarget?.name ?? '') }}
+          </span>
+          <div class="ls-uploading" *ngIf="logoUploading">
+            <span class="ls-spinner"></span>
+          </div>
+        </div>
+        <div class="ls-actions">
+          <div class="ls-type-toggle">
+            <button class="ls-type-btn" [class.active]="uploadLogoType === 'image'" (click)="uploadLogoType = 'image'">
+              <span class="icon icon-xs">image</span> Image
+            </button>
+            <button class="ls-type-btn" [class.active]="uploadLogoType === 'video'" (click)="uploadLogoType = 'video'">
+              <span class="icon icon-xs">videocam</span> Video
+            </button>
+          </div>
+          <label class="btn btn-ghost btn-sm ls-upload-btn">
+            <span class="icon icon-sm">upload</span>
+            {{ editTarget?.logoUrl ? 'Replace' : 'Upload' }}
+            <input type="file" [attr.accept]="uploadLogoType === 'video' ? 'video/*' : 'image/*'"
+              (change)="onLogoSelected($event)" style="display:none" />
+          </label>
+          <button class="btn btn-ghost btn-sm" *ngIf="editTarget?.logoUrl" (click)="removeLogo()" [disabled]="logoUploading">
+            <span class="icon icon-sm icon-red">delete</span>
+          </button>
+        </div>
+      </div>
+      <div class="alert alert-error" style="margin-top:6px;padding:8px 10px;font-size:12px" *ngIf="logoError">
+        <span class="icon icon-xs">warning</span> {{ logoError }}
+      </div>
     </div>
+
     <app-input label="Brand Name" [required]="true" [touched]="formTouched"
-      [value]="form.name" (valueChange)="form.name = $event" placeholder="e.g. Samsung" />
+      [value]="form.name" (valueChange)="onNameChange($event)" placeholder="e.g. Samsung" />
     <app-input label="Slug" optLabel="auto-generated if blank"
-      [value]="form.slug" (valueChange)="form.slug = $event" placeholder="e.g. samsung" />
+      [value]="form.slug" (valueChange)="onSlugChange($event)" placeholder="e.g. samsung" />
     <app-textarea label="Description" optLabel="optional"
       [value]="form.description" (valueChange)="form.description = $event"
       placeholder="Short brand description…" [rows]="2" />
@@ -141,9 +243,7 @@
   </div>
   <div class="modal-ft">
     <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
-    <app-btn variant="primary" [loading]="saving" (clicked)="save()">
-      {{ modalMode === 'create' ? 'Create' : 'Save Changes' }}
-    </app-btn>
+    <app-btn variant="primary" [loading]="saving" (clicked)="save()">{{ modalMode === 'create' ? 'Create' : 'Save Changes' }}</app-btn>
   </div>
 </div>
 

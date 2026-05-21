@@ -187,7 +187,7 @@
 
     <!-- Media grid -->
     <div class="media-grid" *ngIf="(p.media?.length ?? 0) > 0">
-      <div class="media-card" *ngFor="let m of p.media">
+      <div class="media-card" *ngFor="let m of (p.media || []).slice().sort(sortMedia)">
         <div class="mc-thumb">
           <img *ngIf="!isVideo(m.mediaType)" [src]="m.url" [alt]="m.altText ?? ''" />
           <div class="mc-video-icon" *ngIf="isVideo(m.mediaType)">
@@ -222,7 +222,7 @@
       </div>
       <div class="upload-row">
         <label class="upload-file-label">
-          <input id="media-upload-input" type="file" accept="image/*,video/*" multiple (change)="onFileSelected($event)" />
+          <input id="media-upload-input" type="file" [attr.accept]="uploadMediaType === 'VIDEO' ? 'video/*' : 'image/*'" multiple (change)="onFileSelected($event)" />
           <span>{{ uploadFiles.length ? uploadFiles.length + ' file(s) selected' : 'Choose files…' }}</span>
         </label>
         <app-btn variant="primary" [loading]="uploading" [disabled]="!uploadFiles.length" (clicked)="uploadMedia()">

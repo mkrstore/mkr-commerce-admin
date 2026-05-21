@@ -51,6 +51,8 @@ export const PRODUCT_ENDPOINTS = {
   CATEGORY_ATTRS:   (id: string) => `${API}/categories/${id}/attributes`,
   CATEGORY_ATTR_ID: (id: string, attrId: string) => `${API}/categories/${id}/attributes/${attrId}`,
   BRANDS:           `${API}/brands`,
+  BRAND_LOGO:       (id: string) => `${API}/brands/${id}/logo`,
+  CATEGORY_IMAGE:   (id: string) => `${API}/categories/${id}/image`,
 } as const;
 
 export const ORDER_ENDPOINTS = {

@@ -13,7 +13,8 @@ type FieldType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'SELECT' | 'MULTISELECT';
 
 interface CategoryDto {
   id: string; name: string; slug: string; description: string | null;
-  imageUrl: string | null; parentId: string | null; parentName: string | null;
+  imageUrl: string | null; imageIsVideo: boolean;
+  parentId: string | null; parentName: string | null;
   sortOrder: number; isActive: boolean;
   attributeDefinitions: AttributeDefinitionDto[] | undefined;
   createdAt: string; updatedAt: string;
@@ -49,6 +50,8 @@ export class CategoriesComponent implements OnInit {
   currentPage = signal(0);
   skeletonRows = Array(8);
 
+  view: 'cards' | 'table' | 'compact' = 'cards';
+
   activeFilter: '' | 'true' | 'false' = '';
   searchQuery = '';
 
@@ -65,6 +68,11 @@ export class CategoriesComponent implements OnInit {
 
   form = { name: '', slug: '', description: '', parentId: '', sortOrder: 0, isActive: true };
   slugEdited = false;
+
+  // ── Image upload ──────────────────────────────────────────────────────────
+  imageUploading  = false;
+  imageError      = '';
+  uploadImageType: 'image' | 'video' = 'image';
 
   // ── Delete confirm ────────────────────────────────────────────────────────
   deleteTarget: CategoryDto | null = null;
@@ -129,7 +137,10 @@ export class CategoriesComponent implements OnInit {
     return pages;
   });
 
-  constructor(private http: HttpClient, public auth: AuthService) {}
+  constructor(private http: HttpClient, public auth: AuthService) {
+    const saved = localStorage.getItem('categories_view');
+    if (saved === 'table' || saved === 'compact') this.view = saved;
+  }
 
   ngOnInit() { this.loadTree(); this.load(0); }
 
@@ -158,6 +169,20 @@ export class CategoriesComponent implements OnInit {
       next: res => this.tree.set(res.data ?? [])
     });
   }
+
+  setView(v: 'cards' | 'table' | 'compact') {
+    this.view = v;
+    localStorage.setItem('categories_view', v);
+  }
+
+  categoryColor(name: string): string {
+    const palette = ['#2874F0','#E53935','#43A047','#FB8C00','#8E24AA','#00ACC1','#D81B60','#546E7A'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
+    return palette[hash % palette.length];
+  }
+
+  initials(name: string) { return name.slice(0, 2).toUpperCase(); }
 
   onFilterChange() { this.load(0); }
   clearFilters()   { this.searchQuery = ''; this.activeFilter = ''; this.load(0); }
@@ -373,6 +398,46 @@ export class CategoriesComponent implements OnInit {
   onFieldKeyChange(v: string) {
     this.attrForm.fieldKey = v;
     this.fieldKeyEdited = v.trim().length > 0;
+  }
+
+  // ── Image upload ──────────────────────────────────────────────────────────
+
+  onImageSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length || !this.editTarget) return;
+    const file = input.files[0];
+    input.value = '';
+    this.imageUploading = true;
+    this.imageError = '';
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('type', this.uploadImageType);
+    this.http.post<ApiResponse<CategoryDto>>(this.EP.CATEGORY_IMAGE(this.editTarget.id), fd).subscribe({
+      next: res => {
+        this.imageUploading = false;
+        if (res.data) {
+          this.editTarget = res.data;
+          this.categories.update(list => list.map(c => c.id === res.data!.id ? res.data! : c));
+        }
+      },
+      error: e => { this.imageUploading = false; this.imageError = extractErrorMessage(e, 'Upload failed.'); }
+    });
+  }
+
+  removeImage() {
+    if (!this.editTarget) return;
+    this.imageUploading = true;
+    this.imageError = '';
+    this.http.delete<ApiResponse<CategoryDto>>(this.EP.CATEGORY_IMAGE(this.editTarget.id)).subscribe({
+      next: res => {
+        this.imageUploading = false;
+        if (res.data) {
+          this.editTarget = res.data;
+          this.categories.update(list => list.map(c => c.id === res.data!.id ? res.data! : c));
+        }
+      },
+      error: e => { this.imageUploading = false; this.imageError = extractErrorMessage(e, 'Remove failed.'); }
+    });
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

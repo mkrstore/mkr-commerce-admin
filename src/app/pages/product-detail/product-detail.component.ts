@@ -478,6 +478,8 @@ export class ProductDetailComponent implements OnInit {
 
   isVideo(mt: MediaType): boolean { return mt === 'VIDEO'; }
 
+  sortMedia(a: ProductImageDto, b: ProductImageDto): number { return a.sortOrder - b.sortOrder; }
+
   inr(n: number | null): string {
     if (!n) return '—';
     return '₹' + Number(n).toLocaleString('en-IN');
