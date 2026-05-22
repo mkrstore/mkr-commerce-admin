@@ -13,6 +13,11 @@
 
     <!-- Main content -->
     <div class="app-content">
+      <div class="ptr-wrap" [style.height.px]="ptrOffset">
+        <div class="ptr-icon" [class.ptr-triggered]="ptrTriggered" [class.ptr-loading]="ptrLoading">
+          <span class="icon">{{ ptrLoading ? 'refresh' : 'arrow_downward' }}</span>
+        </div>
+      </div>
       <app-topbar></app-topbar>
       <main class="app-main">
         <router-outlet></router-outlet>

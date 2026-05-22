@@ -20,6 +20,40 @@
   padding-bottom: 0;
 }
 
+/* Pull to refresh indicator */
+.ptr-wrap {
+  height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--bg);
+  transition: height 0.15s ease;
+}
+
+.ptr-icon {
+  color: var(--t3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+
+  .icon { transition: transform 0.25s ease; font-size: 20px; }
+
+  &.ptr-triggered {
+    color: var(--blue);
+    .icon { transform: rotate(180deg); }
+  }
+
+  &.ptr-loading {
+    color: var(--blue);
+    .icon { animation: ptr-spin 0.6s linear infinite; }
+  }
+}
+
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
+
 /* Overlay for mobile sidebar */
 .sidebar-overlay {
   display: none;
