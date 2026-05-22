@@ -35,7 +35,7 @@
   position: relative;
   width: 100%; height: 110px;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
-  img { width: 64px; height: 64px; object-fit: contain; }
+  img, video { width: 100%; height: 100%; object-fit: contain; padding: 16px; }
 }
 .cc-initials { font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
 .cc-status-pill { position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 600; padding: 3px 8px; }
@@ -170,6 +170,7 @@
 .attr-form-panel {
   background: var(--surface2); border-radius: var(--radius-md);
   border: 1px solid var(--border); overflow: hidden;
+  flex-shrink: 0;
 }
 .attr-form-hd {
   display: flex; align-items: center; gap: 8px;

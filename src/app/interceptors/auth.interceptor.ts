@@ -48,7 +48,9 @@ export const authInterceptor: HttpInterceptorFn = (
     req.url.includes('/api/auth/logout')        ||
     req.url.includes('/api/auth/forgot-password') ||
     req.url.includes('/api/auth/reset-password') ||
-    req.url.includes('/api/auth/set-password')  ||
+    req.url.includes('/api/auth/set-password')    ||
+    req.url.includes('/api/auth/first-password') ||
+    req.url.includes('/api/auth/dev/')           ||
     req.url.includes('/api/auth/invitation');
 
   // ── 1. withCredentials on every request ───────────────────────────────

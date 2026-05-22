@@ -36,7 +36,7 @@ const STYLES = `
 .csel-dropdown {
   position: fixed; z-index: 9999;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(0,0,0,.14); max-height: 240px; overflow-y: auto; padding: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.14); overflow-y: auto; padding: 4px;
   max-width: min(400px, 90vw);
 }
 
@@ -121,8 +121,8 @@ export class AppSelectComponent implements OnDestroy {
 
   open = signal(false);
   dropdownStyle: Record<string, string> = {};
-  private scrollHandler = () => this.close();
-
+  private rafId: number | null = null;
+  private openedAt = { top: 0, left: 0 };
 
   get selectedLabel(): string {
     return this.options.find(o => o.value == this.value)?.label ?? '';
@@ -139,26 +139,49 @@ export class AppSelectComponent implements OnDestroy {
   toggle() {
     if (this.disabled) return;
     if (!this.open()) {
-      this.updatePosition();
+      const rect = this.triggerBtn.nativeElement.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const estHeight = Math.min(240, this.options.length * 42 + 16);
+      const style: Record<string, string> = {
+        left:     rect.left + 'px',
+        minWidth: rect.width + 'px',
+      };
+      if (spaceBelow < estHeight && spaceAbove > spaceBelow) {
+        style['bottom']    = (window.innerHeight - rect.top + 4) + 'px';
+        style['maxHeight'] = Math.min(240, spaceAbove - 8) + 'px';
+      } else {
+        style['top']       = (rect.bottom + 4) + 'px';
+        style['maxHeight'] = Math.min(240, spaceBelow - 8) + 'px';
+      }
+      this.dropdownStyle = style;
+      this.openedAt = { top: rect.top, left: rect.left };
       this.open.set(true);
-      document.addEventListener('scroll', this.scrollHandler, { capture: true, passive: true });
+      this.trackPosition();
     } else {
       this.close();
     }
   }
 
-  private updatePosition() {
-    const rect = this.triggerBtn.nativeElement.getBoundingClientRect();
-    this.dropdownStyle = {
-      top:      (rect.bottom + 4) + 'px',
-      left:     rect.left + 'px',
-      minWidth: rect.width + 'px',
+  private trackPosition() {
+    const check = () => {
+      if (!this.open()) return;
+      const rect = this.triggerBtn.nativeElement.getBoundingClientRect();
+      if (Math.abs(rect.top - this.openedAt.top) > 2 || Math.abs(rect.left - this.openedAt.left) > 2) {
+        this.close();
+        return;
+      }
+      this.rafId = requestAnimationFrame(check);
     };
+    this.rafId = requestAnimationFrame(check);
   }
 
   private close() {
     this.open.set(false);
-    document.removeEventListener('scroll', this.scrollHandler, { capture: true });
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
   }
 
   pick(val: any) {
@@ -180,7 +203,7 @@ export class AppSelectComponent implements OnDestroy {
   onEsc() { this.close(); }
 
   ngOnDestroy() {
-    document.removeEventListener('scroll', this.scrollHandler, { capture: true });
+    if (this.rafId !== null) cancelAnimationFrame(this.rafId);
   }
 
   constructor(private el: ElementRef) {}

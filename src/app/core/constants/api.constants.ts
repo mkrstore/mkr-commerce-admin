@@ -21,6 +21,8 @@ export const AUTH_ENDPOINTS = {
   RESET_PASSWORD:         `${API}/auth/reset-password`,
   VALIDATE_RESET_TOKEN:   `${API}/auth/reset-password/validate`,
   SET_PASSWORD:           `${API}/auth/set-password`,
+  FIRST_PASSWORD:         `${API}/auth/first-password`,
+  DEV_RESET_PASSWORD:     `${API}/auth/dev/reset-password`,
   VALIDATE_INVITATION:    `${API}/auth/invitation/validate`,
   // Spring Security OAuth2 initiation — NOT under the /api prefix
   GOOGLE:                 `${environment.apiBase}/oauth2/authorization/google`,

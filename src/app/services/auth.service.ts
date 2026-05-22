@@ -157,6 +157,34 @@ export class AuthService {
     );
   }
 
+  setFirstPassword(identifier: string, newPassword: string): Observable<ApiResponse<LoginResponse>> {
+    return this.http.post<ApiResponse<LoginResponse>>(
+      this.EP.FIRST_PASSWORD,
+      { identifier, newPassword }
+    ).pipe(
+      tap(res => {
+        if (res.data) {
+          this._accessToken.set(res.data.accessToken);
+          this._user.set(res.data.user);
+        }
+      })
+    );
+  }
+
+  devResetPassword(identifier: string, newPassword: string): Observable<ApiResponse<LoginResponse>> {
+    return this.http.post<ApiResponse<LoginResponse>>(
+      this.EP.DEV_RESET_PASSWORD,
+      { identifier, newPassword }
+    ).pipe(
+      tap(res => {
+        if (res.data) {
+          this._accessToken.set(res.data.accessToken);
+          this._user.set(res.data.user);
+        }
+      })
+    );
+  }
+
   // ── Google OAuth ───────────────────────────────────────────────────────────
 
   loginWithGoogle(): void {

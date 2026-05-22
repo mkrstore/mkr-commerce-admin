@@ -49,7 +49,7 @@
     <div class="brand-grid" *ngIf="!loading() && brands().length > 0">
       <div class="brand-card" *ngFor="let b of brands()" (click)="openEdit(b)">
         <!-- Logo / Initials -->
-        <div class="bc-logo" [style.background]="b.logoUrl ? '' : brandColor(b.name) + '18'">
+        <div class="bc-logo" [style.background]="b.logoUrl ? 'var(--surface2)' : brandColor(b.name) + '18'">
           <img *ngIf="b.logoUrl && !b.logoIsVideo" [src]="b.logoUrl" [alt]="b.name" />
           <video *ngIf="b.logoUrl && b.logoIsVideo" [src]="b.logoUrl" autoplay muted loop playsinline></video>
           <span *ngIf="!b.logoUrl" class="bc-initials" [style.color]="brandColor(b.name)">{{ initials(b.name) }}</span>

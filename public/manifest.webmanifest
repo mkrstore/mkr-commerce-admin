@@ -1,0 +1,19 @@
+{
+  "name": "MKR Commerce Admin",
+  "short_name": "MKR Admin",
+  "description": "MKR Commerce retail management system for staff",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D1117",
+  "theme_color": "#2874F0",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}
