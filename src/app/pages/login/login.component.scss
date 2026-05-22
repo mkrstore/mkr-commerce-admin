@@ -19,7 +19,8 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 
   // Ambient glow — top-left violet
   &::before {
@@ -513,6 +514,25 @@
 .login-shell.dark-mode .tp-pwd   { color: #30363D; }
 
 // ── Responsive ────────────────────────────────────────────────────────────────
+
+// Short screens — compress left panel
+@media (max-height: 750px) {
+  .lp-left { padding: 28px 32px; }
+  .lp-logo { margin-bottom: 20px; }
+  .lp-tagline { font-size: 22px; margin-bottom: 8px; }
+  .lp-desc { margin-bottom: 20px; font-size: 12px; }
+  .rc { padding: 9px 14px; }
+  .rc-icon { width: 32px; height: 32px; font-size: 14px; }
+}
+
+@media (max-height: 620px) {
+  .lp-left { padding: 20px 28px; }
+  .lp-logo { margin-bottom: 14px; }
+  .lp-tagline { font-size: 19px; margin-bottom: 6px; }
+  .lp-desc { display: none; }
+  .rc { padding: 8px 12px; }
+  .lp-footer { padding-top: 12px; padding-bottom: 10px; font-size: 10px; }
+}
 
 @media (max-width: 900px) {
   .lp-left { display: none; }

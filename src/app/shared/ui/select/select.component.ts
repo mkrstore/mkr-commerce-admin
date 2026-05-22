@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, HostListener, ElementRef, ViewChild, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, HostListener, ElementRef, ViewChild, signal, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface SelectOption {
@@ -104,7 +104,7 @@ const STYLES = `
     </div>
   `
 })
-export class AppSelectComponent {
+export class AppSelectComponent implements OnDestroy {
   @Input() label = '';
   @Input() placeholder = 'Select…';
   @Input() options: SelectOption[] = [];
@@ -121,6 +121,8 @@ export class AppSelectComponent {
 
   open = signal(false);
   dropdownStyle: Record<string, string> = {};
+  private scrollHandler = () => this.close();
+
 
   get selectedLabel(): string {
     return this.options.find(o => o.value == this.value)?.label ?? '';
@@ -137,36 +139,49 @@ export class AppSelectComponent {
   toggle() {
     if (this.disabled) return;
     if (!this.open()) {
-      const rect = this.triggerBtn.nativeElement.getBoundingClientRect();
-      this.dropdownStyle = {
-        top:      (rect.bottom + 4) + 'px',
-        left:     rect.left + 'px',
-        minWidth: rect.width + 'px',
-      };
+      this.updatePosition();
+      this.open.set(true);
+      document.addEventListener('scroll', this.scrollHandler, { capture: true, passive: true });
+    } else {
+      this.close();
     }
-    this.open.set(!this.open());
+  }
+
+  private updatePosition() {
+    const rect = this.triggerBtn.nativeElement.getBoundingClientRect();
+    this.dropdownStyle = {
+      top:      (rect.bottom + 4) + 'px',
+      left:     rect.left + 'px',
+      minWidth: rect.width + 'px',
+    };
+  }
+
+  private close() {
+    this.open.set(false);
+    document.removeEventListener('scroll', this.scrollHandler, { capture: true });
   }
 
   pick(val: any) {
     this.valueChange.emit(val);
-    this.open.set(false);
+    this.close();
   }
 
   @HostListener('document:click', ['$event'])
   onDocClick(e: MouseEvent) {
     if (this.open() && !this.el.nativeElement.contains(e.target as Node)) {
-      this.open.set(false);
+      this.close();
     }
   }
 
-  @HostListener('window:scroll', ['$event'])
-  onWindowScroll() { this.open.set(false); }
-
   @HostListener('window:resize')
-  onWindowResize() { this.open.set(false); }
+  onWindowResize() { this.close(); }
 
   @HostListener('document:keydown.escape')
-  onEsc() { this.open.set(false); }
+  onEsc() { this.close(); }
+
+  ngOnDestroy() {
+    document.removeEventListener('scroll', this.scrollHandler, { capture: true });
+  }
 
   constructor(private el: ElementRef) {}
 }

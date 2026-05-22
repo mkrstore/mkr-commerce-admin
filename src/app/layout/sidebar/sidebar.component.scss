@@ -180,6 +180,8 @@
 
 /* ── Mobile: hidden by default, slides in as overlay ── */
 @media (max-width: 768px) {
+  .adm-user { display: none; }
+
   .adm-aside {
     position: fixed;
     left: 0; top: 0; bottom: 0;

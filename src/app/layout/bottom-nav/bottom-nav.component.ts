@@ -18,7 +18,8 @@ export class BottomNavComponent {
     { icon: ICONS.dashboard, label: 'Dashboard', route: '/dashboard' },
     { icon: ICONS.orders,    label: 'Orders',    route: '/orders',    badge: '12' },
     { icon: ICONS.products,  label: 'Products',  route: '/products' },
-    { icon: ICONS.chat,      label: 'Chat',      route: '/chat',      badge: '5' },
+    { icon: ICONS.billing,   label: 'Billing',   route: '/billing' },
+    { icon: ICONS.settings,  label: 'Settings',  route: '/settings' },
   ];
 
   readonly menuIcon = ICONS.menu;

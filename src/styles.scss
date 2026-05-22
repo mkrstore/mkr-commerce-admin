@@ -1110,6 +1110,7 @@ input[type="radio"] {
   border-bottom: 1px solid var(--border);
   gap: 0;
   flex-wrap: wrap;
+  flex-shrink: 0;
 
   .tab-btn {
     padding: 9px 16px;
