@@ -1,6 +1,8 @@
-import { Component, computed } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, computed, HostListener, OnDestroy, OnInit, ElementRef } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 import { SidebarService } from '../../services/sidebar.service';
 import { AuthService, UserRole } from '../../services/auth.service';
 import { ICONS } from '../../core/constants/icons.constants';
@@ -8,10 +10,11 @@ import { ICONS } from '../../core/constants/icons.constants';
 interface NavItem {
   icon: string;
   label: string;
-  route: string;
+  route?: string;
   badge?: string;
   badgeClass?: string;
-  roles?: UserRole[];   // undefined = visible to all roles
+  roles?: UserRole[];
+  children?: NavItem[];
 }
 
 interface NavGroup {
@@ -23,27 +26,35 @@ const ALL_NAV_GROUPS: NavGroup[] = [
   {
     label: 'Overview',
     items: [
-      { icon: ICONS.dashboard,  label: 'Dashboard', route: '/dashboard' },
-      { icon: ICONS.analytics,  label: 'Analytics', route: '/analytics', roles: ['SUPER_ADMIN', 'ADMIN'] },
+      { icon: ICONS.dashboard, label: 'Dashboard', route: '/dashboard' },
+      { icon: ICONS.analytics, label: 'Analytics', route: '/analytics', roles: ['SUPER_ADMIN', 'ADMIN'] },
     ]
   },
   {
     label: 'Catalogue',
     items: [
-      { icon: ICONS.products,   label: 'Products',   route: '/products',   roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'] },
-      { icon: ICONS.categories, label: 'Categories', route: '/categories', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'] },
-      { icon: ICONS.brands,     label: 'Brands',     route: '/brands',     roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'] },
-      { icon: ICONS.inventory,  label: 'Inventory',  route: '/inventory',  roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'], badge: '3', badgeClass: 'red' },
+      { icon: ICONS.products, label: 'Products', route: '/products', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'] },
+      {
+        icon: 'build',
+        label: 'Maintenance',
+        roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'],
+        children: [
+          { icon: ICONS.brands,      label: 'Brands',       route: '/brands',       roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'] },
+          { icon: ICONS.categories,  label: 'Categories',   route: '/categories',   roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'] },
+          { icon: ICONS.lookupLists, label: 'Lookup Lists', route: '/lookup-lists', roles: ['SUPER_ADMIN', 'ADMIN'] },
+          { icon: ICONS.promotions,  label: 'Promotions',   route: '/promotions',   roles: ['SUPER_ADMIN', 'ADMIN'] },
+        ]
+      },
+      { icon: ICONS.inventory, label: 'Inventory', route: '/inventory', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'], badge: '3', badgeClass: 'red' },
     ]
   },
   {
     label: 'Commerce',
     items: [
-      { icon: ICONS.billing,    label: 'Billing',    route: '/billing',    roles: ['SUPER_ADMIN', 'ADMIN', 'SALES'] },
-      { icon: ICONS.orders,     label: 'Orders',     route: '/orders',     badge: '12', badgeClass: 'red' },
-      { icon: ICONS.customers,  label: 'Customers',  route: '/customers',  roles: ['SUPER_ADMIN', 'ADMIN', 'SALES', 'SUPPORT'] },
-      { icon: ICONS.payments,   label: 'Payments',   route: '/payments',   roles: ['SUPER_ADMIN', 'ADMIN', 'SALES'] },
-      { icon: ICONS.promotions, label: 'Promotions', route: '/promotions', roles: ['SUPER_ADMIN', 'ADMIN'] },
+      { icon: ICONS.billing,   label: 'Billing',    route: '/billing',   roles: ['SUPER_ADMIN', 'ADMIN', 'SALES'] },
+      { icon: ICONS.orders,    label: 'Orders',     route: '/orders',    badge: '12', badgeClass: 'red' },
+      { icon: ICONS.customers, label: 'Customers',  route: '/customers', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES', 'SUPPORT'] },
+      { icon: ICONS.payments,  label: 'Payments',   route: '/payments',  roles: ['SUPER_ADMIN', 'ADMIN', 'SALES'] },
     ]
   },
   {
@@ -69,41 +80,102 @@ const ALL_NAV_GROUPS: NavGroup[] = [
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss'
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit, OnDestroy {
 
   filteredNavGroups = computed(() => {
     const user = this.auth.currentUser();
     if (!user) return [];
-
     return ALL_NAV_GROUPS
       .map(group => ({
         ...group,
-        items: group.items.filter(item =>
-          !item.roles || item.roles.includes(user.role)
-        )
+        items: group.items
+          .filter(item => !item.roles || item.roles.includes(user.role))
+          .map(item => ({ ...item, children: item.children?.filter(c => !c.roles || c.roles.includes(user.role)) }))
+          .filter(item => !item.children || item.children.length > 0)
       }))
       .filter(group => group.items.length > 0);
   });
 
-  showLogoutConfirm = false;
+  // ── Active bar (position: fixed, outside sidebar) ─────────────────────────
+  activeBarTop = 0;
+  activeBarHeight = 36;
+  activeBarVisible = false;
+  private routerSub?: Subscription;
 
-  constructor(public sidebar: SidebarService, public auth: AuthService) {}
-
-  onNavClick() {
-    this.sidebar.close();
+  private updateActiveBar() {
+    const active: HTMLElement | null = this.el.nativeElement.querySelector('.adm-item.on');
+    if (active) {
+      const rect = active.getBoundingClientRect();
+      this.activeBarTop = rect.top;
+      this.activeBarHeight = rect.height;
+      this.activeBarVisible = true;
+    } else {
+      this.activeBarVisible = false;
+    }
   }
 
-  logout() {
-    this.showLogoutConfirm = true;
+  // ── Submenu state ─────────────────────────────────────────────────────────
+  activeSubmenu: NavItem | null = null;
+  submenuLeft = 230;
+  private closeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  isSubmenuActive(item: NavItem): boolean {
+    return item.children?.some(c => c.route && this.router.isActive(c.route, false)) ?? false;
   }
 
-  confirmLogout() {
-    this.showLogoutConfirm = false;
-    this.sidebar.close();
-    this.auth.logout();
+  private get isMobile(): boolean { return window.innerWidth <= 768; }
+
+  openSubmenu(item: NavItem, el: HTMLElement) {
+    if (this.isMobile) return;
+    if (this.closeTimer) clearTimeout(this.closeTimer);
+    this.activeSubmenu = item;
+    this.submenuLeft = window.innerWidth <= 1024 ? 64 : 230;
   }
 
-  cancelLogout() {
-    this.showLogoutConfirm = false;
+  toggleSubmenu(item: NavItem, el: HTMLElement) {
+    if (this.activeSubmenu === item) { this.closeSubmenu(); } else {
+      this.activeSubmenu = item;
+      if (!this.isMobile) this.submenuLeft = window.innerWidth <= 1024 ? 64 : 230;
+    }
   }
+
+  closeSubmenu() { this.activeSubmenu = null; }
+
+  scheduleClose() {
+    if (this.isMobile) return;
+    this.closeTimer = setTimeout(() => this.closeSubmenu(), 160);
+  }
+
+  cancelClose() { if (this.closeTimer) clearTimeout(this.closeTimer); }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(e: MouseEvent) {
+    const t = e.target as HTMLElement;
+    if (this.activeSubmenu && !t.closest('.adm-item-has-sub') && !t.closest('.adm-subsidebar')) {
+      this.closeSubmenu();
+    }
+  }
+
+  // ── General ───────────────────────────────────────────────────────────────
+  constructor(
+    public sidebar: SidebarService,
+    public auth: AuthService,
+    private router: Router,
+    private el: ElementRef
+  ) {}
+
+  ngOnInit() {
+    // Position bar on initial load and after every navigation
+    setTimeout(() => this.updateActiveBar(), 0);
+    this.routerSub = this.router.events
+      .pipe(filter(e => e instanceof NavigationEnd))
+      .subscribe(() => setTimeout(() => this.updateActiveBar(), 0));
+  }
+
+  ngOnDestroy() {
+    this.routerSub?.unsubscribe();
+    if (this.closeTimer) clearTimeout(this.closeTimer);
+  }
+
+  onNavClick() { this.sidebar.close(); }
 }

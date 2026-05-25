@@ -7,49 +7,72 @@
   <nav class="adm-nav">
     <ng-container *ngFor="let group of filteredNavGroups()">
       <div class="nav-grp-lbl">{{ group.label }}</div>
-      <a
-        *ngFor="let item of group.items"
-        class="adm-item"
-        [routerLink]="item.route"
-        routerLinkActive="on"
-        (click)="onNavClick()"
-      >
-        <span class="adm-item-icon icon" [title]="item.label">{{ item.icon }}</span>
-        <span class="adm-item-lbl">{{ item.label }}</span>
-        <span *ngIf="item.badge" class="adm-item-badge" [ngClass]="item.badgeClass">
-          {{ item.badge }}
-        </span>
-      </a>
+      <ng-container *ngFor="let item of group.items">
+
+        <!-- Regular nav item -->
+        <a *ngIf="!item.children"
+           class="adm-item"
+           [routerLink]="item.route"
+           routerLinkActive="on"
+           (click)="onNavClick(); closeSubmenu()">
+          <span class="adm-item-icon icon" [title]="item.label">{{ item.icon }}</span>
+          <span class="adm-item-lbl">{{ item.label }}</span>
+          <span *ngIf="item.badge" class="adm-item-badge" [ngClass]="item.badgeClass">{{ item.badge }}</span>
+        </a>
+
+        <!-- Submenu trigger -->
+        <div *ngIf="item.children"
+             class="adm-item adm-item-has-sub"
+             #subEl
+             [class.on]="isSubmenuActive(item)"
+             [title]="item.label"
+             (mouseenter)="openSubmenu(item, subEl)"
+             (mouseleave)="scheduleClose()"
+             (click)="toggleSubmenu(item, subEl); $event.stopPropagation()">
+          <span class="adm-item-icon icon">{{ item.icon }}</span>
+          <span class="adm-item-lbl">{{ item.label }}</span>
+          <span class="icon adm-item-arrow" [class.open]="activeSubmenu === item">chevron_right</span>
+        </div>
+
+        <!-- Mobile inline accordion (hidden on desktop/tablet via CSS) -->
+        <div class="adm-sub-inline" *ngIf="item.children && activeSubmenu === item">
+          <a class="adm-sub-inline-item"
+             *ngFor="let c of item.children"
+             [routerLink]="c.route"
+             routerLinkActive="on"
+             (click)="closeSubmenu(); onNavClick()">
+            <span class="icon icon-sm">{{ c.icon }}</span>
+            <span>{{ c.label }}</span>
+          </a>
+        </div>
+
+      </ng-container>
     </ng-container>
   </nav>
 
-  <div class="adm-user">
-    <div class="adm-avatar" [style.background]="auth.roleColor(auth.currentUser()!.role) + '22'" [style.color]="auth.roleColor(auth.currentUser()!.role)">
-      {{ auth.userInitials(auth.currentUser()) }}
-    </div>
-    <div class="adm-user-info">
-      <div class="adm-user-name">{{ auth.currentUser()?.name }}</div>
-      <div class="adm-user-role">{{ auth.roleName(auth.currentUser()!.role) }}</div>
-    </div>
-    <button class="adm-logout" (click)="logout()" title="Sign out">
-      <span class="icon icon-md">logout</span>
-    </button>
-  </div>
-
 </aside>
 
-<!-- Logout confirmation popup -->
-<ng-container *ngIf="showLogoutConfirm">
-  <div class="logout-overlay" (click)="cancelLogout()"></div>
-  <div class="logout-popup">
-    <div class="logout-popup-icon">
-      <span class="icon icon-lg">logout</span>
-    </div>
-    <h4>Sign out?</h4>
-    <p>You'll need to sign in again to access the admin portal.</p>
-    <div class="logout-popup-actions">
-      <button class="logout-popup-cancel" (click)="cancelLogout()">Cancel</button>
-      <button class="logout-popup-ok" (click)="confirmLogout()">Sign out</button>
-    </div>
-  </div>
-</ng-container>
+<!-- ── Active indicator bar (position: fixed — never clipped by overflow) ── -->
+<div class="adm-active-bar"
+     *ngIf="activeBarVisible"
+     [style.top.px]="activeBarTop"
+     [style.height.px]="activeBarHeight">
+</div>
+
+<!-- ── Desktop/Tablet: full-height sub-sidebar panel (hidden on mobile) ── -->
+<div class="adm-subsidebar"
+     *ngIf="activeSubmenu"
+     [style.left.px]="submenuLeft"
+     (mouseenter)="cancelClose()"
+     (mouseleave)="scheduleClose()">
+  <div class="adm-sub-hd">{{ activeSubmenu.label }}</div>
+  <a class="adm-sub-item"
+     *ngFor="let c of activeSubmenu.children"
+     [routerLink]="c.route"
+     routerLinkActive="on"
+     (click)="closeSubmenu(); onNavClick()">
+    <span class="icon icon-sm">{{ c.icon }}</span>
+    <span>{{ c.label }}</span>
+  </a>
+</div>
+
