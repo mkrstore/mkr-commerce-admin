@@ -192,7 +192,40 @@
   <div class="modal-body">
     <div class="alert alert-error" *ngIf="modalError"><span class="icon icon-sm">warning</span> {{ modalError }}</div>
 
-    <!-- Logo section (edit only) -->
+    <!-- Logo section — create mode (staged, uploaded after save) -->
+    <div class="logo-section" *ngIf="modalMode === 'create'">
+      <div class="ls-label">Brand Logo / Media <span class="ls-opt">(optional — can add after saving)</span></div>
+      <div class="ls-row">
+        <div class="ls-preview" [style.background]="stagedLogoPreview ? '' : brandColor(form.name || 'B') + '18'">
+          <img *ngIf="stagedLogoPreview && uploadLogoType === 'image'" [src]="stagedLogoPreview" alt="preview" />
+          <video *ngIf="stagedLogoPreview && uploadLogoType === 'video'" [src]="stagedLogoPreview" autoplay muted loop playsinline></video>
+          <span *ngIf="!stagedLogoPreview" class="ls-initials" [style.color]="brandColor(form.name || 'B')">
+            {{ initials(form.name || 'B') }}
+          </span>
+        </div>
+        <div class="ls-actions">
+          <div class="ls-type-toggle">
+            <button class="ls-type-btn" [class.active]="uploadLogoType === 'image'" (click)="uploadLogoType = 'image'; removeStagedLogo()">
+              <span class="icon icon-xs">image</span> Image
+            </button>
+            <button class="ls-type-btn" [class.active]="uploadLogoType === 'video'" (click)="uploadLogoType = 'video'; removeStagedLogo()">
+              <span class="icon icon-xs">videocam</span> Video
+            </button>
+          </div>
+          <label class="btn btn-ghost btn-sm ls-upload-btn">
+            <span class="icon icon-sm">upload</span>
+            {{ stagedLogoPreview ? 'Replace' : 'Upload' }}
+            <input type="file" [attr.accept]="uploadLogoType === 'video' ? 'video/*' : 'image/*'"
+              (change)="onCreateLogoSelected($event)" style="display:none" />
+          </label>
+          <button class="btn btn-ghost btn-sm" *ngIf="stagedLogoPreview" (click)="removeStagedLogo()">
+            <span class="icon icon-sm icon-red">delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logo section — edit mode (uploads immediately) -->
     <div class="logo-section" *ngIf="modalMode === 'edit'">
       <div class="ls-label">Brand Logo / Media</div>
       <div class="ls-row">

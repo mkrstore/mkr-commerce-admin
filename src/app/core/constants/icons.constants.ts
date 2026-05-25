@@ -13,6 +13,7 @@ export const ICONS = {
   products:       'inventory_2',
   categories:     'category',
   brands:         'sell',
+  lookupLists:    'list_alt',
   inventory:      'warehouse',
   billing:        'receipt_long',
   orders:         'shopping_cart',

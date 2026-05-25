@@ -1,9 +1,10 @@
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule }  from '@angular/forms';
+import { RouterLink }   from '@angular/router';
 import { HttpClient }   from '@angular/common/http';
 import { AuthService }  from '../../services/auth.service';
-import { PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
+import { PRODUCT_ENDPOINTS, LOOKUP_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
 import { AppInputComponent, AppTextareaComponent, AppSelectComponent, AppCheckboxComponent, AppBtnComponent } from '../../shared/ui';
 
@@ -26,7 +27,11 @@ interface PageData<T>  { content: T[]; totalElements: number; totalPages: number
 interface AttributeDefinitionDto {
   id: string; label: string; fieldKey: string; fieldType: FieldType;
   options: string | null; unit: string | null; defaultValue: string | null;
-  required: boolean; sortOrder: number;
+  required: boolean; sortOrder: number; groupName: string | null;
+}
+
+interface LookupListSummary {
+  id: string; name: string; description: string | null; valueCount: number;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -34,26 +39,25 @@ interface AttributeDefinitionDto {
 @Component({
   selector: 'app-categories',
   standalone: true,
-  imports: [CommonModule, FormsModule, AppInputComponent, AppTextareaComponent, AppSelectComponent, AppCheckboxComponent, AppBtnComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AppInputComponent, AppTextareaComponent, AppSelectComponent, AppCheckboxComponent, AppBtnComponent],
   templateUrl: './categories.component.html',
   styleUrl: './categories.component.scss'
 })
 export class CategoriesComponent implements OnInit {
 
-  private readonly EP = PRODUCT_ENDPOINTS;
+  private readonly EP        = PRODUCT_ENDPOINTS;
+  private readonly LOOKUP_EP = LOOKUP_ENDPOINTS;
 
   // ── List state ────────────────────────────────────────────────────────────
-  categories  = signal<CategoryDto[]>([]);
-  loading     = signal(true);
-  totalCount  = signal(0);
-  totalPages  = signal(0);
-  currentPage = signal(0);
-  skeletonRows = Array(8);
+  allCategories = signal<CategoryDto[]>([]);
+  loading       = signal(true);
+  skeletonRows  = Array(8);
 
-  view: 'cards' | 'table' | 'compact' = 'cards';
+  rootSearch = '';
+  subSearch  = '';
 
-  activeFilter: '' | 'true' | 'false' = '';
-  searchQuery = '';
+  // ── Two-panel selection ───────────────────────────────────────────────────
+  selectedRoot: CategoryDto | null = null;
 
   // ── Tree (for parent dropdown) ────────────────────────────────────────────
   tree = signal<CategoryNode[]>([]);
@@ -96,15 +100,32 @@ export class CategoriesComponent implements OnInit {
 
   attrForm = {
     label: '', fieldKey: '', fieldType: 'TEXT' as FieldType,
-    options: '', unit: '', defaultValue: '', required: false, sortOrder: 0
+    options: '', unit: '', defaultValue: '', required: false, sortOrder: 0, groupName: ''
   };
   fieldKeyEdited = false;
+
+  // ── Lookup List picker (for SELECT/MULTISELECT import) ────────────────────
+  lookupLists: LookupListSummary[] = [];
+  lookupListsLoaded = false;
+  lookupPickerOpen  = false;
+  lookupLoading     = false;
+  lookupImporting   = false;
 
   // Individual option inputs for SELECT/MULTISELECT (replaces JSON textarea)
   optionInputs: string[] = [''];
 
   get showOptionInputs(): boolean {
     return this.attrForm.fieldType === 'SELECT' || this.attrForm.fieldType === 'MULTISELECT';
+  }
+
+  get existingGroups(): string[] {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const a of this.attrs) {
+      const g = a.groupName?.trim() ?? '';
+      if (g && !seen.has(g)) { seen.add(g); result.push(g); }
+    }
+    return result;
   }
 
   addOption() { this.optionInputs.push(''); }
@@ -118,6 +139,31 @@ export class CategoriesComponent implements OnInit {
     this.attrForm.options = opts.length ? JSON.stringify(opts) : '';
   }
 
+  openLookupPicker() {
+    this.lookupPickerOpen = true;
+    if (this.lookupListsLoaded) return;
+    this.lookupLoading = true;
+    this.http.get<ApiResponse<LookupListSummary[]>>(this.LOOKUP_EP.BASE).subscribe({
+      next: res => { this.lookupLists = res.data ?? []; this.lookupLoading = false; this.lookupListsLoaded = true; },
+      error: ()  => { this.lookupLoading = false; }
+    });
+  }
+
+  closeLookupPicker() { this.lookupPickerOpen = false; }
+
+  importFromLookup(list: LookupListSummary) {
+    this.lookupImporting = true;
+    this.http.get<ApiResponse<{ values: string[] }>>(this.LOOKUP_EP.BY_ID(list.id)).subscribe({
+      next: res => {
+        const vals = res.data?.values ?? [];
+        if (vals.length) { this.optionInputs = [...vals]; this.syncOptions(); }
+        this.lookupImporting = false;
+        this.lookupPickerOpen = false;
+      },
+      error: () => { this.lookupImporting = false; }
+    });
+  }
+
   readonly fieldTypes: FieldType[] = ['TEXT', 'NUMBER', 'BOOLEAN', 'SELECT', 'MULTISELECT'];
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -126,39 +172,49 @@ export class CategoriesComponent implements OnInit {
     return r === 'SUPER_ADMIN' || r === 'ADMIN' || r === 'INVENTORY';
   });
 
-  pageNumbers = computed<(number | -1)[]>(() => {
-    const total = this.totalPages(), cur = this.currentPage();
-    if (total <= 7) return Array.from({ length: total }, (_, i) => i);
-    const pages: (number | -1)[] = [0];
-    if (cur > 2) pages.push(-1);
-    for (let i = Math.max(1, cur-1); i <= Math.min(total-2, cur+1); i++) pages.push(i);
-    if (cur < total - 3) pages.push(-1);
-    pages.push(total - 1);
-    return pages;
-  });
-
-  constructor(private http: HttpClient, public auth: AuthService) {
-    const saved = localStorage.getItem('categories_view');
-    if (saved === 'table' || saved === 'compact') this.view = saved;
+  get rootCategories(): CategoryDto[] {
+    const q = this.rootSearch.trim().toLowerCase();
+    return this.allCategories()
+      .filter(c => !c.parentId)
+      .filter(c => !q || c.name.toLowerCase().includes(q));
   }
 
-  ngOnInit() { this.loadTree(); this.load(0); }
+  get subCategories(): CategoryDto[] {
+    if (!this.selectedRoot) return [];
+    const q = this.subSearch.trim().toLowerCase();
+    return this.allCategories()
+      .filter(c => c.parentId === this.selectedRoot!.id)
+      .filter(c => !q || c.name.toLowerCase().includes(q));
+  }
+
+  childCount(parentId: string): number {
+    return this.allCategories().filter(c => c.parentId === parentId).length;
+  }
+
+  selectRoot(cat: CategoryDto) {
+    this.selectedRoot = this.selectedRoot?.id === cat.id ? null : cat;
+    this.subSearch = '';
+  }
+
+  constructor(private http: HttpClient, public auth: AuthService) {}
+
+  ngOnInit() { this.loadTree(); this.loadAll(); }
 
   // ── List ──────────────────────────────────────────────────────────────────
 
-  load(page = 0) {
+  loadAll() {
     this.loading.set(true);
-    const params: Record<string, string> = { page: String(page), size: '20' };
-    if (this.activeFilter)       params['active'] = this.activeFilter;
-    if (this.searchQuery.trim()) params['search'] = this.searchQuery.trim();
-
-    this.http.get<ApiResponse<PageData<CategoryDto>>>(this.EP.CATEGORIES, { params }).subscribe({
+    this.http.get<ApiResponse<PageData<CategoryDto>>>(this.EP.CATEGORIES, {
+      params: { page: '0', size: '500' }
+    }).subscribe({
       next: res => {
-        this.categories.set(res.data?.content ?? []);
-        this.totalCount.set(res.data?.totalElements ?? 0);
-        this.totalPages.set(res.data?.totalPages ?? 0);
-        this.currentPage.set(res.data?.number ?? 0);
+        this.allCategories.set(res.data?.content ?? []);
         this.loading.set(false);
+        // Re-sync selectedRoot in case it was edited
+        if (this.selectedRoot) {
+          const refreshed = this.allCategories().find(c => c.id === this.selectedRoot!.id);
+          this.selectedRoot = refreshed ?? null;
+        }
       },
       error: () => this.loading.set(false)
     });
@@ -170,11 +226,6 @@ export class CategoriesComponent implements OnInit {
     });
   }
 
-  setView(v: 'cards' | 'table' | 'compact') {
-    this.view = v;
-    localStorage.setItem('categories_view', v);
-  }
-
   categoryColor(name: string): string {
     const palette = ['#2874F0','#E53935','#43A047','#FB8C00','#8E24AA','#00ACC1','#D81B60','#546E7A'];
     let hash = 0;
@@ -183,14 +234,6 @@ export class CategoriesComponent implements OnInit {
   }
 
   initials(name: string) { return name.slice(0, 2).toUpperCase(); }
-
-  onFilterChange() { this.load(0); }
-  clearFilters()   { this.searchQuery = ''; this.activeFilter = ''; this.load(0); }
-  goToPage(p: number) { if (p >= 0 && p < this.totalPages()) this.load(p); }
-
-  get statusFilterOpts() {
-    return [{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }];
-  }
 
   get parentCategoryOpts() {
     return this.flatTree(this.tree()).map(n => ({
@@ -217,8 +260,8 @@ export class CategoriesComponent implements OnInit {
     this.modalMode = 'edit';
   }
 
-  openCreate() {
-    this.form = { name: '', slug: '', description: '', parentId: '', sortOrder: 0, isActive: true };
+  openCreate(parentId?: string) {
+    this.form = { name: '', slug: '', description: '', parentId: parentId ?? '', sortOrder: 0, isActive: true };
     this.slugEdited = false;
     this.modalError = ''; this.formTouched = false; this.editTarget = null;
     this.activeTab = 'details'; this.modalMode = 'create';
@@ -258,10 +301,8 @@ export class CategoriesComponent implements OnInit {
 
     req$.subscribe({
       next: () => {
-        const isCreate = this.modalMode === 'create';
         this.saving = false; this.modalMode = 'closed';
-        this.load(isCreate ? 0 : this.currentPage());
-        this.loadTree();
+        this.loadAll(); this.loadTree();
       },
       error: e => { this.saving = false; this.modalError = extractErrorMessage(e, 'Save failed.'); }
     });
@@ -276,7 +317,7 @@ export class CategoriesComponent implements OnInit {
     if (!this.deleteTarget) return;
     this.deleting = true; this.deleteError = '';
     this.http.delete<ApiResponse<void>>(`${this.EP.CATEGORIES}/${this.deleteTarget.id}`).subscribe({
-      next: () => { this.deleting = false; this.deleteTarget = null; this.load(this.currentPage()); this.loadTree(); },
+      next: () => { this.deleting = false; this.deleteTarget = null; this.loadAll(); this.loadTree(); },
       error: e  => { this.deleting = false; this.deleteError = extractErrorMessage(e, 'Failed to deactivate.'); }
     });
   }
@@ -302,10 +343,11 @@ export class CategoriesComponent implements OnInit {
   openCreateAttr() {
     this.attrForm = {
       label: '', fieldKey: '', fieldType: 'TEXT',
-      options: '', unit: '', defaultValue: '', required: false, sortOrder: this.attrs.length
+      options: '', unit: '', defaultValue: '', required: false, sortOrder: this.attrs.length, groupName: ''
     };
     this.fieldKeyEdited = false;
     this.optionInputs = [''];
+    this.lookupPickerOpen = false;
     this.attrEditTarget = null; this.attrError = ''; this.attrFormTouched = false; this.attrView = 'form';
   }
 
@@ -318,13 +360,14 @@ export class CategoriesComponent implements OnInit {
       unit:         attr.unit ?? '',
       defaultValue: attr.defaultValue ?? '',
       required:     attr.required,
-      sortOrder:    attr.sortOrder
+      sortOrder:    attr.sortOrder,
+      groupName:    attr.groupName ?? ''
     };
-    // Parse existing options into individual inputs
     try {
       const parsed = attr.options ? JSON.parse(attr.options) : [];
       this.optionInputs = parsed.length ? parsed : [''];
     } catch { this.optionInputs = ['']; }
+    this.lookupPickerOpen = false;
     this.attrEditTarget = attr; this.attrError = ''; this.attrView = 'form';
   }
 
@@ -341,6 +384,7 @@ export class CategoriesComponent implements OnInit {
     let url: string;
     let req$;
 
+    const groupName = this.attrForm.groupName.trim() || null;
     if (this.attrEditTarget) {
       payload = {
         label:        this.attrForm.label.trim(),
@@ -349,7 +393,8 @@ export class CategoriesComponent implements OnInit {
         unit:         this.attrForm.unit.trim() || null,
         defaultValue: this.attrForm.defaultValue.trim() || null,
         required:     this.attrForm.required,
-        sortOrder:    this.attrForm.sortOrder
+        sortOrder:    this.attrForm.sortOrder,
+        groupName
       };
       url  = this.EP.CATEGORY_ATTR_ID(this.attrTarget.id, this.attrEditTarget.id);
       req$ = this.http.put<ApiResponse<any>>(url, payload);
@@ -362,7 +407,8 @@ export class CategoriesComponent implements OnInit {
         unit:         this.attrForm.unit.trim() || null,
         defaultValue: this.attrForm.defaultValue.trim() || null,
         required:     this.attrForm.required,
-        sortOrder:    this.attrForm.sortOrder
+        sortOrder:    this.attrForm.sortOrder,
+        groupName
       };
       url  = this.EP.CATEGORY_ATTRS(this.attrTarget.id);
       req$ = this.http.post<ApiResponse<any>>(url, payload);
@@ -417,7 +463,7 @@ export class CategoriesComponent implements OnInit {
         this.imageUploading = false;
         if (res.data) {
           this.editTarget = res.data;
-          this.categories.update(list => list.map(c => c.id === res.data!.id ? res.data! : c));
+          this.allCategories.update((list: CategoryDto[]) => list.map(c => c.id === res.data!.id ? res.data! : c));
         }
       },
       error: e => { this.imageUploading = false; this.imageError = extractErrorMessage(e, 'Upload failed.'); }
@@ -433,7 +479,7 @@ export class CategoriesComponent implements OnInit {
         this.imageUploading = false;
         if (res.data) {
           this.editTarget = res.data;
-          this.categories.update(list => list.map(c => c.id === res.data!.id ? res.data! : c));
+          this.allCategories.update((list: CategoryDto[]) => list.map(c => c.id === res.data!.id ? res.data! : c));
         }
       },
       error: e => { this.imageUploading = false; this.imageError = extractErrorMessage(e, 'Remove failed.'); }

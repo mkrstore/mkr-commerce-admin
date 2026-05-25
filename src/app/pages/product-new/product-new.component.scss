@@ -137,6 +137,24 @@
 /* ── Attrs loading ── */
 .attrs-loading { display: flex; flex-direction: column; gap: 8px; }
 
+/* ── Attribute groups ── */
+.attr-group { display: flex; flex-direction: column; gap: 0; }
+.attr-group-hd {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 700; color: var(--t2);
+  text-transform: uppercase; letter-spacing: .6px;
+  padding: 10px 0 8px; border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+  .icon { color: var(--blue); font-size: 15px !important; }
+}
+.attr-group-count {
+  margin-left: auto;
+  font-size: 10px; font-weight: 700; color: var(--t3);
+  background: var(--hover); border-radius: 99px;
+  padding: 1px 7px;
+}
+.attr-group-body { display: flex; flex-direction: column; gap: 14px; padding-bottom: 6px; }
+
 /* ── Multiselect chips ── */
 .multi-opts {
   display: flex; flex-wrap: wrap; gap: 8px;

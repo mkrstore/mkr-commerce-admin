@@ -1,196 +1,163 @@
-<div class="page">
+<div class="page cat-page">
 
   <div class="page-hd">
     <div class="page-hd-left">
       <div class="page-hd-title">Categories</div>
-      <div class="page-hd-sub" *ngIf="!loading()">{{ totalCount() }} categories</div>
-    </div>
-    <div class="page-hd-right">
-      <div class="view-toggle">
-        <button class="vt-btn" [class.active]="view === 'cards'"   (click)="setView('cards')"   title="Cards"><span class="icon icon-sm">grid_view</span></button>
-        <button class="vt-btn" [class.active]="view === 'table'"   (click)="setView('table')"   title="Table"><span class="icon icon-sm">view_list</span></button>
-        <button class="vt-btn" [class.active]="view === 'compact'" (click)="setView('compact')" title="Compact"><span class="icon icon-sm">density_small</span></button>
+      <div class="page-hd-sub" *ngIf="!loading()">
+        {{ rootCategories.length }} main &middot; {{ allCategories().length - rootCategories.length }} sub
       </div>
-      <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreate()">New Category</app-btn>
     </div>
   </div>
 
-  <div class="filter-bar">
-    <div class="search-bar" style="flex:1;min-width:180px">
-      <span class="sb-icon icon icon-sm">search</span>
-      <input type="text" [(ngModel)]="searchQuery" placeholder="Search categories…" (ngModelChange)="onFilterChange()" />
-      <button class="sb-clear" *ngIf="searchQuery" (click)="searchQuery=''; onFilterChange()">
-        <span class="icon icon-xs">close</span>
-      </button>
-    </div>
-    <app-select placeholder="All Status" [options]="statusFilterOpts"
-      [value]="activeFilter" (valueChange)="activeFilter = $event; onFilterChange()" />
-    <app-btn variant="ghost" size="sm" *ngIf="searchQuery || activeFilter" (clicked)="clearFilters()">Clear</app-btn>
-  </div>
+  <!-- ── Two-panel layout ── -->
+  <div class="cat-panels" *ngIf="!loading(); else loadingSkel">
 
-  <!-- ══════════════ CARDS VIEW ══════════════ -->
-  <ng-container *ngIf="view === 'cards'">
-
-    <!-- Skeleton -->
-    <div class="cat-grid" *ngIf="loading()">
-      <div class="cat-card sk-card" *ngFor="let i of skeletonRows">
-        <div class="sk cc-sk-logo"></div>
-        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">
-          <div class="sk" style="height:14px;width:60%"></div>
-          <div class="sk" style="height:11px;width:40%"></div>
-          <div class="sk" style="height:11px;width:70%;margin-top:4px"></div>
-        </div>
+    <!-- LEFT: Root / L1 categories -->
+    <div class="cat-l1">
+      <div class="cat-panel-hd">
+        <span class="cat-panel-title">Main Categories</span>
+        <button class="icon-btn-add" *ngIf="canManage()" (click)="openCreate()" title="Add root category">
+          <span class="icon icon-sm">add</span>
+        </button>
       </div>
-    </div>
-
-    <!-- Grid -->
-    <div class="cat-grid" *ngIf="!loading() && categories().length > 0">
-      <div class="cat-card" *ngFor="let cat of categories()" (click)="openEdit(cat)">
-        <!-- Icon area -->
-        <div class="cc-logo" [style.background]="cat.imageUrl ? 'var(--surface2)' : categoryColor(cat.name) + '18'">
-          <img *ngIf="cat.imageUrl && !cat.imageIsVideo" [src]="cat.imageUrl" [alt]="cat.name" />
-          <video *ngIf="cat.imageUrl && cat.imageIsVideo" [src]="cat.imageUrl" autoplay muted loop playsinline></video>
-          <span *ngIf="!cat.imageUrl" class="cc-initials" [style.color]="categoryColor(cat.name)">{{ initials(cat.name) }}</span>
-          <span class="badge cc-status-pill" [class.badge-green]="cat.isActive" [class.badge-gray]="!cat.isActive">
-            {{ cat.isActive ? 'Active' : 'Inactive' }}
+      <div class="cat-panel-search">
+        <span class="icon icon-sm cps-icon">search</span>
+        <input type="text" [(ngModel)]="rootSearch" placeholder="Search…" />
+      </div>
+      <div class="cat-l1-list">
+        <div *ngFor="let cat of rootCategories"
+             class="cat-l1-item"
+             [class.active]="selectedRoot?.id === cat.id"
+             (click)="selectRoot(cat)">
+          <div class="l1-thumb"
+               [style.background]="cat.imageUrl ? 'var(--surface2)' : categoryColor(cat.name)+'18'">
+            <img *ngIf="cat.imageUrl && !cat.imageIsVideo" [src]="cat.imageUrl" [alt]="cat.name" class="l1-thumb-img"/>
+            <span *ngIf="!cat.imageUrl" class="l1-initials" [style.color]="categoryColor(cat.name)">{{ initials(cat.name) }}</span>
+          </div>
+          <div class="l1-info">
+            <div class="l1-name">{{ cat.name }}</div>
+            <div class="l1-meta">
+              {{ childCount(cat.id) }} sub · {{ cat.attributeDefinitions?.length ?? 0 }} fields
+            </div>
+          </div>
+          <span class="badge l1-badge" [class.badge-green]="cat.isActive" [class.badge-gray]="!cat.isActive">
+            {{ cat.isActive ? 'Active' : 'Off' }}
           </span>
-        </div>
-        <!-- Body -->
-        <div class="cc-body">
-          <div class="cc-name">{{ cat.name }}</div>
-          <div class="cc-slug"><span class="icon icon-xs" style="opacity:.5">link</span> {{ cat.slug }}</div>
-          <div class="cc-parent" *ngIf="cat.parentName">
-            <span class="icon icon-xs" style="opacity:.4">subdirectory_arrow_right</span> {{ cat.parentName }}
-          </div>
-          <div class="cc-specs">
-            <span class="cat-spec-count" [class.has-specs]="(cat.attributeDefinitions?.length ?? 0) > 0">
-              <span class="icon icon-xs">tune</span>
-              {{ cat.attributeDefinitions?.length ?? 0 }} spec fields
-            </span>
+          <div class="l1-actions" *ngIf="canManage()" (click)="$event.stopPropagation()">
+            <button class="icon-btn-sm" (click)="openEdit(cat)" title="Edit">
+              <span class="icon icon-sm">edit</span>
+            </button>
+            <button class="icon-btn-sm danger" *ngIf="cat.isActive" (click)="openDelete(cat)" title="Deactivate">
+              <span class="icon icon-sm">block</span>
+            </button>
           </div>
         </div>
-        <!-- Footer -->
-        <div class="cc-foot" *ngIf="canManage()" (click)="$event.stopPropagation()">
-          <button class="btn btn-ghost btn-sm" style="flex:1" (click)="openEdit(cat)">
-            <span class="icon icon-sm">edit</span> Edit
-          </button>
-          <button class="btn btn-ghost btn-sm cc-deact" *ngIf="cat.isActive" (click)="openDelete(cat)">
-            <span class="icon icon-sm">block</span>
+        <div class="cat-l1-empty" *ngIf="rootCategories.length === 0">
+          <span class="icon icon-xl icon-muted">folder_open</span>
+          <p>No main categories yet</p>
+          <button class="btn btn-primary btn-sm" *ngIf="canManage()" (click)="openCreate()">
+            <span class="icon icon-sm">add</span> Add Category
           </button>
         </div>
       </div>
     </div>
-  </ng-container>
 
-  <!-- ══════════════ TABLE VIEW ══════════════ -->
-  <ng-container *ngIf="view === 'table'">
-    <div class="tbl-card" *ngIf="loading()">
-      <div class="tbl-wrap">
-        <table class="tbl">
-          <thead><tr><th>Name</th><th>Parent</th><th>Spec Fields</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            <tr *ngFor="let r of skeletonRows">
-              <td><div class="sk" style="width:120px;height:13px"></div></td>
-              <td><div class="sk" style="width:80px;height:13px"></div></td>
-              <td><div class="sk" style="width:60px;height:13px"></div></td>
-              <td><div class="sk" style="width:60px;height:20px;border-radius:99px"></div></td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <!-- RIGHT: Subcategories of selected root -->
+    <div class="cat-l2">
+      <ng-container *ngIf="selectedRoot; else noSelection">
+        <div class="cat-panel-hd">
+          <div>
+            <div class="cat-panel-title">
+              <span class="l2-crumb-root">{{ selectedRoot.name }}</span>
+              <span class="icon icon-sm" style="opacity:.35;margin:0 2px;vertical-align:middle">chevron_right</span>
+              <span>Subcategories</span>
+            </div>
+            <div class="cat-panel-sub">{{ subCategories.length }} subcategories</div>
+          </div>
+          <div class="cat-panel-hd-right">
+            <div class="cat-panel-search">
+              <span class="icon icon-sm cps-icon">search</span>
+              <input type="text" [(ngModel)]="subSearch" placeholder="Search…" />
+            </div>
+            <button class="icon-btn-add" *ngIf="canManage()" (click)="openCreate(selectedRoot.id)" title="Add subcategory">
+              <span class="icon icon-sm">add</span>
+            </button>
+          </div>
+        </div>
 
-    <div class="tbl-card" *ngIf="!loading() && categories().length > 0">
-      <div class="tbl-wrap">
-        <table class="tbl">
-          <thead>
-            <tr><th>Category</th><th>Parent</th><th>Spec Fields</th><th>Status</th><th>Created</th><th *ngIf="canManage()"></th></tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let cat of categories()" class="tbl-row" (click)="openEdit(cat)">
-              <td>
-                <div style="display:flex;align-items:center;gap:10px">
-                  <div class="cat-logo-cell" [style.background]="cat.imageUrl ? '' : categoryColor(cat.name) + '18'">
-                    <img *ngIf="cat.imageUrl" [src]="cat.imageUrl" [alt]="cat.name" />
-                    <span *ngIf="!cat.imageUrl" class="cat-cell-initials" [style.color]="categoryColor(cat.name)">{{ initials(cat.name) }}</span>
-                  </div>
-                  <div>
-                    <div style="font-weight:600;color:var(--t1)">{{ cat.name }}</div>
-                    <div style="font-size:11px;color:var(--t3);font-family:monospace">{{ cat.slug }}</div>
-                  </div>
-                </div>
-              </td>
-              <td style="color:var(--t3)">{{ cat.parentName ?? '—' }}</td>
-              <td>
-                <span class="cat-spec-count" [class.has-specs]="(cat.attributeDefinitions?.length ?? 0) > 0">
-                  <span class="icon icon-xs">tune</span>
-                  {{ cat.attributeDefinitions?.length ?? 0 }} fields
+        <!-- Subcategory cards grid -->
+        <div class="cat-l2-scroll">
+          <div class="cat-l2-grid" *ngIf="subCategories.length > 0">
+            <div class="cat-l2-card" *ngFor="let sub of subCategories" (click)="openEdit(sub)">
+              <div class="l2-thumb"
+                   [style.background]="sub.imageUrl ? 'var(--surface2)' : categoryColor(sub.name)+'18'">
+                <img *ngIf="sub.imageUrl && !sub.imageIsVideo" [src]="sub.imageUrl" [alt]="sub.name" class="l2-thumb-img"/>
+                <span *ngIf="!sub.imageUrl" class="l2-initials" [style.color]="categoryColor(sub.name)">{{ initials(sub.name) }}</span>
+                <span class="l2-status-pill badge" [class.badge-green]="sub.isActive" [class.badge-gray]="!sub.isActive">
+                  {{ sub.isActive ? 'Active' : 'Off' }}
                 </span>
-              </td>
-              <td><span class="badge" [class.badge-green]="cat.isActive" [class.badge-gray]="!cat.isActive">{{ cat.isActive ? 'Active' : 'Inactive' }}</span></td>
-              <td style="color:var(--t3);font-size:12px">{{ formatDate(cat.createdAt) }}</td>
-              <td *ngIf="canManage()" (click)="$event.stopPropagation()">
-                <div style="display:flex;gap:6px">
-                  <button class="btn btn-ghost btn-sm" (click)="openEdit(cat)"><span class="icon icon-sm">edit</span></button>
-                  <button class="btn btn-ghost btn-sm" *ngIf="cat.isActive" (click)="openDelete(cat)"><span class="icon icon-sm icon-red">block</span></button>
+              </div>
+              <div class="l2-body">
+                <div class="l2-name">{{ sub.name }}</div>
+                <div class="l2-meta">
+                  <span class="cat-spec-count" [class.has-specs]="(sub.attributeDefinitions?.length ?? 0) > 0">
+                    <span class="icon icon-xs">tune</span>
+                    {{ sub.attributeDefinitions?.length ?? 0 }} spec fields
+                  </span>
+                  <span class="l2-child-count" *ngIf="childCount(sub.id) > 0">
+                    <span class="icon icon-xs">subdirectory_arrow_right</span>
+                    {{ childCount(sub.id) }} sub
+                  </span>
                 </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="pgn" *ngIf="totalPages() > 1">
-        <button class="pgn-btn" [disabled]="currentPage()===0" (click)="goToPage(currentPage()-1)"><span class="icon icon-sm">chevron_left</span></button>
-        <ng-container *ngFor="let pg of pageNumbers()">
-          <span class="pgn-ellipsis" *ngIf="pg===-1">…</span>
-          <button class="pgn-btn" *ngIf="pg!==-1" [class.active]="pg===currentPage()" (click)="goToPage(pg)">{{ pg+1 }}</button>
-        </ng-container>
-        <button class="pgn-btn" [disabled]="currentPage()===totalPages()-1" (click)="goToPage(currentPage()+1)"><span class="icon icon-sm">chevron_right</span></button>
-      </div>
-    </div>
-  </ng-container>
+              </div>
+              <div class="l2-actions" *ngIf="canManage()" (click)="$event.stopPropagation()">
+                <button class="btn btn-ghost btn-sm" (click)="openEdit(sub)"><span class="icon icon-sm">edit</span></button>
+                <button class="btn btn-ghost btn-sm" *ngIf="sub.isActive" (click)="openDelete(sub)"><span class="icon icon-sm icon-red">block</span></button>
+              </div>
+            </div>
+          </div>
 
-  <!-- ══════════════ COMPACT VIEW ══════════════ -->
-  <ng-container *ngIf="view === 'compact'">
-    <div class="compact-list" *ngIf="!loading() && categories().length > 0">
-      <div class="compact-item" *ngFor="let cat of categories()" (click)="openEdit(cat)">
-        <div class="ci-logo" [style.background]="cat.imageUrl ? '' : categoryColor(cat.name) + '18'">
-          <img *ngIf="cat.imageUrl" [src]="cat.imageUrl" [alt]="cat.name" />
-          <span *ngIf="!cat.imageUrl" class="ci-initials" [style.color]="categoryColor(cat.name)">{{ initials(cat.name) }}</span>
+          <div class="cat-l2-empty" *ngIf="subCategories.length === 0">
+            <span class="icon icon-xl icon-muted">subdirectory_arrow_right</span>
+            <p>No subcategories under <strong>{{ selectedRoot.name }}</strong></p>
+            <button class="btn btn-primary btn-sm" *ngIf="canManage()" (click)="openCreate(selectedRoot.id)">
+              <span class="icon icon-sm">add</span> Add Subcategory
+            </button>
+          </div>
         </div>
-        <div class="ci-info">
-          <span class="ci-name">{{ cat.name }}</span>
-          <span class="ci-slug">{{ cat.slug }}</span>
-        </div>
-        <span class="ci-parent">{{ cat.parentName || '—' }}</span>
-        <span class="cat-spec-count ci-specs" [class.has-specs]="(cat.attributeDefinitions?.length ?? 0) > 0">
-          <span class="icon icon-xs">tune</span> {{ cat.attributeDefinitions?.length ?? 0 }}
-        </span>
-        <span class="badge" [class.badge-green]="cat.isActive" [class.badge-gray]="!cat.isActive">{{ cat.isActive ? 'Active' : 'Inactive' }}</span>
-        <div class="ci-actions" *ngIf="canManage()" (click)="$event.stopPropagation()">
-          <button class="btn btn-ghost btn-sm" (click)="openEdit(cat)"><span class="icon icon-sm">edit</span></button>
-          <button class="btn btn-ghost btn-sm" *ngIf="cat.isActive" (click)="openDelete(cat)"><span class="icon icon-sm icon-red">block</span></button>
-        </div>
-      </div>
-    </div>
-    <div class="tbl-card" *ngIf="loading()">
-      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Category</th><th>Status</th></tr></thead>
-        <tbody><tr *ngFor="let r of skeletonRows"><td><div class="sk" style="height:13px;width:120px"></div></td><td><div class="sk" style="height:20px;width:60px;border-radius:99px"></div></td></tr></tbody>
-      </table></div>
-    </div>
-  </ng-container>
+      </ng-container>
 
-  <!-- ══════════════ EMPTY ══════════════ -->
-  <div class="empty" *ngIf="!loading() && categories().length === 0">
-    <div class="empty-icon"><span class="icon icon-xl icon-muted">folder</span></div>
-    <div class="empty-title">No categories found</div>
-    <div class="empty-sub" *ngIf="!searchQuery && !activeFilter && canManage()">
-      Create categories to organise products (e.g. Smartphones, Refrigerators, TVs)
+      <ng-template #noSelection>
+        <div class="cat-no-selection">
+          <span class="icon" style="font-size:56px;color:var(--t3);opacity:.25">category</span>
+          <p>Select a main category from the left<br>to view and manage its subcategories</p>
+        </div>
+      </ng-template>
     </div>
-    <app-btn variant="primary" size="sm" icon="add"
-      *ngIf="!searchQuery && !activeFilter && canManage()" (clicked)="openCreate()">New Category</app-btn>
+
   </div>
+
+  <!-- Loading skeleton -->
+  <ng-template #loadingSkel>
+    <div class="cat-panels">
+      <div class="cat-l1">
+        <div class="cat-panel-hd"><div class="sk" style="width:130px;height:15px"></div></div>
+        <div style="padding:8px">
+          <div class="sk" style="height:34px;border-radius:6px"></div>
+        </div>
+        <div *ngFor="let r of skeletonRows" class="cat-l1-item" style="pointer-events:none">
+          <div class="sk" style="width:36px;height:36px;border-radius:8px;flex-shrink:0"></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+            <div class="sk" style="height:13px;width:65%"></div>
+            <div class="sk" style="height:10px;width:42%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="cat-l2" style="display:flex;align-items:center;justify-content:center">
+        <div style="color:var(--t3);font-size:13px">Loading…</div>
+      </div>
+    </div>
+  </ng-template>
 
 </div>
 
@@ -319,9 +286,22 @@
             hint="Unique key in snake_case — cannot be changed after saving"
             [value]="attrForm.fieldKey" (valueChange)="onFieldKeyChange($event)"
             placeholder="e.g. ram, screen_size, battery_mah" />
+
+          <!-- Group name with datalist autocomplete -->
+          <div class="field">
+            <label class="field-label">Group <span class="opt">(optional)</span></label>
+            <input class="f-input" type="text" list="attr-groups-list"
+              [(ngModel)]="attrForm.groupName"
+              placeholder="e.g. Battery, Display, Connectivity" />
+            <datalist id="attr-groups-list">
+              <option *ngFor="let g of existingGroups" [value]="g"></option>
+            </datalist>
+            <div class="field-hint">Fields in the same group appear together in a section on the product form</div>
+          </div>
+
           <div class="field-row">
             <app-select label="Field Type" [required]="true" [options]="fieldTypeOpts"
-              [value]="attrForm.fieldType" (valueChange)="attrForm.fieldType = $event" />
+              [value]="attrForm.fieldType" (valueChange)="attrForm.fieldType = $event; lookupPickerOpen = false" />
             <app-input label="Unit" optLabel="optional"
               [value]="attrForm.unit" (valueChange)="attrForm.unit = $event" placeholder="e.g. GB, inch, mAh" />
           </div>
@@ -338,9 +318,38 @@
                 </button>
               </div>
             </div>
-            <button class="opt-add-btn" (click)="addOption()">
-              <span class="icon icon-sm">add</span> Add option
-            </button>
+            <div class="opt-actions">
+              <button class="opt-add-btn" (click)="addOption()">
+                <span class="icon icon-sm">add</span> Add option
+              </button>
+              <button class="opt-import-btn" (click)="lookupPickerOpen ? closeLookupPicker() : openLookupPicker()">
+                <span class="icon icon-sm">list_alt</span>
+                Import from Lookup List
+                <span class="icon icon-xs" style="margin-left:2px">{{ lookupPickerOpen ? 'expand_less' : 'expand_more' }}</span>
+              </button>
+            </div>
+
+            <!-- Lookup List picker -->
+            <div class="lookup-picker" *ngIf="lookupPickerOpen">
+              <div class="lp-loading" *ngIf="lookupLoading">
+                <div class="sk" style="height:36px;border-radius:6px"></div>
+                <div class="sk" style="height:36px;border-radius:6px"></div>
+              </div>
+              <div class="lp-empty" *ngIf="!lookupLoading && lookupLists.length === 0">
+                No lookup lists found. <a routerLink="/lookup-lists" (click)="closeModal()">Create one →</a>
+              </div>
+              <button class="lp-item"
+                *ngFor="let ll of lookupLists"
+                (click)="importFromLookup(ll)"
+                [disabled]="lookupImporting">
+                <span class="icon icon-sm" style="color:var(--blue);flex-shrink:0">list_alt</span>
+                <span class="lp-name">{{ ll.name }}</span>
+                <span class="lp-count">{{ ll.valueCount }} value{{ ll.valueCount !== 1 ? 's' : '' }}</span>
+              </button>
+              <div class="lp-importing" *ngIf="lookupImporting">
+                <span class="icon icon-sm">hourglass_top</span> Importing…
+              </div>
+            </div>
           </div>
           <div class="field-row">
             <app-input label="Default Value" optLabel="optional" style="flex:1"
@@ -379,6 +388,7 @@
                 <span class="attr-type-chip">{{ fieldTypeLabel(a.fieldType) }}</span>
                 <span *ngIf="a.unit"> · {{ a.unit }}</span>
                 <span style="font-family:monospace;margin-left:6px;opacity:.6">{{ a.fieldKey }}</span>
+                <span class="attr-group-chip" *ngIf="a.groupName">{{ a.groupName }}</span>
               </div>
             </div>
             <div style="display:flex;gap:4px" *ngIf="canManage()">

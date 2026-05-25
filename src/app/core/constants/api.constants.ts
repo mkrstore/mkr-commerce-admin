@@ -97,6 +97,11 @@ export const PROMOTION_ENDPOINTS = {
   VALIDATE: `${API}/promotions/validate`,
 } as const;
 
+export const LOOKUP_ENDPOINTS = {
+  BASE:    `${API}/lookup-lists`,
+  BY_ID:   (id: string) => `${API}/lookup-lists/${id}`,
+} as const;
+
 export const DASHBOARD_ENDPOINTS = {
   STATS:         `${API}/dashboard/stats`,
   CHART:         `${API}/dashboard/chart`,

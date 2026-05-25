@@ -17,7 +17,7 @@ type FieldType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'SELECT' | 'MULTISELECT';
 interface AttributeDefinitionDto {
   id: string; label: string; fieldKey: string; fieldType: FieldType;
   options: string | null; unit: string | null; defaultValue: string | null;
-  required: boolean; sortOrder: number;
+  required: boolean; sortOrder: number; groupName: string | null;
 }
 
 interface VariantForm {
@@ -104,7 +104,7 @@ export class ProductNewComponent implements OnInit {
   }
 
   get brandOpts() {
-    return [{ value: '', label: 'No brand' }, ...this.brands.map(b => ({ value: b.id, label: b.name }))];
+    return this.brands.map(b => ({ value: b.id, label: b.name }));
   }
 
   get gstOpts() {
@@ -370,4 +370,14 @@ export class ProductNewComponent implements OnInit {
   get stepLabel(): string { return this.steps[this.step - 1]?.label ?? ''; }
   get isLastStep(): boolean { return this.step === 4; }
   get hasNoAttrs(): boolean { return !this.attrLoading && this.attrDefs.length === 0; }
+
+  get attrGroups(): { name: string; attrs: AttributeDefinitionDto[] }[] {
+    const map = new Map<string, AttributeDefinitionDto[]>();
+    for (const def of this.attrDefs) {
+      const key = def.groupName?.trim() || 'General';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(def);
+    }
+    return Array.from(map.entries()).map(([name, attrs]) => ({ name, attrs }));
+  }
 }

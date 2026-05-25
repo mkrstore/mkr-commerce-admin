@@ -1,5 +1,5 @@
 import { ApplicationConfig, APP_INITIALIZER, provideZoneChangeDetection, isDevMode } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideHttpClient, withInterceptors, withFetch } from '@angular/common/http';
 import { provideServiceWorker } from '@angular/service-worker';
 
@@ -20,7 +20,7 @@ function initAuth(authService: AuthService): () => Promise<void> {
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideRouter(routes),
+    provideRouter(routes, withInMemoryScrolling({ scrollPositionRestoration: 'top' })),
 
     // HttpClient with functional interceptor + fetch API
     provideHttpClient(

@@ -21,7 +21,7 @@ interface BrandItem    { id: string; name: string; isActive: boolean; }
 interface AttributeDefinitionDto {
   id: string; label: string; fieldKey: string; fieldType: FieldType;
   options: string | null; unit: string | null; defaultValue: string | null;
-  required: boolean; sortOrder: number;
+  required: boolean; sortOrder: number; groupName: string | null;
 }
 
 interface ProductAttributeDto {
@@ -71,7 +71,7 @@ export class ProductDetailComponent implements OnInit {
   loading   = signal(true);
   notFound  = false;
 
-  activeTab: 'info' | 'pricing' | 'attributes' | 'media' = 'info';
+  activeTab: 'info' | 'pricing' | 'attributes' | 'media' | 'variants' = 'info';
 
   // ── Info tab ──────────────────────────────────────────────────────────────
   categories = signal<CategoryNode[]>([]);
@@ -109,6 +109,19 @@ export class ProductDetailComponent implements OnInit {
   attrSaving = false;
   attrSaved  = false;
   attrError  = '';
+
+  // ── Variants tab ──────────────────────────────────────────────────────────
+  showAddVariant   = false;
+  variantAddSaving = false;
+  variantAddError  = '';
+  variantAddForm   = { colorName: '', colorHex: '#3b82f6', size: '', priceOverride: null as number | null, stockQty: 0 };
+
+  variantEditId     : string | null = null;
+  variantEditSaving = false;
+  variantEditError  = '';
+  variantEditForm   = { colorName: '', colorHex: '', size: '', priceOverride: null as number | null, stockQty: 0 };
+
+  deletingVariantId: string | null = null;
 
   // ── Media tab ─────────────────────────────────────────────────────────────
   uploadFiles:    File[]   = [];
@@ -152,7 +165,7 @@ export class ProductDetailComponent implements OnInit {
   }
 
   get brandOpts() {
-    return [{ value: '', label: 'No brand' }, ...this.brands().map(b => ({ value: b.id, label: b.name }))];
+    return this.brands().map(b => ({ value: b.id, label: b.name }));
   }
 
   get mediaTypeOpts() { return this.mediaTypeOptions; }
@@ -351,9 +364,22 @@ export class ProductDetailComponent implements OnInit {
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
-    this.uploadPreviews.forEach(u => URL.revokeObjectURL(u));
-    this.uploadFiles    = Array.from(input.files);
-    this.uploadPreviews = this.uploadFiles.map(f => URL.createObjectURL(f));
+    const incoming = Array.from(input.files);
+    const files    = [...this.uploadFiles];
+    const previews = [...this.uploadPreviews];
+    for (const f of incoming) {
+      const existing = files.findIndex(x => x.name === f.name);
+      if (existing !== -1) {
+        URL.revokeObjectURL(previews[existing]);
+        files[existing]   = f;
+        previews[existing] = URL.createObjectURL(f);
+      } else {
+        files.push(f);
+        previews.push(URL.createObjectURL(f));
+      }
+    }
+    this.uploadFiles    = files;
+    this.uploadPreviews = previews;
     input.value = '';
   }
 
@@ -430,6 +456,100 @@ export class ProductDetailComponent implements OnInit {
     });
   }
 
+  // ── Variants ──────────────────────────────────────────────────────────────
+
+  openAddVariant() {
+    this.variantEditId = null;
+    this.variantAddForm = { colorName: '', colorHex: '#3b82f6', size: '', priceOverride: null, stockQty: 0 };
+    this.variantAddError = '';
+    this.showAddVariant = true;
+  }
+
+  cancelAddVariant() {
+    this.showAddVariant = false;
+    this.variantAddError = '';
+  }
+
+  saveNewVariant() {
+    if (!this.variantAddForm.colorName.trim()) {
+      this.variantAddError = 'Colour name is required.'; return;
+    }
+    this.variantAddSaving = true; this.variantAddError = '';
+    this.http.post<ApiResponse<ProductVariantDto>>(this.EP.VARIANTS(this.productId), {
+      colorName:     this.variantAddForm.colorName.trim(),
+      colorHex:      this.variantAddForm.colorHex || null,
+      size:          this.variantAddForm.size.trim() || null,
+      priceOverride: this.variantAddForm.priceOverride || null,
+      stockQty:      this.variantAddForm.stockQty || 0,
+    }).subscribe({
+      next: res => {
+        this.variantAddSaving = false;
+        if (res.data) {
+          const p = this.product();
+          if (p) this.product.set({ ...p, variants: [...(p.variants ?? []), res.data] });
+        }
+        this.cancelAddVariant();
+      },
+      error: e => { this.variantAddSaving = false; this.variantAddError = extractErrorMessage(e, 'Save failed.'); }
+    });
+  }
+
+  openEditVariant(v: ProductVariantDto) {
+    this.showAddVariant = false;
+    this.variantEditId    = v.id;
+    this.variantEditError = '';
+    this.variantEditForm  = {
+      colorName:     v.colorName ?? '',
+      colorHex:      v.colorHex  ?? '#3b82f6',
+      size:          v.size      ?? '',
+      priceOverride: v.priceOverride,
+      stockQty:      v.stockQty,
+    };
+  }
+
+  cancelEditVariant() {
+    this.variantEditId = null;
+    this.variantEditError = '';
+  }
+
+  saveEditVariant() {
+    if (!this.variantEditForm.colorName.trim()) {
+      this.variantEditError = 'Colour name is required.'; return;
+    }
+    this.variantEditSaving = true; this.variantEditError = '';
+    this.http.put<ApiResponse<ProductVariantDto>>(this.EP.VARIANT_BY_ID(this.productId, this.variantEditId!), {
+      colorName:     this.variantEditForm.colorName.trim(),
+      colorHex:      this.variantEditForm.colorHex || null,
+      size:          this.variantEditForm.size.trim() || null,
+      priceOverride: this.variantEditForm.priceOverride || null,
+      stockQty:      this.variantEditForm.stockQty || 0,
+    }).subscribe({
+      next: res => {
+        this.variantEditSaving = false;
+        if (res.data) {
+          const p = this.product();
+          if (p) this.product.set({ ...p, variants: p.variants.map(v => v.id === res.data!.id ? res.data! : v) });
+        }
+        this.cancelEditVariant();
+      },
+      error: e => { this.variantEditSaving = false; this.variantEditError = extractErrorMessage(e, 'Save failed.'); }
+    });
+  }
+
+  async deleteVariant(id: string) {
+    const ok = await this.confirm.ask({ title: 'Delete Variant', message: 'Remove this variant permanently?', confirmLabel: 'Delete', variant: 'danger' });
+    if (!ok) return;
+    this.deletingVariantId = id;
+    this.http.delete<ApiResponse<void>>(this.EP.VARIANT_BY_ID(this.productId, id)).subscribe({
+      next: () => {
+        const p = this.product();
+        if (p) this.product.set({ ...p, variants: p.variants.filter(v => v.id !== id) });
+        this.deletingVariantId = null;
+      },
+      error: e => { this.deletingVariantId = null; alert(extractErrorMessage(e, 'Delete failed.')); }
+    });
+  }
+
   // ── Status actions ────────────────────────────────────────────────────────
 
   async setStatus(status: ProductStatus) {
@@ -474,6 +594,16 @@ export class ProductDetailComponent implements OnInit {
     this.attrMultiValues[defId] = current.includes(option)
       ? current.filter(v => v !== option)
       : [...current, option];
+  }
+
+  get attrGroups(): { name: string; attrs: AttributeDefinitionDto[] }[] {
+    const map = new Map<string, AttributeDefinitionDto[]>();
+    for (const def of this.attrDefs) {
+      const key = def.groupName?.trim() || 'General';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(def);
+    }
+    return Array.from(map.entries()).map(([name, attrs]) => ({ name, attrs }));
   }
 
   isVideo(mt: MediaType): boolean { return mt === 'VIDEO'; }

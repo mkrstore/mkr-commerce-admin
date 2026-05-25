@@ -1,3 +1,5 @@
+@use 'colors' as t;
+
 *,
 *::before,
 *::after {
@@ -8,19 +10,58 @@
 
 /* ── LIGHT (default) ── */
 :root {
-  --blue: #2874f0;
-  --blue-dark: #1a5fc8;
-  --blue-light: rgba(40, 116, 240, 0.08);
-  --blue-soft: rgba(40, 116, 240, 0.1);
-  --red: #e53935;
-  --red-bg: rgba(239, 68, 68, 0.08);
-  --green: #16a34a;
-  --green-bg: rgba(22, 163, 74, 0.1);
-  --amber: #d97706;
-  --amber-bg: rgba(245, 158, 11, 0.1);
-  --purple: #7c3aed;
-  --purple-bg: rgba(124, 58, 237, 0.1);
-  --star: #ff9f00;
+  // Brand
+  --blue:           #{t.$blue};
+  --blue-dark:      #{t.$blue-dark};
+  --blue-light:     #{t.$blue-bg};
+  --blue-soft:      #{t.$blue-soft};
+  --blue-medium:    #{t.$blue-medium};
+
+  // Red
+  --red:            #{t.$red};
+  --red-dark:       #{t.$red-dark};
+  --red-bg:         #{t.$red-bg};
+  --red-medium:     #{t.$red-medium};
+  --red-soft:       #{t.$red-soft};
+  --red-soft-bg:    #{t.$red-soft-bg};
+
+  // Green
+  --green:          #{t.$green};
+  --green-dark:     #{t.$green-dark};
+  --green-bg:       #{t.$green-bg};
+  --green-medium:   #{t.$green-medium};
+  --green-alt:      #{t.$green-alt};
+  --green-alt-bg:   #{t.$green-alt-bg};
+
+  // Amber / Orange
+  --amber:          #{t.$amber};
+  --amber-dark:     #{t.$amber-dark};
+  --amber-bg:       #{t.$amber-bg};
+  --amber-medium:   #{t.$amber-medium};
+  --orange:         #{t.$orange};
+  --orange-bg:      #{t.$orange-bg};
+
+  // Purple
+  --purple:         #{t.$purple};
+  --purple-dark:    #{t.$purple-dark};
+  --purple-bg:      #{t.$purple-bg};
+  --purple-medium:  #{t.$purple-medium};
+
+  // Gray (draft / muted)
+  --gray:           #{t.$gray};
+  --gray-bg:        #{t.$gray-bg};
+
+  // Star
+  --star:           #{t.$star};
+
+  // Overlays
+  --overlay-light:  #{t.$overlay-light};
+  --overlay:        #{t.$overlay};
+  --overlay-dark:   #{t.$overlay-dark};
+  --overlay-full:   #{t.$overlay-full};
+
+  // Swatch
+  --swatch-border:  #{t.$swatch-border};
 
   --bg: #f0f2f6;
   --surface: #ffffff;
@@ -66,18 +107,18 @@
   --t3: #484f58;
   --t4: #30363d;
 
-  --blue: #58a6ff;
-  --blue-dark: #388bfd;
-  --blue-light: rgba(88, 166, 255, 0.1);
-  --red: #ff7b7b;
-  --green: #56d364;
-  --amber: #e3b341;
-  --star: #e3b341;
+  --blue:       #{t.$blue-dm};
+  --blue-dark:  #{t.$blue-dark-dm};
+  --blue-light: #{t.$blue-bg-dm};
+  --blue-soft:  #{t.$blue-bg-dm};
+  --red:        #{t.$red-dm};
+  --green:      #{t.$green-dm};
+  --amber:      #{t.$amber-dm};
+  --star:       #{t.$amber-dm};
 
   --hover: #1f2937;
   --input-bg: #020202;
   --skeleton: #273344;
-  --blue-soft: rgba(88, 166, 255, 0.1);
   --red-bg: rgba(239, 68, 68, 0.12);
   --green-bg: rgba(22, 163, 74, 0.12);
   --amber-bg: rgba(245, 158, 11, 0.12);
@@ -106,6 +147,7 @@ body {
     color 0.25s;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: contain; /* disable native pull-to-refresh */
 }
 button,
 input,
@@ -265,22 +307,22 @@ input:-webkit-autofill:focus {
   }
 
   &.btn-danger {
-    background: #ef4444;
+    background: var(--red);
     color: #fff;
-    border-color: #ef4444;
+    border-color: var(--red);
     &:hover:not(:disabled) {
-      background: #dc2626;
-      border-color: #dc2626;
+      background: var(--red-dark);
+      border-color: var(--red-dark);
     }
   }
 
   &.btn-success {
-    background: #16a34a;
+    background: var(--green);
     color: #fff;
-    border-color: #16a34a;
+    border-color: var(--green);
     &:hover:not(:disabled) {
-      background: #15803d;
-      border-color: #15803d;
+      background: var(--green-dark);
+      border-color: var(--green-dark);
     }
   }
 

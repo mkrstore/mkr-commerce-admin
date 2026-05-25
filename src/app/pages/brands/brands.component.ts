@@ -54,6 +54,10 @@ export class BrandsComponent implements OnInit {
   logoError      = '';
   uploadLogoType: 'image' | 'video' = 'image';
 
+  // Staged logo for create mode (uploaded after brand is saved)
+  stagedLogoFile:    File | null   = null;
+  stagedLogoPreview: string | null = null;
+
   // ── Delete ────────────────────────────────────────────────────────────────
   deleteTarget: BrandDto | null = null;
   deleting    = false;
@@ -143,7 +147,29 @@ export class BrandsComponent implements OnInit {
   openCreate() {
     this.form = { name: '', slug: '', description: '', isActive: true };
     this.slugEdited = false;
-    this.modalError = ''; this.formTouched = false; this.editTarget = null; this.modalMode = 'create';
+    this.modalError = ''; this.formTouched = false; this.editTarget = null;
+    this.clearStagedLogo();
+    this.uploadLogoType = 'image';
+    this.modalMode = 'create';
+  }
+
+  onCreateLogoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    if (this.stagedLogoPreview) URL.revokeObjectURL(this.stagedLogoPreview);
+    this.stagedLogoFile    = input.files[0];
+    this.stagedLogoPreview = URL.createObjectURL(this.stagedLogoFile);
+    input.value = '';
+  }
+
+  removeStagedLogo() {
+    if (this.stagedLogoPreview) URL.revokeObjectURL(this.stagedLogoPreview);
+    this.stagedLogoFile = null; this.stagedLogoPreview = null;
+  }
+
+  private clearStagedLogo() {
+    if (this.stagedLogoPreview) URL.revokeObjectURL(this.stagedLogoPreview);
+    this.stagedLogoFile = null; this.stagedLogoPreview = null;
   }
 
   openEdit(brand: BrandDto) {
@@ -170,7 +196,15 @@ export class BrandsComponent implements OnInit {
       : this.http.put<ApiResponse<BrandDto>>(`${this.BASE}/${this.editTarget!.id}`, payload);
 
     req$.subscribe({
-      next: () => { this.saving = false; this.modalMode = 'closed'; this.load(this.currentPage()); },
+      next: res => {
+        if (this.modalMode === 'create' && this.stagedLogoFile && res.data?.id) {
+          this.uploadLogoForBrand(res.data.id, this.stagedLogoFile, () => {
+            this.saving = false; this.modalMode = 'closed'; this.clearStagedLogo(); this.load(this.currentPage());
+          });
+        } else {
+          this.saving = false; this.modalMode = 'closed'; this.clearStagedLogo(); this.load(this.currentPage());
+        }
+      },
       error: e  => { this.saving = false; this.modalError = extractErrorMessage(e, 'Save failed.'); }
     });
   }
@@ -194,21 +228,25 @@ export class BrandsComponent implements OnInit {
     if (!input.files?.length || !this.editTarget) return;
     const file = input.files[0];
     input.value = '';
-    this.logoUploading = true;
-    this.logoError = '';
+    this.logoUploading = true; this.logoError = '';
+    this.uploadLogoForBrand(this.editTarget.id, file, () => this.logoUploading = false);
+  }
+
+  private uploadLogoForBrand(brandId: string, file: File, onDone: () => void) {
+    this.logoUploading = true; this.logoError = '';
     const fd = new FormData();
     fd.append('file', file);
     fd.append('type', this.uploadLogoType);
-    this.http.post<ApiResponse<BrandDto>>(`${this.BASE}/${this.editTarget.id}/logo`, fd).subscribe({
+    this.http.post<ApiResponse<BrandDto>>(`${this.BASE}/${brandId}/logo`, fd).subscribe({
       next: res => {
         this.logoUploading = false;
         if (res.data) {
-          this.editTarget = res.data;
-          // Update in-list brand so cards refresh
+          if (this.editTarget?.id === res.data.id) this.editTarget = res.data;
           this.brands.update(list => list.map(b => b.id === res.data!.id ? res.data! : b));
         }
+        onDone();
       },
-      error: e => { this.logoUploading = false; this.logoError = extractErrorMessage(e, 'Upload failed.'); }
+      error: e => { this.logoUploading = false; this.logoError = extractErrorMessage(e, 'Upload failed.'); onDone(); }
     });
   }
 

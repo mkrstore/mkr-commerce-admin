@@ -40,6 +40,10 @@
       Media
       <span class="tab-count" *ngIf="p.media?.length">{{ p.media.length }}</span>
     </button>
+    <button class="tab-btn" [class.active]="activeTab === 'variants'"  (click)="activeTab = 'variants'">
+      Variants
+      <span class="tab-count" *ngIf="p.variants?.length">{{ p.variants.length }}</span>
+    </button>
   </div>
 
   <!-- ── INFO TAB ── -->
@@ -141,40 +145,50 @@
       Go to <strong>Categories</strong> and add fields to <strong>{{ p.categoryName }}</strong>.
     </div>
 
-    <div class="form-grid" *ngIf="attrDefs.length > 0">
-      <div class="fg" *ngFor="let def of attrDefs">
-        <app-input *ngIf="def.fieldType === 'TEXT'" [label]="def.label"
-          [optLabel]="def.unit ?? ''" [required]="def.required"
-          [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event"
-          [placeholder]="def.defaultValue ?? ''" />
-
-        <app-input *ngIf="def.fieldType === 'NUMBER'" [label]="def.label"
-          type="number" [optLabel]="def.unit ?? ''" [required]="def.required"
-          [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event"
-          [placeholder]="def.defaultValue ?? '0'" />
-
-        <div *ngIf="def.fieldType === 'BOOLEAN'" class="field">
-          <label class="field-label">{{ def.label }}</label>
-          <app-checkbox label="Yes" [checked]="attrValues[def.id] === 'true'"
-            (checkedChange)="attrValues[def.id] = $event ? 'true' : 'false'" />
+    <!-- Grouped attributes -->
+    <ng-container *ngIf="attrDefs.length > 0">
+      <div class="attr-group" *ngFor="let grp of attrGroups">
+        <div class="attr-group-hd">
+          <span class="icon icon-sm">tune</span>
+          {{ grp.name }}
+          <span class="attr-group-count">{{ grp.attrs.length }}</span>
         </div>
+        <div class="form-grid">
+          <div class="fg" *ngFor="let def of grp.attrs">
+            <app-input *ngIf="def.fieldType === 'TEXT'" [label]="def.label"
+              [optLabel]="def.unit ?? ''" [required]="def.required"
+              [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event"
+              [placeholder]="def.defaultValue ?? ''" />
 
-        <app-select *ngIf="def.fieldType === 'SELECT'"
-          [label]="def.label + (def.unit ? ' (' + def.unit + ')' : '')"
-          placeholder="Select…" [options]="getAttrOpts(def)"
-          [required]="def.required"
-          [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event" />
+            <app-input *ngIf="def.fieldType === 'NUMBER'" [label]="def.label"
+              type="number" [optLabel]="def.unit ?? ''" [required]="def.required"
+              [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event"
+              [placeholder]="def.defaultValue ?? '0'" />
 
-        <div *ngIf="def.fieldType === 'MULTISELECT'" class="field">
-          <label class="field-label">{{ def.label }}</label>
-          <div class="multi-check-group">
-            <app-checkbox *ngFor="let opt of parsedOptions(def)" [label]="opt"
-              [checked]="isMultiSelected(def.id, opt)"
-              (checkedChange)="toggleMultiValue(def.id, opt)" />
+            <div *ngIf="def.fieldType === 'BOOLEAN'" class="field">
+              <label class="field-label">{{ def.label }}</label>
+              <app-checkbox label="Yes" [checked]="attrValues[def.id] === 'true'"
+                (checkedChange)="attrValues[def.id] = $event ? 'true' : 'false'" />
+            </div>
+
+            <app-select *ngIf="def.fieldType === 'SELECT'"
+              [label]="def.label + (def.unit ? ' (' + def.unit + ')' : '')"
+              placeholder="Select…" [options]="getAttrOpts(def)"
+              [required]="def.required"
+              [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event" />
+
+            <div *ngIf="def.fieldType === 'MULTISELECT'" class="field span-2">
+              <label class="field-label">{{ def.label }}</label>
+              <div class="multi-check-group">
+                <app-checkbox *ngFor="let opt of parsedOptions(def)" [label]="opt"
+                  [checked]="isMultiSelected(def.id, opt)"
+                  (checkedChange)="toggleMultiValue(def.id, opt)" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </ng-container>
 
     <div class="save-bar" *ngIf="canEdit() && attrDefs.length > 0">
       <app-btn variant="primary" [loading]="attrSaving" [disabled]="!attrDirty" (clicked)="saveAttributes()">Save Attributes</app-btn>
@@ -243,6 +257,107 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- ── VARIANTS TAB ── -->
+  <div class="tab-content" *ngIf="activeTab === 'variants'">
+
+    <!-- Existing variants -->
+    <div class="variant-list" *ngIf="p.variants?.length">
+      <div class="variant-row" *ngFor="let v of p.variants">
+
+        <!-- View mode -->
+        <ng-container *ngIf="variantEditId !== v.id">
+          <div class="vr-color">
+            <span class="vr-swatch" [style.background]="v.colorHex || '#ccc'"></span>
+            <span>{{ v.colorName || '—' }}</span>
+          </div>
+          <div class="vr-size">{{ v.size || '—' }}</div>
+          <div class="vr-price">{{ v.priceOverride ? inr(v.priceOverride) : 'Base price' }}</div>
+          <div class="vr-stock"><span class="icon icon-xs icon-muted">inventory_2</span> {{ v.stockQty }}</div>
+          <div class="vr-sku">{{ v.sku }}</div>
+          <div class="vr-actions" *ngIf="canEdit()">
+            <button class="vr-btn" (click)="openEditVariant(v)"><span class="icon icon-xs">edit</span></button>
+            <button class="vr-btn vr-btn-danger" [disabled]="deletingVariantId === v.id" (click)="deleteVariant(v.id)">
+              <span class="icon icon-xs">delete</span>
+            </button>
+          </div>
+        </ng-container>
+
+        <!-- Inline edit mode -->
+        <ng-container *ngIf="variantEditId === v.id">
+          <div class="variant-edit-form">
+            <div class="alert alert-error" *ngIf="variantEditError"><span class="icon icon-sm">warning</span> {{ variantEditError }}</div>
+            <div class="form-grid">
+              <app-input label="Colour Name" [required]="true"
+                [value]="variantEditForm.colorName" (valueChange)="variantEditForm.colorName = $event"
+                placeholder="e.g. Midnight Black" />
+              <div class="fg vr-color-field">
+                <label class="field-label">Colour Hex</label>
+                <div class="vr-color-input">
+                  <input type="color" [(ngModel)]="variantEditForm.colorHex" />
+                  <span>{{ variantEditForm.colorHex }}</span>
+                </div>
+              </div>
+              <app-input label="Size / Storage" optLabel="optional"
+                [value]="variantEditForm.size" (valueChange)="variantEditForm.size = $event"
+                placeholder="e.g. 128 GB, XL" />
+              <app-input label="Price Override" optLabel="₹ optional" type="number"
+                [value]="variantEditForm.priceOverride" (valueChange)="variantEditForm.priceOverride = $event"
+                placeholder="Leave blank to use base price" />
+              <app-input label="Stock Qty" type="number"
+                [value]="variantEditForm.stockQty" (valueChange)="variantEditForm.stockQty = $event" />
+            </div>
+            <div class="vef-actions">
+              <app-btn variant="ghost" size="sm" (clicked)="cancelEditVariant()">Cancel</app-btn>
+              <app-btn variant="primary" size="sm" [loading]="variantEditSaving" (clicked)="saveEditVariant()">Save</app-btn>
+            </div>
+          </div>
+        </ng-container>
+
+      </div>
+    </div>
+
+    <div class="variant-empty" *ngIf="!p.variants?.length && !showAddVariant">
+      No variants yet. Add a variant for different colours, sizes or storage options.
+    </div>
+
+    <!-- Add variant form -->
+    <div class="add-variant-section" *ngIf="canEdit()">
+      <div *ngIf="!showAddVariant">
+        <app-btn variant="ghost" size="sm" icon="add" (clicked)="openAddVariant()">Add Variant</app-btn>
+      </div>
+
+      <div class="variant-add-form" *ngIf="showAddVariant">
+        <div class="vaf-title">New Variant</div>
+        <div class="alert alert-error" *ngIf="variantAddError"><span class="icon icon-sm">warning</span> {{ variantAddError }}</div>
+        <div class="form-grid">
+          <app-input label="Colour Name" [required]="true"
+            [value]="variantAddForm.colorName" (valueChange)="variantAddForm.colorName = $event"
+            placeholder="e.g. Midnight Black" />
+          <div class="fg vr-color-field">
+            <label class="field-label">Colour Hex</label>
+            <div class="vr-color-input">
+              <input type="color" [(ngModel)]="variantAddForm.colorHex" />
+              <span>{{ variantAddForm.colorHex }}</span>
+            </div>
+          </div>
+          <app-input label="Size / Storage" optLabel="optional"
+            [value]="variantAddForm.size" (valueChange)="variantAddForm.size = $event"
+            placeholder="e.g. 128 GB, XL" />
+          <app-input label="Price Override" optLabel="₹ optional" type="number"
+            [value]="variantAddForm.priceOverride" (valueChange)="variantAddForm.priceOverride = $event"
+            placeholder="Leave blank to use base price" />
+          <app-input label="Stock Qty" type="number"
+            [value]="variantAddForm.stockQty" (valueChange)="variantAddForm.stockQty = $event" />
+        </div>
+        <div class="vef-actions">
+          <app-btn variant="ghost" size="sm" (clicked)="cancelAddVariant()">Cancel</app-btn>
+          <app-btn variant="primary" size="sm" [loading]="variantAddSaving" (clicked)="saveNewVariant()">Add Variant</app-btn>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 </div>

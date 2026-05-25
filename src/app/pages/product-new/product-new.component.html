@@ -67,7 +67,7 @@
             placeholder="Select a category…" [options]="categoryOpts"
             [value]="step1.categoryId" (valueChange)="onCategoryChange($event)" />
           <app-select label="Brand" optLabel="optional"
-            placeholder="Select brand…" [options]="brandOpts"
+            placeholder="No brand" [options]="brandOpts"
             [value]="step1.brandId" (valueChange)="step1.brandId = $event" />
         </div>
         <app-textarea label="Short Description" optLabel="optional" [rows]="2"
@@ -146,52 +146,61 @@
           </div>
         </div>
 
-        <!-- Attrs form -->
+        <!-- Attrs form — grouped by groupName -->
         <ng-container *ngIf="!attrLoading && attrDefs.length > 0">
-          <ng-container *ngFor="let attr of attrDefs">
-
-            <!-- TEXT / NUMBER -->
-            <app-input *ngIf="attr.fieldType === 'TEXT' || attr.fieldType === 'NUMBER'"
-              [label]="attr.label + (attr.unit ? ' (' + attr.unit + ')' : '')"
-              [type]="attr.fieldType === 'NUMBER' ? 'number' : 'text'"
-              [required]="attr.required" [touched]="touched"
-              [value]="attrValues[attr.id]"
-              (valueChange)="attrValues[attr.id] = $event"
-              [placeholder]="attr.defaultValue ?? ''" />
-
-            <!-- BOOLEAN -->
-            <app-checkbox *ngIf="attr.fieldType === 'BOOLEAN'"
-              [label]="attr.label"
-              [checked]="attrValues[attr.id] === 'true'"
-              (checkedChange)="attrValues[attr.id] = $event ? 'true' : 'false'" />
-
-            <!-- SELECT -->
-            <app-select *ngIf="attr.fieldType === 'SELECT'"
-              [label]="attr.label + (attr.unit ? ' (' + attr.unit + ')' : '')"
-              placeholder="Select…" [options]="getSelectOpts(attr)"
-              [required]="attr.required" [touched]="touched"
-              [value]="attrValues[attr.id]"
-              (valueChange)="attrValues[attr.id] = $event" />
-
-            <!-- MULTISELECT -->
-            <div *ngIf="attr.fieldType === 'MULTISELECT'" class="field">
-              <label class="field-label">
-                {{ attr.label }}<span *ngIf="attr.unit"> ({{ attr.unit }})</span>
-                <span class="req" *ngIf="attr.required">*</span>
-              </label>
-              <div class="multi-opts">
-                <label *ngFor="let opt of parsedOptions(attr)" class="multi-opt"
-                  [class.selected]="isMultiSelected(attr, opt)"
-                  (click)="toggleMulti(attr, opt)">
-                  <span class="icon icon-xs" *ngIf="isMultiSelected(attr, opt)">check_box</span>
-                  <span class="icon icon-xs" *ngIf="!isMultiSelected(attr, opt)">check_box_outline_blank</span>
-                  {{ opt }}
-                </label>
-              </div>
-              <div class="field-hint" *ngIf="attr.unit">Unit: {{ attr.unit }}</div>
+          <div class="attr-group" *ngFor="let grp of attrGroups">
+            <div class="attr-group-hd">
+              <span class="icon icon-sm">tune</span>
+              {{ grp.name }}
+              <span class="attr-group-count">{{ grp.attrs.length }}</span>
             </div>
+            <div class="attr-group-body">
+              <ng-container *ngFor="let attr of grp.attrs">
 
-          </ng-container>
+                <!-- TEXT / NUMBER -->
+                <app-input *ngIf="attr.fieldType === 'TEXT' || attr.fieldType === 'NUMBER'"
+                  [label]="attr.label + (attr.unit ? ' (' + attr.unit + ')' : '')"
+                  [type]="attr.fieldType === 'NUMBER' ? 'number' : 'text'"
+                  [required]="attr.required" [touched]="touched"
+                  [value]="attrValues[attr.id]"
+                  (valueChange)="attrValues[attr.id] = $event"
+                  [placeholder]="attr.defaultValue ?? ''" />
+
+                <!-- BOOLEAN -->
+                <app-checkbox *ngIf="attr.fieldType === 'BOOLEAN'"
+                  [label]="attr.label"
+                  [checked]="attrValues[attr.id] === 'true'"
+                  (checkedChange)="attrValues[attr.id] = $event ? 'true' : 'false'" />
+
+                <!-- SELECT -->
+                <app-select *ngIf="attr.fieldType === 'SELECT'"
+                  [label]="attr.label + (attr.unit ? ' (' + attr.unit + ')' : '')"
+                  placeholder="Select…" [options]="getSelectOpts(attr)"
+                  [required]="attr.required" [touched]="touched"
+                  [value]="attrValues[attr.id]"
+                  (valueChange)="attrValues[attr.id] = $event" />
+
+                <!-- MULTISELECT -->
+                <div *ngIf="attr.fieldType === 'MULTISELECT'" class="field">
+                  <label class="field-label">
+                    {{ attr.label }}<span *ngIf="attr.unit"> ({{ attr.unit }})</span>
+                    <span class="req" *ngIf="attr.required">*</span>
+                  </label>
+                  <div class="multi-opts">
+                    <label *ngFor="let opt of parsedOptions(attr)" class="multi-opt"
+                      [class.selected]="isMultiSelected(attr, opt)"
+                      (click)="toggleMulti(attr, opt)">
+                      <span class="icon icon-xs" *ngIf="isMultiSelected(attr, opt)">check_box</span>
+                      <span class="icon icon-xs" *ngIf="!isMultiSelected(attr, opt)">check_box_outline_blank</span>
+                      {{ opt }}
+                    </label>
+                  </div>
+                  <div class="field-hint" *ngIf="attr.unit">Unit: {{ attr.unit }}</div>
+                </div>
+
+              </ng-container>
+            </div>
+          </div>
         </ng-container>
       </div>
     </ng-container>

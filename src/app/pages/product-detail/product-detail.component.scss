@@ -42,10 +42,10 @@
 // ── Status badge ──────────────────────────────────────────────────────────────
 .status-badge {
   padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap;
-  &.st-active       { background: rgba(22,163,74,.12);   color: #16A34A; }
-  &.st-draft        { background: rgba(107,114,128,.12); color: #6B7280; }
-  &.st-inactive     { background: rgba(239,68,68,.12);   color: #DC2626; }
-  &.st-discontinued { background: rgba(124,58,237,.12);  color: #7C3AED; }
+  &.st-active       { background: var(--green-medium);  color: var(--green); }
+  &.st-draft        { background: var(--gray-bg);       color: var(--gray); }
+  &.st-inactive     { background: var(--red-medium);    color: var(--red-dark); }
+  &.st-discontinued { background: var(--purple-medium); color: var(--purple); }
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -95,6 +95,21 @@
   strong { color: var(--t1); }
 }
 
+// ── Attribute groups ──────────────────────────────────────────────────────────
+.attr-group { display: flex; flex-direction: column; gap: 14px; }
+.attr-group-hd {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; font-weight: 700; color: var(--t2);
+  text-transform: uppercase; letter-spacing: .6px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  .icon { color: var(--blue); font-size: 15px !important; }
+}
+.attr-group-count {
+  margin-left: auto;
+  font-size: 10px; font-weight: 700; color: var(--t3);
+  background: var(--hover); border-radius: 99px; padding: 1px 7px;
+}
+
 .req-star { color: var(--red); }
 
 // ── Multi-checkbox group ──────────────────────────────────────────────────────
@@ -126,15 +141,15 @@
   .mc-type-badge {
     font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px;
     border-radius: 4px; align-self: flex-start;
-    &.mt-image_primary  { background: rgba(40,116,240,.12);  color: var(--blue); }
-    &.mt-image_gallery  { background: rgba(22,163,74,.12);   color: #16A34A; }
-    &.mt-image_spec     { background: rgba(234,179,8,.15);   color: #B45309; }
-    &.mt-video          { background: rgba(124,58,237,.12);  color: #7C3AED; }
+    &.mt-image_primary  { background: var(--blue-medium);    color: var(--blue); }
+    &.mt-image_gallery  { background: var(--green-medium);   color: var(--green); }
+    &.mt-image_spec     { background: var(--amber-medium);   color: var(--amber-dark); }
+    &.mt-video          { background: var(--purple-medium);  color: var(--purple); }
   }
 
   .mc-delete {
     position: absolute; top: 5px; right: 5px;
-    background: rgba(0,0,0,.55); color: #fff; border: none; border-radius: 50%;
+    background: var(--overlay-dark); color: #fff; border: none; border-radius: 50%;
     width: 24px; height: 24px; cursor: pointer; display: none;
     align-items: center; justify-content: center;
   }
@@ -183,10 +198,99 @@
   }
   .up-remove {
     position: absolute; top: 4px; right: 4px;
-    background: rgba(0,0,0,.55); color: #fff; border: none; border-radius: 50%;
+    background: var(--overlay-dark); color: #fff; border: none; border-radius: 50%;
     width: 20px; height: 20px; cursor: pointer; padding: 0;
     display: flex; align-items: center; justify-content: center;
   }
+}
+
+// ── Variants tab ─────────────────────────────────────────────────────────────
+.variant-empty {
+  font-size: 13px; color: var(--t3); padding: 20px 0;
+}
+
+.variant-list {
+  display: flex; flex-direction: column; gap: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
+}
+
+.variant-row {
+  border-bottom: 1px solid var(--border);
+  &:last-child { border-bottom: none; }
+}
+
+.variant-row > ng-container:first-child {
+  // view mode row rendered via ng-container — style the inner content
+}
+
+// View mode: flex row of cells
+.vr-color, .vr-size, .vr-price, .vr-stock, .vr-sku, .vr-actions {
+  display: flex; align-items: center;
+}
+
+.variant-row > ng-container {
+  display: contents;
+}
+
+// The view-mode cells are siblings — wrap them with a flex row via the row itself
+.variant-row:not(:has(.variant-edit-form)) {
+  display: flex; align-items: center; gap: 16px; padding: 12px 16px;
+  font-size: 13px;
+}
+
+.vr-color {
+  gap: 8px; flex: 1.5; min-width: 0;
+  span:last-child { font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.vr-swatch {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid var(--swatch-border); flex-shrink: 0;
+}
+
+.vr-size  { flex: 1; color: var(--t2); }
+.vr-price { flex: 1; color: var(--t1); font-weight: 600; }
+.vr-stock { flex: 0 0 80px; gap: 4px; color: var(--t2); }
+.vr-sku   { flex: 1.2; color: var(--t3); font-size: 11px; font-family: monospace; }
+
+.vr-actions { gap: 4px; flex-shrink: 0; }
+
+.vr-btn {
+  background: none; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 4px 6px; cursor: pointer; color: var(--t3); display: flex; align-items: center;
+  &:hover { background: var(--hover); color: var(--t1); }
+  &.vr-btn-danger:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+  &:disabled { opacity: .4; cursor: default; }
+}
+
+// Inline edit / add forms
+.variant-edit-form,
+.variant-add-form {
+  padding: 16px; background: var(--surface2);
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+.vaf-title {
+  font-size: 13px; font-weight: 600; color: var(--t2);
+}
+
+.vef-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding-top: 8px; border-top: 1px solid var(--border);
+}
+
+.vr-color-field { }
+
+.vr-color-input {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--input-bg); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 7px 12px;
+  input[type=color] { width: 28px; height: 28px; border: none; background: none; cursor: pointer; padding: 0; }
+  span { font-size: 13px; color: var(--t2); font-family: monospace; }
+}
+
+.add-variant-section {
+  padding-top: 12px;
 }
 
 // ── Mobile ────────────────────────────────────────────────────────────────────

@@ -1,0 +1,78 @@
+// ════════════════════════════════════════════════════════════════════════════
+//  DESIGN TOKENS  —  the ONE place to change raw color values.
+//
+//  Rule: no component SCSS file should contain a raw hex or rgba color.
+//        Always go through a CSS variable (var(--xxx)) defined in styles.scss
+//        which references these SCSS primitives.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Brand blue ───────────────────────────────────────────────────────────────
+$blue:          #2874f0;
+$blue-dark:     #1a5fc8;
+$blue-bg:       rgba(40, 116, 240, 0.08);
+$blue-soft:     rgba(40, 116, 240, 0.10);
+$blue-medium:   rgba(40, 116, 240, 0.12);
+
+// ── Red (danger / error) ─────────────────────────────────────────────────────
+$red:           #ef4444;
+$red-dark:      #dc2626;
+$red-deeper:    #991b1b;
+$red-bg:        rgba(239, 68, 68, 0.08);
+$red-medium:    rgba(239, 68, 68, 0.12);
+
+// ── Red-soft (used in charts / stat panels — softer than brand red) ──────────
+$red-soft:      #ff6161;
+$red-soft-bg:   rgba(255, 97, 97, 0.10);
+$red-soft-medium: rgba(255, 97, 97, 0.12);
+
+// ── Green (success / active) ─────────────────────────────────────────────────
+$green:         #16a34a;
+$green-dark:    #15803d;
+$green-bg:      rgba(22, 163, 74, 0.10);
+$green-medium:  rgba(22, 163, 74, 0.12);
+
+// ── Green-alt (material green — used in dashboards / order pipelines) ────────
+$green-alt:     #388e3c;
+$green-alt-bg:  rgba(56, 142, 60, 0.10);
+$green-alt-medium: rgba(56, 142, 60, 0.12);
+
+// ── Amber (warning / low-stock) ──────────────────────────────────────────────
+$amber:         #d97706;
+$amber-dark:    #b45309;
+$amber-deeper:  #92400e;
+$amber-bg:      rgba(245, 158, 11, 0.10);
+$amber-medium:  rgba(245, 158, 11, 0.15);
+
+// ── Orange (order / billing status — distinct from amber) ────────────────────
+$orange:        #ff9f00;
+$orange-bg:     rgba(255, 159, 0, 0.10);
+
+// ── Purple (discontinued / khata / video) ────────────────────────────────────
+$purple:        #7c3aed;
+$purple-dark:   #6d28d9;
+$purple-bg:     rgba(124, 58, 237, 0.10);
+$purple-medium: rgba(124, 58, 237, 0.12);
+
+// ── Gray (draft / muted status / hint text) ──────────────────────────────────
+$gray:          #6b7280;
+$gray-bg:       rgba(107, 114, 128, 0.12);
+
+// ── Star / rating ────────────────────────────────────────────────────────────
+$star:          #ff9f00;
+
+// ── Overlays ─────────────────────────────────────────────────────────────────
+$overlay-light: rgba(0, 0, 0, 0.35);
+$overlay:       rgba(0, 0, 0, 0.45);
+$overlay-dark:  rgba(0, 0, 0, 0.55);
+$overlay-full:  rgba(0, 0, 0, 0.60);
+
+// ── Swatch border (for color picker circles) ─────────────────────────────────
+$swatch-border: rgba(0, 0, 0, 0.15);
+
+// ── Dark-mode overrides (used inside .dark-mode selector) ────────────────────
+$blue-dm:       #58a6ff;
+$blue-dark-dm:  #388bfd;
+$blue-bg-dm:    rgba(88, 166, 255, 0.10);
+$red-dm:        #ff7b7b;
+$green-dm:      #56d364;
+$amber-dm:      #e3b341;
