@@ -1,39 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-
-type CustomerType = 'Retail' | 'Wholesale' | 'Broker';
-type CustomerSource = 'Online' | 'In-Store';
-
-interface CustomerSummary {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  type: CustomerType;
-  source: CustomerSource;
-  since: string;
-  lastOrder: string;
-  totalOrders: number;
-  totalSpent: number;
-  pendingAmount: number;
-}
-
-const CUSTOMERS: CustomerSummary[] = [
-  // ── Online ──
-  { id: 'CUS-001', name: 'Ravi Kumar',   email: 'ravi.k@gmail.com',     phone: '+91 98765 43210', type: 'Retail',    source: 'Online',   since: 'Jan 2025', lastOrder: 'Apr 8, 2026',  totalOrders: 3,  totalSpent: 14200,   pendingAmount: 0 },
-  { id: 'CUS-002', name: 'Meena Patel',  email: 'meena.p@yahoo.com',    phone: '+91 99887 76655', type: 'Broker',    source: 'Online',   since: 'Mar 2024', lastOrder: 'Apr 8, 2026',  totalOrders: 4,  totalSpent: 105800,  pendingAmount: 0 },
-  { id: 'CUS-003', name: 'Kiran Das',    email: 'kiran.d@gmail.com',    phone: '+91 77665 44332', type: 'Retail',    source: 'Online',   since: 'Aug 2025', lastOrder: 'Apr 6, 2026',  totalOrders: 2,  totalSpent: 3200,    pendingAmount: 0 },
-  { id: 'CUS-004', name: 'Farhan Ali',   email: 'farhan.a@gmail.com',   phone: '+91 66554 33221', type: 'Broker',    source: 'Online',   since: 'Nov 2023', lastOrder: 'Apr 6, 2026',  totalOrders: 6,  totalSpent: 450000,  pendingAmount: 0 },
-  { id: 'CUS-005', name: 'Arun Nair',    email: 'arun.n@gmail.com',     phone: '+91 97654 32109', type: 'Retail',    source: 'Online',   since: 'Jun 2025', lastOrder: 'Apr 7, 2026',  totalOrders: 2,  totalSpent: 7500,    pendingAmount: 0 },
-  { id: 'CUS-006', name: 'Anjali Verma', email: 'anjali.v@outlook.com', phone: '+91 93456 78901', type: 'Wholesale', source: 'Online',   since: 'Feb 2025', lastOrder: 'Apr 1, 2026',  totalOrders: 3,  totalSpent: 45000,   pendingAmount: 15000 },
-  // ── In-Store ──
-  { id: 'CUS-007', name: 'Priya Sharma', email: 'priya.s@outlook.com',  phone: '+91 91234 56789', type: 'Wholesale', source: 'In-Store', since: 'Jan 2023', lastOrder: 'Apr 8, 2026',  totalOrders: 8,  totalSpent: 240000,  pendingAmount: 0 },
-  { id: 'CUS-008', name: 'Sunita Rao',   email: 'sunita.r@gmail.com',   phone: '+91 88776 55443', type: 'Wholesale', source: 'In-Store', since: 'May 2024', lastOrder: 'Apr 7, 2026',  totalOrders: 5,  totalSpent: 380000,  pendingAmount: 91920 },
-  { id: 'CUS-009', name: 'Deepa Singh',  email: 'deepa.s@gmail.com',    phone: '+91 85432 10987', type: 'Retail',    source: 'In-Store', since: 'Oct 2024', lastOrder: 'Mar 15, 2026', totalOrders: 3,  totalSpent: 12000,   pendingAmount: 2500 },
-  { id: 'CUS-010', name: 'Sanjay Mehta', email: 'sanjay.m@gmail.com',   phone: '+91 98001 23456', type: 'Broker',    source: 'In-Store', since: 'Jun 2022', lastOrder: 'Mar 5, 2026',  totalOrders: 15, totalSpent: 1200000, pendingAmount: 50000 },
-];
+import { Subject, forkJoin, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
+import { CustomerService, CustomerSummary, CustomerType, AuthMethod, CustomerPage } from '../../services/customer.service';
+import { extractErrorMessage } from '../../core/models/api.models';
 
 @Component({
   selector: 'app-customers',
@@ -42,45 +13,162 @@ const CUSTOMERS: CustomerSummary[] = [
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss'
 })
-export class CustomersComponent {
-  selectedSource: CustomerSource | null = null;
+export class CustomersComponent implements OnInit, OnDestroy {
+
+  // ── Filter state ──────────────────────────────────────────────────────────
   selectedType: 'All' | CustomerType = 'All';
+  showPendingOnly = false;
   searchQ = '';
 
-  readonly customers = CUSTOMERS;
-  readonly types: CustomerType[] = ['Retail', 'Wholesale', 'Broker'];
+  readonly types: CustomerType[] = ['RETAIL', 'WHOLESALE', 'BROKER'];
 
-  constructor(private router: Router) {}
+  // ── Pagination ────────────────────────────────────────────────────────────
+  page          = 0;
+  pageSize      = 8;
+  totalElements = 0;
+  totalPages    = 0;
 
-  // ── Overview counts ──
-  sourceCount(s: CustomerSource)  { return this.customers.filter(c => c.source === s).length; }
-  sourcePending(s: CustomerSource){ return this.customers.filter(c => c.source === s && c.pendingAmount > 0).length; }
-  typeCount(s: CustomerSource, t: CustomerType) { return this.customers.filter(c => c.source === s && c.type === t).length; }
-  sourceTotalSpent(s: CustomerSource) { return this.customers.filter(c => c.source === s).reduce((n, c) => n + c.totalSpent, 0); }
+  // ── Tab counts ────────────────────────────────────────────────────────────
+  typeCounts: Partial<Record<'All' | CustomerType, number>> = {};
+  pendingCount: number | null = null;
 
-  // ── Navigation ──
-  selectSource(s: CustomerSource) { this.selectedSource = s; this.selectedType = 'All'; this.searchQ = ''; }
-  goBack() { this.selectedSource = null; this.selectedType = 'All'; this.searchQ = ''; }
-  onSearch() {}
+  // ── Data ──────────────────────────────────────────────────────────────────
+  customers: CustomerSummary[] = [];
+  loading   = false;
+  error     = '';
 
-  // ── Filtered list ──
-  get filtered(): CustomerSummary[] {
-    const q = this.searchQ.trim().toLowerCase();
-    return this.customers.filter(c => {
-      if (c.source !== this.selectedSource) return false;
-      if (this.selectedType !== 'All' && c.type !== this.selectedType) return false;
-      if (q && !c.name.toLowerCase().includes(q) && !c.email.toLowerCase().includes(q) && !c.phone.includes(q)) return false;
-      return true;
+  // ── Search debounce ───────────────────────────────────────────────────────
+  private searchInput$ = new Subject<string>();
+  private destroy$     = new Subject<void>();
+
+  constructor(
+    private customerService: CustomerService,
+    private router: Router
+  ) {}
+
+  ngOnInit(): void {
+    this.searchInput$.pipe(
+      debounceTime(350),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$)
+    ).subscribe(() => { this.page = 0; this.load(); });
+
+    this.load();
+    this.loadCounts();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // ── Data loading ──────────────────────────────────────────────────────────
+
+  load(): void {
+    this.loading = true;
+    this.error   = '';
+
+    this.customerService.list({
+      type:        this.selectedType !== 'All' ? this.selectedType : undefined,
+      pendingOnly: this.showPendingOnly || undefined,
+      search:      this.searchQ.trim() || undefined,
+      page:        this.page,
+      size:        this.pageSize,
+      sortBy:      'createdAt',
+      dir:         'desc',
+    }).subscribe({
+      next: (res: CustomerPage) => {
+        this.customers     = res.content;
+        this.totalElements = res.totalElements;
+        this.totalPages    = res.totalPages;
+        this.loading       = false;
+      },
+      error: (err) => {
+        this.error   = extractErrorMessage(err);
+        this.loading = false;
+      }
     });
   }
 
-  typeFilterCount(t: 'All' | CustomerType): number {
-    if (t === 'All') return this.customers.filter(c => c.source === this.selectedSource).length;
-    return this.customers.filter(c => c.source === this.selectedSource && c.type === t).length;
+  // ── Tab counts ────────────────────────────────────────────────────────────
+
+  loadCounts(): void {
+    const keys: ('All' | CustomerType)[] = ['All', 'RETAIL', 'WHOLESALE', 'BROKER'];
+    forkJoin([
+      ...keys.map(k => this.customerService.list({ type: k !== 'All' ? k : undefined, page: 0, size: 1 })),
+      this.customerService.list({ pendingOnly: true, page: 0, size: 1 })
+    ]).subscribe({
+      next: results => {
+        keys.forEach((k, i) => this.typeCounts[k] = results[i].totalElements);
+        this.pendingCount = results[keys.length].totalElements;
+      }
+    });
   }
 
-  // ── Helpers ──
-  avatar(name: string) { return name.split(' ').map(w => w[0]).slice(0, 2).join(''); }
-  fmt(n: number) { return '₹' + n.toLocaleString('en-IN'); }
-  viewCustomer(id: string) { this.router.navigate(['/customers', id]); }
+  // ── Filter actions ────────────────────────────────────────────────────────
+
+  onSearch(): void    { this.searchInput$.next(this.searchQ); }
+  clearSearch(): void { this.searchQ = ''; this.page = 0; this.load(); }
+
+  setType(t: 'All' | CustomerType): void {
+    this.selectedType    = t;
+    this.showPendingOnly = false;
+    this.page = 0;
+    this.load();
+  }
+
+  togglePending(): void {
+    this.showPendingOnly = !this.showPendingOnly;
+    this.selectedType    = 'All';
+    this.page = 0;
+    this.load();
+  }
+
+  // ── Pagination ────────────────────────────────────────────────────────────
+
+  get pageStart(): number { return this.page * this.pageSize + 1; }
+  get pageEnd():   number { return Math.min((this.page + 1) * this.pageSize, this.totalElements); }
+
+  get pageNumbers(): (number | '...')[] {
+    const total = this.totalPages;
+    const cur   = this.page + 1;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const pages: (number | '...')[] = [1];
+    if (cur > 3) pages.push('...');
+    for (let i = Math.max(2, cur - 1); i <= Math.min(total - 1, cur + 1); i++) pages.push(i);
+    if (cur < total - 2) pages.push('...');
+    pages.push(total);
+    return pages;
+  }
+
+  goToPage(p: number | '...'): void {
+    if (p === '...') return;
+    this.page = (p as number) - 1;
+    this.load();
+  }
+
+  prevPage(): void { if (this.page > 0)                    { this.page--; this.load(); } }
+  nextPage(): void { if (this.page < this.totalPages - 1)  { this.page++; this.load(); } }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  authLabel(m: AuthMethod): string {
+    if (m === 'GMAIL')  return 'Gmail';
+    if (m === 'MOBILE') return 'Mobile';
+    return 'User ID';
+  }
+
+  authIcon(m: AuthMethod): string {
+    if (m === 'GMAIL')  return 'mail';
+    if (m === 'MOBILE') return 'phone_iphone';
+    return 'badge';
+  }
+
+  typeLabel(t: CustomerType): string {
+    return t.charAt(0) + t.slice(1).toLowerCase();
+  }
+
+  avatar(name: string): string { return name.split(' ').map(w => w[0]).slice(0, 2).join(''); }
+  fmt(n: number):       string { return '₹' + n.toLocaleString('en-IN'); }
+  viewCustomer(id: string): void { this.router.navigate(['/customers', id]); }
 }

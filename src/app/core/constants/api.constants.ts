@@ -70,8 +70,13 @@ export const BILLING_ENDPOINTS = {
 } as const;
 
 export const CUSTOMER_ENDPOINTS = {
-  BASE:  `${API}/customers`,
-  BY_ID: (id: string) => `${API}/customers/${id}`,
+  BASE:          `${API}/customers`,
+  BY_ID:         (id: string) => `${API}/customers/${id}`,
+  TYPE:          (id: string) => `${API}/customers/${id}/type`,
+  STATUS:        (id: string) => `${API}/customers/${id}/status`,
+  KHATA:         (id: string) => `${API}/customers/${id}/khata`,
+  KHATA_COLLECT: (id: string) => `${API}/customers/${id}/khata/collect`,
+  ORDERS:        (id: string) => `${API}/customers/${id}/orders`,
 } as const;
 
 export const INVENTORY_ENDPOINTS = {

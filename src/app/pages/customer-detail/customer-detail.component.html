@@ -1,8 +1,16 @@
-<!-- Not found -->
-<div class="page" *ngIf="!customer">
+<!-- Loading -->
+<div class="page" *ngIf="loading">
   <div class="empty" style="padding:80px">
     <div class="empty-icon"><span class="icon icon-xl icon-muted">person</span></div>
-    <div class="empty-title">Customer not found</div>
+    <div class="empty-title">Loading customer…</div>
+  </div>
+</div>
+
+<!-- Error / Not found -->
+<div class="page" *ngIf="!loading && (error || !customer)">
+  <div class="empty" style="padding:80px">
+    <div class="empty-icon"><span class="icon icon-xl icon-muted">person</span></div>
+    <div class="empty-title">{{ error || 'Customer not found' }}</div>
     <button class="btn btn-ghost btn-sm" (click)="goBack()">
       <span class="icon icon-sm">arrow_back</span> Back to Customers
     </button>
@@ -10,7 +18,7 @@
 </div>
 
 <!-- Detail page -->
-<div class="page" *ngIf="customer">
+<div class="page" *ngIf="!loading && customer">
 
   <!-- ── Top bar ── -->
   <div class="page-hd">
@@ -26,26 +34,29 @@
           <div style="font-size:18px;font-weight:800;color:var(--t1)">{{ customer.name }}</div>
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px">
             <span class="badge"
-              [class.badge-blue]="customer.type === 'Retail'"
-              [class.badge-green]="customer.type === 'Wholesale'"
-              [class.badge-purple]="customer.type === 'Broker'">
-              {{ customer.type }}
+              [class.badge-blue]="customer.type === 'RETAIL'"
+              [class.badge-green]="customer.type === 'WHOLESALE'"
+              [class.badge-purple]="customer.type === 'BROKER'">
+              {{ typeLabel(customer.type) }}
             </span>
             <span class="badge"
-              [class.badge-blue]="customer.source === 'Online'"
-              [class.badge-green]="customer.source === 'In-Store'">
-              <span class="icon icon-xs">{{ customer.source === 'Online' ? 'language' : 'store' }}</span>
-              {{ customer.source }}
+              [class.badge-red]="customer.authMethod === 'GMAIL'"
+              [class.badge-blue]="customer.authMethod === 'MOBILE'"
+              [class.badge-purple]="customer.authMethod === 'USER_ID'">
+              <span class="icon icon-xs">{{ authIcon(customer.authMethod) }}</span>
+              {{ authLabel(customer.authMethod) }}
             </span>
-            <span style="font-size:11px;color:var(--t3)">Customer since {{ customer.since }}</span>
+            <span style="font-size:11px;color:var(--t3)">
+              Customer since {{ customer.createdAt | date:'MMM yyyy' }}
+            </span>
           </div>
         </div>
       </div>
     </div>
     <div class="page-hd-right">
-      <button class="btn btn-amber" *ngIf="customer.pendingAmount > 0" (click)="openCollect()">
+      <button class="btn btn-amber" *ngIf="currentBalance > 0" (click)="openCollect()">
         <span class="icon icon-sm">payments</span>
-        Collect {{ fmt(customer.pendingAmount) }}
+        Collect {{ fmt(currentBalance) }}
       </button>
       <button class="btn btn-ghost" (click)="openEdit()">
         <span class="icon icon-sm">edit</span> Edit
@@ -59,7 +70,7 @@
       <div class="stat-icon stat-icon-blue"><span class="icon icon-sm icon-blue">payments</span></div>
       <div>
         <div style="font-size:15px;font-weight:800;color:var(--t1)">{{ fmt(customer.totalSpent) }}</div>
-        <div style="font-size:11px;color:var(--t3)">Total Revenue</div>
+        <div style="font-size:11px;color:var(--t3)">Total Spent</div>
       </div>
     </div>
     <div class="stat-card">
@@ -69,20 +80,20 @@
         <div style="font-size:11px;color:var(--t3)">Total Orders</div>
       </div>
     </div>
-    <div class="stat-card" [class.stat-card-warn]="customer.pendingAmount > 0">
+    <div class="stat-card" [class.stat-card-warn]="currentBalance > 0">
       <div class="stat-icon"
-        [class.stat-icon-amber]="customer.pendingAmount > 0"
-        [class.stat-icon-green]="customer.pendingAmount === 0">
+        [class.stat-icon-amber]="currentBalance > 0"
+        [class.stat-icon-green]="currentBalance === 0">
         <span class="icon icon-sm"
-          [class.icon-amber]="customer.pendingAmount > 0"
-          [class.icon-green]="customer.pendingAmount === 0">
-          {{ customer.pendingAmount > 0 ? 'warning' : 'check_circle' }}
+          [class.icon-amber]="currentBalance > 0"
+          [class.icon-green]="currentBalance === 0">
+          {{ currentBalance > 0 ? 'warning' : 'check_circle' }}
         </span>
       </div>
       <div>
         <div style="font-size:15px;font-weight:800"
-          [style.color]="customer.pendingAmount > 0 ? 'var(--amber)' : 'var(--green)'">
-          {{ customer.pendingAmount > 0 ? fmt(customer.pendingAmount) : 'Clear' }}
+          [style.color]="currentBalance > 0 ? 'var(--amber)' : 'var(--green)'">
+          {{ currentBalance > 0 ? fmt(currentBalance) : 'Clear' }}
         </div>
         <div style="font-size:11px;color:var(--t3)">Pending Balance</div>
       </div>
@@ -90,7 +101,9 @@
     <div class="stat-card">
       <div class="stat-icon stat-icon-gray"><span class="icon icon-sm icon-muted">calendar_today</span></div>
       <div>
-        <div style="font-size:15px;font-weight:800;color:var(--t1)">{{ customer.lastOrder }}</div>
+        <div style="font-size:15px;font-weight:800;color:var(--t1)">
+          {{ customer.lastOrderAt ? (customer.lastOrderAt | date:'dd MMM yyyy') : '—' }}
+        </div>
         <div style="font-size:11px;color:var(--t3)">Last Order</div>
       </div>
     </div>
@@ -110,10 +123,6 @@
         </button>
         <button class="tab-btn" [class.active]="activeTab === 'khata'" (click)="activeTab = 'khata'">
           <span class="icon icon-sm">menu_book</span> Khata Book
-          <span style="font-size:11px;color:var(--amber)" *ngIf="customer.pendingAmount > 0">
-            {{ fmt(customer.pendingAmount) }}
-          </span>
-          <span style="font-size:11px" *ngIf="customer.pendingAmount === 0">Clear</span>
         </button>
         <button class="tab-btn" [class.active]="activeTab === 'notes'" (click)="activeTab = 'notes'">
           <span class="icon icon-sm">notes</span> Notes
@@ -125,7 +134,13 @@
         <div class="card-hd">
           <div class="card-hd-title">Order History</div>
         </div>
-        <div class="tbl-wrap">
+
+        <div class="empty" style="padding:40px" *ngIf="orders.length === 0">
+          <div class="empty-icon"><span class="icon icon-lg icon-muted">package_2</span></div>
+          <div class="empty-title">No orders yet</div>
+        </div>
+
+        <div class="tbl-wrap" *ngIf="orders.length > 0">
           <table class="tbl">
             <thead>
               <tr>
@@ -139,47 +154,32 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let o of customer.orders">
+              <tr *ngFor="let o of orders">
                 <td>
-                  <span style="font-size:11px;color:var(--blue);font-family:monospace;
-                    background:var(--blue-light);padding:2px 6px;border-radius:4px">
-                    {{ o.id }}
-                  </span>
+                  <code style="font-size:12px;color:var(--blue)">{{ o.orderId }}</code>
                 </td>
-                <td style="color:var(--t2);white-space:nowrap;font-size:12px">{{ o.date }}</td>
-                <td style="color:var(--t2);font-size:12px;max-width:220px">{{ o.items }}</td>
-                <td style="text-align:right;font-weight:700;color:var(--t1)">{{ fmt(o.amount) }}</td>
+                <td style="white-space:nowrap;font-size:12px;color:var(--t2)">
+                  {{ o.createdAt | date:'d MMM yyyy' }}
+                </td>
+                <td style="font-size:12px;color:var(--t2);max-width:220px">
+                  {{ o.itemsSummary }}
+                </td>
+                <td style="text-align:right;font-weight:700;white-space:nowrap">
+                  {{ fmt(o.totalAmount) }}
+                </td>
                 <td>
-                  <span class="badge"
-                    [class.badge-amber]="o.statusClass === 'pending'"
-                    [class.badge-blue]="o.statusClass === 'confirmed'"
-                    [class.badge-purple]="o.statusClass === 'shipped'"
-                    [class.badge-green]="o.statusClass === 'delivered'"
-                    [class.badge-red]="o.statusClass === 'cancelled'">
-                    {{ o.status }}
+                  <span class="badge" [ngClass]="orderStatusClass(o.status)">
+                    {{ orderStatusLabel(o.status) }}
                   </span>
                 </td>
                 <td>
-                  <span class="badge"
-                    [class.badge-green]="o.paymentStatus === 'Paid'"
-                    [class.badge-amber]="o.paymentStatus === 'Pending'">
-                    {{ o.paymentStatus === 'Paid' ? 'Paid' : 'Pending' }}
+                  <span class="badge" [ngClass]="payStatusClass(o.paymentStatus)">
+                    {{ o.paymentStatus === 'PAID' ? 'Paid' : o.paymentStatus === 'PENDING' ? 'Pending' : o.paymentStatus }}
                   </span>
                 </td>
-                <td style="color:var(--t3);font-size:12px;white-space:nowrap">{{ o.paymentMethod }}</td>
+                <td style="font-size:12px;color:var(--t2)">{{ o.paymentMethod }}</td>
               </tr>
             </tbody>
-            <tfoot>
-              <tr style="background:var(--surface2)">
-                <td colspan="3" style="font-weight:700;color:var(--t2);font-size:13px;padding:11px 14px">
-                  Total Revenue from Customer
-                </td>
-                <td style="text-align:right;font-size:15px;font-weight:900;color:var(--blue);padding:11px 14px">
-                  {{ fmt(totalRevenue) }}
-                </td>
-                <td colspan="3"></td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       </div>
@@ -193,12 +193,12 @@
           </button>
         </div>
 
-        <div class="empty" style="padding:30px" *ngIf="customer.khata.length === 0">
+        <div class="empty" style="padding:30px" *ngIf="khataEntries.length === 0">
           <div class="empty-icon"><span class="icon icon-lg icon-muted">menu_book</span></div>
           <div class="empty-sub">No khata entries. This customer has no outstanding balance.</div>
         </div>
 
-        <div class="tbl-wrap" *ngIf="customer.khata.length > 0">
+        <div class="tbl-wrap" *ngIf="khataEntries.length > 0">
           <table class="tbl">
             <thead>
               <tr>
@@ -211,8 +211,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let k of customer.khata">
-                <td style="color:var(--t2);white-space:nowrap;font-size:12px">{{ k.date }}</td>
+              <tr *ngFor="let k of khataEntries">
+                <td style="color:var(--t2);white-space:nowrap;font-size:12px">
+                  {{ k.createdAt | date:'d MMM yyyy' }}
+                </td>
                 <td style="color:var(--t2);font-size:12px;max-width:240px">
                   {{ k.description }}
                   <a style="font-size:11px;color:var(--blue);font-family:monospace;margin-left:4px;cursor:pointer"
@@ -220,10 +222,10 @@
                 </td>
                 <td>
                   <span class="badge"
-                    [class.badge-blue]="k.entryType === 'auto-order'"
-                    [class.badge-red]="k.entryType === 'manual-debit'"
-                    [class.badge-green]="k.entryType === 'manual-credit'">
-                    {{ k.entryType === 'auto-order' ? 'Auto' : k.entryType === 'manual-debit' ? 'Credit Given' : 'Payment' }}
+                    [class.badge-blue]="k.entryType === 'AUTO_ORDER'"
+                    [class.badge-red]="k.entryType === 'MANUAL_DEBIT'"
+                    [class.badge-green]="k.entryType === 'MANUAL_CREDIT'">
+                    {{ k.entryType === 'AUTO_ORDER' ? 'Auto' : k.entryType === 'MANUAL_DEBIT' ? 'Credit Given' : 'Payment' }}
                   </span>
                 </td>
                 <td style="text-align:right;color:var(--red);font-weight:700">
@@ -244,8 +246,8 @@
                   Pending Balance
                 </td>
                 <td style="text-align:right;font-size:15px;font-weight:900;padding:11px 14px"
-                  [style.color]="customer.pendingAmount > 0 ? 'var(--red)' : 'var(--green)'">
-                  {{ customer.pendingAmount > 0 ? fmt(customer.pendingAmount) : 'Clear' }}
+                  [style.color]="currentBalance > 0 ? 'var(--red)' : 'var(--green)'">
+                  {{ currentBalance > 0 ? fmt(currentBalance) : 'Clear' }}
                 </td>
               </tr>
             </tfoot>
@@ -253,10 +255,10 @@
         </div>
 
         <!-- Collect CTA -->
-        <div class="khata-cta" *ngIf="customer.pendingAmount > 0">
+        <div class="khata-cta" *ngIf="currentBalance > 0">
           <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--amber)">
             <span class="icon icon-sm icon-amber">warning</span>
-            {{ fmt(customer.pendingAmount) }} is due from this customer
+            {{ fmt(currentBalance) }} is due from this customer
           </div>
           <button class="btn btn-amber btn-sm" (click)="openCollect()">
             <span class="icon icon-sm">payments</span> Collect Payment
@@ -273,10 +275,10 @@
           </button>
         </div>
         <div class="card-body">
-          <div style="font-size:14px;color:var(--t2);line-height:1.7" *ngIf="customer.notes">
-            {{ customer.notes }}
+          <div style="font-size:14px;color:var(--t2);line-height:1.7" *ngIf="localNotes">
+            {{ localNotes }}
           </div>
-          <div style="font-size:13px;color:var(--t3);font-style:italic" *ngIf="!customer.notes">
+          <div style="font-size:13px;color:var(--t3);font-style:italic" *ngIf="!localNotes">
             No notes added yet. Click Edit Notes to add.
           </div>
         </div>
@@ -293,19 +295,15 @@
         <div class="card-body">
           <div class="info-row">
             <span class="ir-label">Email</span>
-            <span class="ir-val">{{ customer.email }}</span>
+            <span class="ir-val">{{ customer.email ?? '—' }}</span>
           </div>
           <div class="info-row">
             <span class="ir-label">Phone</span>
-            <span class="ir-val">{{ customer.phone }}</span>
+            <span class="ir-val">{{ customer.phone ?? '—' }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" style="border-bottom:none">
             <span class="ir-label">Address</span>
-            <span class="ir-val">{{ customer.address }}</span>
-          </div>
-          <div class="info-row" *ngIf="customer.gstNumber">
-            <span class="ir-label">GST No.</span>
-            <code class="gst-code">{{ customer.gstNumber }}</code>
+            <span class="ir-val">{{ address() }}</span>
           </div>
         </div>
       </div>
@@ -316,32 +314,36 @@
         <div class="card-body">
           <div class="info-row">
             <span class="ir-label">ID</span>
-            <code class="gst-code">{{ customer.id }}</code>
+            <code class="gst-code">{{ customer.customerId }}</code>
           </div>
           <div class="info-row">
             <span class="ir-label">Type</span>
             <span class="badge"
-              [class.badge-blue]="customer.type === 'Retail'"
-              [class.badge-green]="customer.type === 'Wholesale'"
-              [class.badge-purple]="customer.type === 'Broker'">
-              {{ customer.type }}
+              [class.badge-blue]="customer.type === 'RETAIL'"
+              [class.badge-green]="customer.type === 'WHOLESALE'"
+              [class.badge-purple]="customer.type === 'BROKER'">
+              {{ typeLabel(customer.type) }}
             </span>
           </div>
           <div class="info-row">
-            <span class="ir-label">Channel</span>
+            <span class="ir-label">Auth</span>
             <span class="badge"
-              [class.badge-blue]="customer.source === 'Online'"
-              [class.badge-green]="customer.source === 'In-Store'">
-              {{ customer.source }}
+              [class.badge-red]="customer.authMethod === 'GMAIL'"
+              [class.badge-blue]="customer.authMethod === 'MOBILE'"
+              [class.badge-purple]="customer.authMethod === 'USER_ID'">
+              <span class="icon icon-xs">{{ authIcon(customer.authMethod) }}</span>
+              {{ authLabel(customer.authMethod) }}
             </span>
           </div>
           <div class="info-row">
             <span class="ir-label">Since</span>
-            <span class="ir-val">{{ customer.since }}</span>
+            <span class="ir-val">{{ customer.createdAt | date:'MMM yyyy' }}</span>
           </div>
           <div class="info-row" style="border-bottom:none">
             <span class="ir-label">Last Order</span>
-            <span class="ir-val">{{ customer.lastOrder }}</span>
+            <span class="ir-val">
+              {{ customer.lastOrderAt ? (customer.lastOrderAt | date:'dd MMM yyyy') : '—' }}
+            </span>
           </div>
         </div>
       </div>
@@ -351,7 +353,7 @@
         <div class="card-hd"><div class="card-hd-title">Actions</div></div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:8px">
           <button class="btn btn-amber" style="width:100%;justify-content:center"
-            *ngIf="customer.pendingAmount > 0" (click)="openCollect()">
+            *ngIf="currentBalance > 0" (click)="openCollect()">
             <span class="icon icon-sm">payments</span> Collect Payment
           </button>
           <button class="btn btn-ghost" style="width:100%;justify-content:flex-start" (click)="openKhata()">
@@ -372,7 +374,7 @@
      EDIT CUSTOMER MODAL
 ══════════════════════ -->
 <div class="overlay" *ngIf="showEditModal" (click)="showEditModal = false"></div>
-<div class="modal modal-lg" *ngIf="showEditModal" (click)="$event.stopPropagation()">
+<div class="modal" *ngIf="showEditModal" (click)="$event.stopPropagation()">
   <div class="modal-hd">
     <span class="modal-title">Edit Customer — {{ customer?.name }}</span>
     <button class="modal-close" (click)="showEditModal = false">
@@ -380,37 +382,13 @@
     </button>
   </div>
   <div class="modal-body">
-    <div class="field-row">
-      <div class="field">
-        <label class="field-label">Full Name</label>
-        <input class="f-input" [(ngModel)]="editForm.name" placeholder="Full name" />
-      </div>
-      <div class="field">
-        <label class="field-label">Phone</label>
-        <input class="f-input" [(ngModel)]="editForm.phone" placeholder="+91 XXXXX XXXXX" />
-      </div>
-    </div>
     <div class="field">
-      <label class="field-label">Email</label>
-      <input class="f-input" [(ngModel)]="editForm.email" placeholder="email@example.com" />
-    </div>
-    <div class="field">
-      <label class="field-label">Address</label>
-      <input class="f-input" [(ngModel)]="editForm.address" placeholder="Full address with city & PIN" />
-    </div>
-    <div class="field-row">
-      <div class="field">
-        <label class="field-label">Customer Type</label>
-        <select class="f-select" [(ngModel)]="editForm.type">
-          <option value="Retail">Retail</option>
-          <option value="Wholesale">Wholesale</option>
-          <option value="Broker">Broker</option>
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label">GST Number <span class="opt">(optional)</span></label>
-        <input class="f-input" [(ngModel)]="editForm.gstNumber" placeholder="e.g. 27AABCM1234Z1Z2" />
-      </div>
+      <label class="field-label">Customer Type</label>
+      <select class="f-select" [(ngModel)]="editForm.type">
+        <option value="RETAIL">Retail</option>
+        <option value="WHOLESALE">Wholesale</option>
+        <option value="BROKER">Broker</option>
+      </select>
     </div>
     <div class="field">
       <label class="field-label">Staff Notes <span class="opt">(optional)</span></label>
@@ -443,14 +421,14 @@
       <div>
         <div style="font-size:14px;font-weight:700;color:var(--t1)">{{ customer!.name }}</div>
         <div style="font-size:12px;color:var(--amber)">
-          Outstanding: <strong>{{ fmt(customer!.pendingAmount) }}</strong>
+          Outstanding: <strong>{{ fmt(currentBalance) }}</strong>
         </div>
       </div>
     </div>
     <div class="field">
       <label class="field-label">Amount Received (₹)</label>
       <input class="f-input" type="number" [(ngModel)]="collectAmount"
-        min="1" [max]="customer!.pendingAmount" />
+        min="1" [max]="currentBalance" />
     </div>
     <div class="field">
       <label class="field-label">Payment Method</label>
@@ -465,15 +443,15 @@
     <div *ngIf="collectAmount > 0"
       style="padding:10px 14px;background:var(--surface2);border-radius:var(--radius);font-size:13px;color:var(--t2)">
       Remaining after collection:
-      <strong [style.color]="customer!.pendingAmount - collectAmount <= 0 ? 'var(--green)' : 'var(--amber)'">
-        {{ customer!.pendingAmount - collectAmount <= 0 ? 'Fully Cleared' : fmt(customer!.pendingAmount - collectAmount) }}
+      <strong [style.color]="currentBalance - collectAmount <= 0 ? 'var(--green)' : 'var(--amber)'">
+        {{ currentBalance - collectAmount <= 0 ? 'Fully Cleared' : fmt(currentBalance - collectAmount) }}
       </strong>
     </div>
   </div>
   <div class="modal-ft">
     <button class="btn btn-ghost" (click)="showCollectModal = false">Cancel</button>
-    <button class="btn btn-success" (click)="submitCollect()" [disabled]="collectAmount <= 0">
-      <span class="icon icon-sm">check</span> Mark Collected
+    <button class="btn btn-success" (click)="submitCollect()" [disabled]="collectAmount <= 0 || collectSaving">
+      <span class="icon icon-sm">check</span> {{ collectSaving ? 'Saving…' : 'Mark Collected' }}
     </button>
   </div>
 </div>
@@ -490,17 +468,16 @@
     </button>
   </div>
   <div class="modal-body">
-    <!-- Entry type toggle -->
     <div style="display:flex;gap:8px">
       <button class="entry-toggle"
-        [class.entry-toggle-debit]="khataEntryType === 'manual-debit'"
-        (click)="khataEntryType = 'manual-debit'">
+        [class.entry-toggle-debit]="khataEntryType === 'MANUAL_DEBIT'"
+        (click)="khataEntryType = 'MANUAL_DEBIT'">
         <span class="icon icon-sm">arrow_outward</span>
         Credit Given (Customer Owes)
       </button>
       <button class="entry-toggle"
-        [class.entry-toggle-credit]="khataEntryType === 'manual-credit'"
-        (click)="khataEntryType = 'manual-credit'">
+        [class.entry-toggle-credit]="khataEntryType === 'MANUAL_CREDIT'"
+        (click)="khataEntryType = 'MANUAL_CREDIT'">
         <span class="icon icon-sm">arrow_downward</span>
         Payment Received
       </button>
@@ -508,7 +485,7 @@
     <div class="field">
       <label class="field-label">Description</label>
       <input class="f-input" [(ngModel)]="khataDesc"
-        [placeholder]="khataEntryType === 'manual-debit' ? 'e.g. Goods given on credit' : 'e.g. Cash received at store'" />
+        [placeholder]="khataEntryType === 'MANUAL_DEBIT' ? 'e.g. Goods given on credit' : 'e.g. Cash received at store'" />
     </div>
     <div class="field">
       <label class="field-label">Amount (₹)</label>
@@ -522,8 +499,8 @@
   <div class="modal-ft">
     <button class="btn btn-ghost" (click)="showKhataModal = false">Cancel</button>
     <button class="btn btn-primary" (click)="submitKhata()"
-      [disabled]="!khataDesc || khataAmount <= 0">
-      Add Entry
+      [disabled]="!khataDesc || khataAmount <= 0 || khataSaving">
+      {{ khataSaving ? 'Saving…' : 'Add Entry' }}
     </button>
   </div>
 </div>

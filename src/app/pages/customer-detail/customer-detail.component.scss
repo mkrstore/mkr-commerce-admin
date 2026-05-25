@@ -48,6 +48,19 @@
   &.stat-icon-gray   { background: var(--surface2); }
 }
 
+/* Tab bar — icon alignment + active highlight */
+.tabs-pill .tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  &.active {
+    background: var(--blue) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 6px rgba(59,130,246,.28);
+  }
+}
+
 /* Two-column grid */
 .cd-grid {
   display: grid;
