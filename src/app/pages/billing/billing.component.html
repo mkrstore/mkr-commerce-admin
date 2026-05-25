@@ -111,21 +111,24 @@
           <div
             class="product-row"
             *ngFor="let p of displayedProducts"
-            [class.row-out-of-stock]="p.stock === 0"
+            [class.row-out-of-stock]="p.stockQty === 0"
             (click)="addProduct(p)"
           >
-            <span class="pr-icon">{{ p.icon }}</span>
+            <span class="pr-icon">
+              <img *ngIf="p.primaryImageUrl" [src]="p.primaryImageUrl" class="pr-img" alt="" />
+              <span *ngIf="!p.primaryImageUrl" class="material-icons pr-img-fallback">inventory_2</span>
+            </span>
             <div class="pr-info">
               <span class="pr-name">{{ p.name }}</span>
-              <span class="pr-meta">{{ p.sku }} &middot; {{ p.category }}</span>
+              <span class="pr-meta">{{ p.sku }} &middot; {{ p.categoryName }}</span>
             </div>
             <div class="pr-right">
-              <span class="pr-stock s-low" *ngIf="p.stock > 0 && p.stock <= 5">{{ p.stock }} left</span>
-              <span class="pr-stock s-out" *ngIf="p.stock === 0">Out of stock</span>
-              <span class="pr-price">{{ inr(p.price) }}</span>
+              <span class="pr-stock s-low" *ngIf="p.stockQty > 0 && p.stockQty <= 5">{{ p.stockQty }} left</span>
+              <span class="pr-stock s-out" *ngIf="p.stockQty === 0">Out of stock</span>
+              <span class="pr-price">{{ inr(p.priceRetail) }}</span>
               <button
                 class="add-btn"
-                [disabled]="p.stock === 0"
+                [disabled]="p.stockQty === 0"
                 (click)="$event.stopPropagation(); addProduct(p)"
               >+ Add</button>
             </div>
@@ -177,7 +180,10 @@
                 <tr *ngFor="let item of billItems; let i = index">
                   <td class="td-n">{{ i + 1 }}</td>
                   <td class="td-prod">
-                    <span class="td-ico">{{ item.product.icon }}</span>
+                    <span class="td-ico">
+                      <img *ngIf="item.product.primaryImageUrl" [src]="item.product.primaryImageUrl" class="pr-img" alt="" />
+                      <span *ngIf="!item.product.primaryImageUrl" class="material-icons pr-img-fallback">inventory_2</span>
+                    </span>
                     <div>
                       <div class="td-name">{{ item.product.name }}</div>
                       <div class="td-sku">{{ item.product.sku }}</div>
@@ -204,9 +210,9 @@
                     />
                     <span
                       class="negotiated"
-                      *ngIf="item.unitPrice !== item.product.price"
+                      *ngIf="item.unitPrice !== item.product.priceRetail"
                     >
-                      MRP {{ inr(item.product.price) }}
+                      MRP {{ inr(item.product.priceRetail) }}
                     </span>
                   </td>
                   <td>
@@ -218,7 +224,7 @@
                       class="disc-in"
                     />
                   </td>
-                  <td class="tr gst-pct" *ngIf="gstEnabled">{{ item.product.gstRate }}%</td>
+                  <td class="tr gst-pct" *ngIf="gstEnabled">{{ item.product.gstPercent }}%</td>
                   <td class="tr gst-amt" *ngIf="gstEnabled">{{ inr(lineGst(item)) }}</td>
                   <td class="td-total tr">{{ inr(lineTotal(item)) }}</td>
                   <td>
@@ -261,17 +267,20 @@
               >
             </div>
             <!-- Typeahead dropdown -->
-            <div class="phone-dropdown" *ngIf="showPhoneDropdown">
+            <div class="phone-dropdown" *ngIf="showPhoneDropdown || customerSearching">
+              <div class="pd-searching" *ngIf="customerSearching">
+                <span class="pd-spinner"></span> Searching customers…
+              </div>
               <div
                 class="pd-item"
                 *ngFor="let c of phoneDropdown"
                 (mousedown)="selectFromDropdown(c)"
               >
                 <div class="pd-top">
-                  <span class="pd-phone">{{ c.phone }}</span>
                   <span class="pd-name">{{ c.name }}</span>
+                  <span class="pd-phone">{{ c.phone }}</span>
                 </div>
-                <div class="pd-addr" *ngIf="c.address">{{ c.address }}</div>
+                <div class="pd-email" *ngIf="c.email">{{ c.email }}</div>
               </div>
             </div>
             <div class="field-error" *ngIf="phoneError">{{ phoneError }}</div>
@@ -588,7 +597,7 @@
             <tr *ngFor="let item of selectedBill.items; let i = index">
               <td class="td-n">{{ i + 1 }}</td>
               <td>
-                {{ item.product.icon }} {{ item.product.name }}<br />
+                {{ item.product.name }}<br />
                 <small class="td-sku">{{ item.product.sku }}</small>
               </td>
               <td class="tc">{{ item.qty }}</td>

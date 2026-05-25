@@ -1,15 +1,31 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  ShopSettingsService,
-  ShopSettings,
-} from '../../services/shop-settings.service';
-import { CatalogService, CatalogProduct } from '../../services/catalog.service';
+import { HttpClient } from '@angular/common/http';
+import { Subject } from 'rxjs';
+import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
+import { ShopSettingsService, ShopSettings } from '../../services/shop-settings.service';
 import { NotificationService } from '../../services/notification.service';
+import { CustomerService } from '../../services/customer.service';
+import { PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
+import { ApiResponse } from '../../core/models/api.models';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface BillingProduct {
+  id: string;
+  name: string;
+  sku: string;
+  categoryName: string;
+  priceRetail: number;
+  gstPercent: number;
+  stockQty: number;
+  primaryImageUrl: string | null;
+  status: string;
+}
 
 interface BillItem {
-  product: CatalogProduct;
+  product: BillingProduct;
   qty: number;
   unitPrice: number;
   discount: number;
@@ -35,6 +51,15 @@ interface SavedBill {
   grandTotal: number;
 }
 
+interface ProductPage {
+  content: BillingProduct[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 @Component({
   selector: 'app-billing',
   standalone: true,
@@ -43,158 +68,114 @@ interface SavedBill {
   styleUrl: './billing.component.scss',
 })
 export class BillingComponent implements OnInit, OnDestroy {
+
+  private readonly EP = PRODUCT_ENDPOINTS;
+
   activeTab: 'new' | 'history' = 'new';
+
+  // ── Products (from API) ───────────────────────────────────────────────────
+  allProducts: BillingProduct[] = [];
+  productsLoading = false;
+
   searchQ = '';
   selectedCategory = '';
+
+  // Show limited slice when not filtering; user scrolls to load more
+  productsShown = 20;
+
+  // ── Bill state ────────────────────────────────────────────────────────────
   billItems: BillItem[] = [];
   customer: Customer = { phone: '', name: '', email: '', address: '' };
   gstEnabled = false;
   paymentMethod: 'cash' | 'upi' | 'card' | null = null;
   paymentState: 'idle' | 'confirming' | 'done' = 'idle';
+
+  // ── History ───────────────────────────────────────────────────────────────
   historySearch = '';
   savedBills: SavedBill[] = [];
   printBill: SavedBill | null = null;
+  selectedBill: SavedBill | null = null;
   private counter = 1001;
 
-  // Phone typeahead
+  // ── Customer typeahead ────────────────────────────────────────────────────
   phoneDropdown: Customer[] = [];
   showPhoneDropdown = false;
+  customerSearching = false;
+  private phoneSearch$ = new Subject<string>();
+  private destroy$    = new Subject<void>();
 
-  // Infinite scroll: how many products are visible
-  productsShown = 20;
+  // Locally saved customers from past bills (offline fallback)
+  knownCustomers: Customer[] = [];
 
-  // Field touched flags — set on input for real-time validation
-  nameTouched = false;
+  // ── Validation touched flags ──────────────────────────────────────────────
+  nameTouched  = false;
   phoneTouched = false;
   emailTouched = false;
 
-  // Bill history detail modal
-  selectedBill: SavedBill | null = null;
-
-  // UPI flow states
+  // ── UPI flow ──────────────────────────────────────────────────────────────
   upiState: 'init' | 'waiting' | 'received' = 'init';
   upiCountdown = 0;
   private upiTimer: ReturnType<typeof setInterval> | null = null;
 
-  // Shop settings (for receipt header)
+  // ── Shop settings ─────────────────────────────────────────────────────────
   shopSettings: ShopSettings;
 
-  // localStorage keys
-  private readonly LS_BILLS = 'mkr_bills';
-  private readonly LS_COUNTER = 'mkr_bill_counter';
+  private readonly LS_BILLS     = 'mkr_bills';
+  private readonly LS_COUNTER   = 'mkr_bill_counter';
   private readonly LS_CUSTOMERS = 'mkr_customers';
 
   constructor(
+    private http: HttpClient,
     private settingsSvc: ShopSettingsService,
-    private catalogSvc: CatalogService,
-    private notifSvc: NotificationService
+    private notifSvc: NotificationService,
+    private customerSvc: CustomerService,
   ) {
     this.shopSettings = this.settingsSvc.get();
   }
 
   ngOnInit() {
     this.loadFromStorage();
+    this.loadProducts();
+
+    this.phoneSearch$.pipe(
+      debounceTime(280),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$)
+    ).subscribe(q => this.doCustomerSearch(q));
   }
 
-  // ── Storage ───────────────────────────────────────────────────────────────
+  // ── Products from API ─────────────────────────────────────────────────────
 
-  private loadFromStorage() {
-    try {
-      const cnt = localStorage.getItem(this.LS_COUNTER);
-      if (cnt) this.counter = parseInt(cnt, 10);
-
-      const raw = localStorage.getItem(this.LS_BILLS);
-      if (raw) {
-        this.savedBills = JSON.parse(raw).map((b: any) => ({
-          ...b,
-          date: new Date(b.date),
-        }));
-      }
-
-      const custs = localStorage.getItem(this.LS_CUSTOMERS);
-      if (custs) {
-        const saved: Customer[] = JSON.parse(custs);
-        saved.forEach((c) => {
-          if (!this.knownCustomers.find((k) => k.phone === c.phone)) {
-            this.knownCustomers.push(c);
-          }
-        });
-      }
-    } catch {
-      /* ignore corrupt storage */
-    }
+  loadProducts() {
+    this.productsLoading = true;
+    this.http.get<ApiResponse<ProductPage>>(this.EP.BASE, {
+      params: { status: 'ACTIVE', size: '500', page: '0', sortBy: 'name', dir: 'asc' }
+    }).subscribe({
+      next: res => {
+        this.allProducts = res.data?.content ?? [];
+        this.productsLoading = false;
+      },
+      error: () => { this.productsLoading = false; }
+    });
   }
-
-  private persist() {
-    try {
-      localStorage.setItem(this.LS_COUNTER, String(this.counter));
-      localStorage.setItem(this.LS_BILLS, JSON.stringify(this.savedBills));
-      localStorage.setItem(
-        this.LS_CUSTOMERS,
-        JSON.stringify(this.knownCustomers)
-      );
-    } catch {
-      /* storage quota exceeded */
-    }
-  }
-
-  // ── Known customers (seed + saved) ───────────────────────────────────────
-
-  knownCustomers: Customer[] = [
-    {
-      phone: '9876543210',
-      name: 'Ravi Kumar',
-      email: 'ravi.k@gmail.com',
-      address: '12 Main Street, Bangalore',
-    },
-    {
-      phone: '9123456789',
-      name: 'Priya Sharma',
-      email: '',
-      address: '45 Park Road, Chennai',
-    },
-    {
-      phone: '9988776655',
-      name: 'Meena Patel',
-      email: 'meena.p@yahoo.com',
-      address: '78 MG Road, Hyderabad',
-    },
-    {
-      phone: '9845012345',
-      name: 'Arun Nair',
-      email: '',
-      address: '56 Gandhi Nagar, Kochi',
-    },
-    {
-      phone: '9712345678',
-      name: 'Sunita Rao',
-      email: 'sunita.r@gmail.com',
-      address: '23 Ring Road, Pune',
-    },
-  ];
-
-  // ── Product catalog (from shared service) ────────────────────────────────
 
   get categories(): string[] {
-    return this.catalogSvc.categories();
+    const names = this.allProducts.map(p => p.categoryName).filter(Boolean);
+    return [...new Set(names)].sort();
   }
 
-  get filteredProducts(): CatalogProduct[] {
+  get filteredProducts(): BillingProduct[] {
     const q = this.searchQ.trim().toLowerCase();
-    return this.catalogSvc.products().filter((p) => {
-      const matchCat =
-        !this.selectedCategory || p.category === this.selectedCategory;
-      const matchQ =
-        !q ||
-        p.name.toLowerCase().includes(q) ||
-        p.sku.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q);
+    return this.allProducts.filter(p => {
+      const matchCat = !this.selectedCategory || p.categoryName === this.selectedCategory;
+      const matchQ   = !q || p.name.toLowerCase().includes(q)
+                          || p.sku.toLowerCase().includes(q)
+                          || p.categoryName.toLowerCase().includes(q);
       return matchCat && matchQ;
     });
   }
 
-  // Show limited slice when not filtering; user scrolls to load more
-  get displayedProducts(): CatalogProduct[] {
+  get displayedProducts(): BillingProduct[] {
     const all = this.filteredProducts;
     const isFiltering = !!this.searchQ.trim() || !!this.selectedCategory;
     return isFiltering ? all : all.slice(0, this.productsShown);
@@ -205,7 +186,6 @@ export class BillingComponent implements OnInit, OnDestroy {
     return !isFiltering && this.filteredProducts.length > this.productsShown;
   }
 
-  // Triggered by scroll event on .product-list-card
   onProductListScroll(e: Event) {
     const el = e.target as HTMLElement;
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) {
@@ -215,99 +195,89 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   // ── Bill items ────────────────────────────────────────────────────────────
 
-  addProduct(p: CatalogProduct) {
-    if (p.stock === 0) return; // cannot add out-of-stock
-    const existing = this.billItems.find((i) => i.product.sku === p.sku);
-    if (existing) {
-      existing.qty++;
-      return;
-    }
-    this.billItems.push({
-      product: p,
-      qty: 1,
-      unitPrice: p.price,
-      discount: 0,
-    });
+  addProduct(p: BillingProduct) {
+    if (p.stockQty === 0) return;
+    const existing = this.billItems.find(i => i.product.sku === p.sku);
+    if (existing) { existing.qty++; return; }
+    this.billItems.push({ product: p, qty: 1, unitPrice: p.priceRetail, discount: 0 });
   }
 
-  removeItem(index: number) {
-    this.billItems.splice(index, 1);
-  }
-  decQty(item: BillItem) {
-    if (item.qty > 1) item.qty--;
-  }
-  incQty(item: BillItem) {
-    item.qty++;
-  }
+  removeItem(index: number) { this.billItems.splice(index, 1); }
+  decQty(item: BillItem) { if (item.qty > 1) item.qty--; }
+  incQty(item: BillItem) { item.qty++; }
 
-  lineSubtotal(item: BillItem): number {
-    return item.qty * item.unitPrice;
-  }
+  lineSubtotal(item: BillItem): number { return item.qty * item.unitPrice; }
   lineTotal(item: BillItem): number {
     return Math.max(0, item.qty * item.unitPrice - (item.discount || 0));
   }
   lineGst(item: BillItem): number {
     return this.gstEnabled
-      ? Math.round((this.lineTotal(item) * item.product.gstRate) / 100)
+      ? Math.round((this.lineTotal(item) * item.product.gstPercent) / 100)
       : 0;
   }
 
-  get subtotal(): number {
-    return this.billItems.reduce((s, i) => s + this.lineSubtotal(i), 0);
-  }
-  get totalDiscount(): number {
-    return this.billItems.reduce((s, i) => s + (i.discount || 0), 0);
-  }
-  get taxableAmount(): number {
-    return this.subtotal - this.totalDiscount;
-  }
-  get gstAmount(): number {
-    return this.billItems.reduce((s, i) => s + this.lineGst(i), 0);
-  }
-  get grandTotal(): number {
-    return this.taxableAmount + this.gstAmount;
-  }
+  get subtotal():      number { return this.billItems.reduce((s, i) => s + this.lineSubtotal(i), 0); }
+  get totalDiscount(): number { return this.billItems.reduce((s, i) => s + (i.discount || 0), 0); }
+  get taxableAmount(): number { return this.subtotal - this.totalDiscount; }
+  get gstAmount():     number { return this.billItems.reduce((s, i) => s + this.lineGst(i), 0); }
+  get grandTotal():    number { return this.taxableAmount + this.gstAmount; }
 
-  // ── Phone typeahead ───────────────────────────────────────────────────────
+  // ── Customer search via API ───────────────────────────────────────────────
+
+  private doCustomerSearch(q: string) {
+    this.customerSearching = true;
+    this.customerSvc.list({ search: q, size: 6 }).subscribe({
+      next: res => {
+        this.phoneDropdown = res.content.map(c => ({
+          phone: c.phone ?? '',
+          name: c.name,
+          email: c.email ?? '',
+          address: '',
+        }));
+        this.showPhoneDropdown = this.phoneDropdown.length > 0;
+        this.customerSearching = false;
+      },
+      error: () => {
+        this.phoneDropdown = this.knownCustomers
+          .filter(c => c.phone.includes(q) || c.name.toLowerCase().includes(q.toLowerCase()))
+          .slice(0, 6);
+        this.showPhoneDropdown = this.phoneDropdown.length > 0;
+        this.customerSearching = false;
+      },
+    });
+  }
 
   onPhoneInput() {
     this.customer.phone = this.customer.phone.replace(/\D/g, '').slice(0, 10);
-    this.phoneTouched = true; // real-time validation
+    this.phoneTouched = true;
     const q = this.customer.phone;
-    this.phoneDropdown =
-      q.length >= 3
-        ? this.knownCustomers.filter(
-            (c) => c.phone.startsWith(q) || c.phone.includes(q)
-          )
-        : [];
-    this.showPhoneDropdown = this.phoneDropdown.length > 0;
+    if (q.length >= 3) {
+      this.phoneSearch$.next(q);
+    } else {
+      this.phoneDropdown = [];
+      this.showPhoneDropdown = false;
+      this.customerSearching = false;
+    }
   }
 
-  // mousedown fires before blur so click registers before field loses focus
   selectFromDropdown(c: Customer) {
     this.customer = { ...c };
     this.phoneDropdown = [];
     this.showPhoneDropdown = false;
     this.phoneTouched = true;
-    this.nameTouched = true;
+    this.nameTouched  = true;
   }
 
-  closeDropdown() {
-    setTimeout(() => {
-      this.showPhoneDropdown = false;
-    }, 150);
-  }
+  closeDropdown() { setTimeout(() => { this.showPhoneDropdown = false; }, 150); }
 
-  // ── Validation (real-time) ────────────────────────────────────────────────
+  // ── Validation ────────────────────────────────────────────────────────────
 
   onNameInput() {
     this.customer.name = this.customer.name.replace(/[^a-zA-Z .'-]/g, '');
-    this.nameTouched = true; // show error immediately while typing
+    this.nameTouched = true;
   }
 
-  onEmailInput() {
-    this.emailTouched = true; // show email error immediately while typing
-  }
+  onEmailInput() { this.emailTouched = true; }
 
   get nameError(): string | null {
     if (!this.nameTouched) return null;
@@ -329,23 +299,18 @@ export class BillingComponent implements OnInit, OnDestroy {
     if (!this.emailTouched) return null;
     const v = this.customer.email.trim();
     if (!v) return null;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))
-      return 'Enter a valid email address';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address';
     return null;
   }
 
   get canBill(): boolean {
-    return (
-      this.billItems.length > 0 &&
-      this.customer.name.trim().length >= 2 &&
-      this.customer.phone.trim().length === 10 &&
-      !this.emailError
-    );
+    return this.billItems.length > 0
+      && this.customer.name.trim().length >= 2
+      && this.customer.phone.trim().length === 10
+      && !this.emailError;
   }
 
-  get currentBillId(): string {
-    return `MKR-BILL-${this.counter}`;
-  }
+  get currentBillId(): string { return `MKR-BILL-${this.counter}`; }
 
   // ── Payment flow ──────────────────────────────────────────────────────────
 
@@ -366,19 +331,13 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   upiPaymentReceived() {
-    if (this.upiTimer) {
-      clearInterval(this.upiTimer);
-      this.upiTimer = null;
-    }
+    if (this.upiTimer) { clearInterval(this.upiTimer); this.upiTimer = null; }
     this.upiState = 'received';
     setTimeout(() => this.confirmPayment(), 800);
   }
 
   cancelUpiWait() {
-    if (this.upiTimer) {
-      clearInterval(this.upiTimer);
-      this.upiTimer = null;
-    }
+    if (this.upiTimer) { clearInterval(this.upiTimer); this.upiTimer = null; }
     this.upiState = 'init';
     this.upiCountdown = 0;
   }
@@ -394,7 +353,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       id: `MKR-BILL-${this.counter++}`,
       date: new Date(),
       customer: { ...this.customer },
-      items: this.billItems.map((i) => ({ ...i, product: { ...i.product } })),
+      items: this.billItems.map(i => ({ ...i, product: { ...i.product } })),
       gstEnabled: this.gstEnabled,
       paymentMethod: this.paymentMethod!,
       subtotal: this.subtotal,
@@ -407,87 +366,83 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.printBill = bill;
     this.paymentState = 'done';
 
-    // Reduce stock in shared catalog so inventory reflects the sale
-    this.catalogSvc.reduceStock(
-      this.billItems.map((i) => ({ sku: i.product.sku, qty: i.qty }))
-    );
+    const icon   = this.paymentMethod === 'cash' ? '💵' : this.paymentMethod === 'upi' ? '📱' : '💳';
+    const method = this.paymentMethod === 'cash' ? 'Cash' : this.paymentMethod === 'upi' ? 'UPI' : 'Card';
+    this.notifSvc.push('payment', icon, `${method} Payment Received`,
+      `${this.customer.name} paid ${this.inr(this.grandTotal)} — ${bill.id}`);
 
-    // Push payment notification to the bell icon
-    const icon =
-      this.paymentMethod === 'cash'
-        ? '💵'
-        : this.paymentMethod === 'upi'
-        ? '📱'
-        : '💳';
-    const method =
-      this.paymentMethod === 'cash'
-        ? 'Cash'
-        : this.paymentMethod === 'upi'
-        ? 'UPI'
-        : 'Card';
-    this.notifSvc.push(
-      'payment',
-      icon,
-      `${method} Payment Received`,
-      `${this.customer.name} paid ${this.inr(this.grandTotal)} — ${bill.id}`
-    );
-
-    if (!this.knownCustomers.find((c) => c.phone === this.customer.phone)) {
+    if (!this.knownCustomers.find(c => c.phone === this.customer.phone)) {
       this.knownCustomers.push({ ...this.customer });
     }
     this.persist();
   }
 
-  doPrint() {
-    setTimeout(() => window.print(), 100);
-  }
+  doPrint() { setTimeout(() => window.print(), 100); }
 
   startNewBill() {
     this.shopSettings = this.settingsSvc.get();
-    if (this.upiTimer) {
-      clearInterval(this.upiTimer);
-      this.upiTimer = null;
-    }
+    if (this.upiTimer) { clearInterval(this.upiTimer); this.upiTimer = null; }
     this.billItems = [];
-    this.customer = { phone: '', name: '', email: '', address: '' };
+    this.customer  = { phone: '', name: '', email: '', address: '' };
     this.paymentMethod = null;
-    this.paymentState = 'idle';
-    this.gstEnabled = false;
-    this.searchQ = '';
+    this.paymentState  = 'idle';
+    this.gstEnabled    = false;
+    this.searchQ       = '';
     this.selectedCategory = '';
     this.printBill = null;
     this.productsShown = 20;
     this.phoneDropdown = [];
     this.showPhoneDropdown = false;
-    this.nameTouched = false;
-    this.phoneTouched = false;
-    this.emailTouched = false;
-    this.upiState = 'init';
+    this.nameTouched   = false;
+    this.phoneTouched  = false;
+    this.emailTouched  = false;
+    this.upiState      = 'init';
   }
 
   // ── Bill history ──────────────────────────────────────────────────────────
 
-  viewBillDetail(b: SavedBill) {
-    this.selectedBill = b;
-  }
-  closeBillDetail() {
-    this.selectedBill = null;
-  }
-
-  reprintBill(b: SavedBill) {
-    this.printBill = b;
-    setTimeout(() => window.print(), 100);
-  }
+  viewBillDetail(b: SavedBill)  { this.selectedBill = b; }
+  closeBillDetail()             { this.selectedBill = null; }
+  reprintBill(b: SavedBill)     { this.printBill = b; setTimeout(() => window.print(), 100); }
 
   get filteredHistory(): SavedBill[] {
     const q = this.historySearch.toLowerCase();
     if (!q) return this.savedBills;
-    return this.savedBills.filter(
-      (b) =>
-        b.id.toLowerCase().includes(q) ||
-        b.customer.name.toLowerCase().includes(q) ||
-        b.customer.phone.includes(q)
+    return this.savedBills.filter(b =>
+      b.id.toLowerCase().includes(q)
+      || b.customer.name.toLowerCase().includes(q)
+      || b.customer.phone.includes(q)
     );
+  }
+
+  // ── Storage ───────────────────────────────────────────────────────────────
+
+  private loadFromStorage() {
+    try {
+      const cnt = localStorage.getItem(this.LS_COUNTER);
+      if (cnt) this.counter = parseInt(cnt, 10);
+
+      const raw = localStorage.getItem(this.LS_BILLS);
+      if (raw) {
+        this.savedBills = JSON.parse(raw).map((b: any) => ({ ...b, date: new Date(b.date) }));
+      }
+
+      const custs = localStorage.getItem(this.LS_CUSTOMERS);
+      if (custs) {
+        const saved: Customer[] = JSON.parse(custs);
+        saved.forEach(c => {
+          if (!this.knownCustomers.find(k => k.phone === c.phone)) this.knownCustomers.push(c);
+        });
+      }
+    } catch { /* ignore corrupt storage */ }
+  }
+
+  private persist() {
+    try {
+      localStorage.setItem(this.LS_COUNTER,   String(this.counter));
+      localStorage.setItem(this.LS_BILLS,     JSON.stringify(this.savedBills));
+      localStorage.setItem(this.LS_CUSTOMERS, JSON.stringify(this.knownCustomers));
+    } catch { /* storage quota exceeded */ }
   }
 
   // ── Utilities ─────────────────────────────────────────────────────────────
@@ -497,28 +452,25 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   fmtDate(d: Date): string {
-    return d.toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   fmtTime(d: Date): string {
-    return d.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   }
 
-  payLabel(m: string): string {
-    return m === 'cash' ? 'Cash' : m === 'upi' ? 'UPI' : 'Card';
-  }
-  payIcon(m: string): string {
-    return m === 'cash' ? '💵' : m === 'upi' ? '📱' : '💳';
+  payLabel(m: string): string { return m === 'cash' ? 'Cash' : m === 'upi' ? 'UPI' : 'Card'; }
+  payIcon(m: string):  string { return m === 'cash' ? '💵' : m === 'upi' ? '📱' : '💳'; }
+
+  stockClass(qty: number): string {
+    if (qty === 0) return 's-out';
+    if (qty <= 5)  return 's-low';
+    return '';
   }
 
   ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
     if (this.upiTimer) clearInterval(this.upiTimer);
   }
 }

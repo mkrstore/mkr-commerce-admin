@@ -205,7 +205,10 @@
   &:last-child { border-bottom: none; }
 }
 
-.pr-icon { font-size: 1.25rem; width: 1.75rem; text-align: center; flex-shrink: 0; }
+.pr-icon { width: 2rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.pr-img { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
+.pr-img-fallback { font-size: 1.2rem; color: #9ca3af; }
+.td-ico { display: flex; align-items: center; justify-content: center; }
 .pr-info { flex: 1; display: flex; flex-direction: column; gap: .05rem; }
 .pr-name { font-size: .84rem; font-weight: 500; color: #111827; }
 .pr-meta { font-size: .7rem; color: #9ca3af; }
@@ -475,9 +478,19 @@
   gap: .5rem;
 }
 
-.pd-phone { font-weight: 700; font-size: .82rem; color: #2874F0; }
-.pd-name  { font-size: .82rem; color: #111827; }
-.pd-addr  { font-size: .7rem; color: #9ca3af; margin-top: .15rem; }
+.pd-name  { font-size: .82rem; font-weight: 600; color: var(--t1); flex: 1; }
+.pd-phone { font-size: .78rem; color: var(--blue); font-weight: 500; }
+.pd-email { font-size: .72rem; color: var(--t3); margin-top: .15rem; }
+.pd-searching {
+  display: flex; align-items: center; gap: 8px;
+  padding: .5rem .7rem; font-size: .78rem; color: var(--t3);
+}
+.pd-spinner {
+  width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--border); border-top-color: var(--blue);
+  animation: pd-spin .7s linear infinite;
+}
+@keyframes pd-spin { to { transform: rotate(360deg); } }
 
 // GST toggle
 .gst-toggle {
