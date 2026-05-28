@@ -47,7 +47,12 @@
       <p class="ss-amount">{{ inr(printBill.grandTotal) }}</p>
       <p class="ss-method">
         {{ payIcon(printBill.paymentMethod) }}
-        {{ payLabel(printBill.paymentMethod) }} — PAID
+        {{ payLabel(printBill.paymentMethod) }}
+        <ng-container *ngIf="printBill.khataAmount === 0"> — PAID</ng-container>
+        <ng-container *ngIf="printBill.khataAmount > 0"> — {{ inr(printBill.grandTotal - printBill.khataAmount) }} collected</ng-container>
+      </p>
+      <p class="ss-khata" *ngIf="printBill.khataAmount > 0">
+        📒 {{ inr(printBill.khataAmount) }} added to {{ printBill.customer.name }}'s Khata
       </p>
       <p class="ss-customer">
         {{ printBill.customer.name }} &middot; {{ printBill.customer.phone }}
@@ -75,14 +80,14 @@
             <input
               type="text"
               [(ngModel)]="searchQ"
-              (ngModelChange)="productsShown = 20"
+              (ngModelChange)="prodPage = 0"
               placeholder="Search product by name, SKU or category..."
               class="si-input"
             />
             <button
               class="si-clear"
               *ngIf="searchQ"
-              (click)="searchQ = ''; productsShown = 20"
+              (click)="searchQ = ''; prodPage = 0"
             >
               ✕
             </button>
@@ -91,7 +96,7 @@
             <button
               class="chip"
               [class.active]="!selectedCategory"
-              (click)="selectedCategory = ''; productsShown = 20"
+              (click)="selectedCategory = ''; prodPage = 0"
             >
               All
             </button>
@@ -99,7 +104,7 @@
               class="chip"
               *ngFor="let cat of categories"
               [class.active]="selectedCategory === cat"
-              (click)="selectedCategory = cat; productsShown = 20"
+              (click)="selectedCategory = cat; prodPage = 0"
             >
               {{ cat }}
             </button>
@@ -107,7 +112,11 @@
         </div>
 
         <!-- Product Results -->
-        <div class="product-list-card" (scroll)="onProductListScroll($event)">
+        <div class="product-list-card">
+          <div class="pl-loading" *ngIf="productsLoading">
+            <span class="icon pl-spin">refresh</span> Loading products…
+          </div>
+
           <div
             class="product-row"
             *ngFor="let p of displayedProducts"
@@ -116,7 +125,7 @@
           >
             <span class="pr-icon">
               <img *ngIf="p.primaryImageUrl" [src]="p.primaryImageUrl" class="pr-img" alt="" />
-              <span *ngIf="!p.primaryImageUrl" class="material-icons pr-img-fallback">inventory_2</span>
+              <span *ngIf="!p.primaryImageUrl" class="icon pr-img-fallback">inventory_2</span>
             </span>
             <div class="pr-info">
               <span class="pr-name">{{ p.name }}</span>
@@ -134,12 +143,19 @@
             </div>
           </div>
 
-          <div class="scroll-hint" *ngIf="hasMoreProducts">
-            ↓ Scroll to load more products
+          <div class="no-results" *ngIf="!productsLoading && filteredProducts.length === 0">
+            No products found<span *ngIf="searchQ"> for "{{ searchQ }}"</span>
           </div>
 
-          <div class="no-results" *ngIf="filteredProducts.length === 0">
-            No products found for "{{ searchQ }}"
+          <!-- Pagination -->
+          <div class="prod-pagination" *ngIf="prodTotalPages > 1">
+            <button class="pp-btn" [disabled]="prodPage === 0" (click)="goToProdPage(prodPage - 1)">
+              <span class="icon icon-xs">chevron_left</span>
+            </button>
+            <span class="pp-info">{{ prodPage + 1 }} / {{ prodTotalPages }}</span>
+            <button class="pp-btn" [disabled]="prodPage >= prodTotalPages - 1" (click)="goToProdPage(prodPage + 1)">
+              <span class="icon icon-xs">chevron_right</span>
+            </button>
           </div>
         </div>
 
@@ -182,7 +198,7 @@
                   <td class="td-prod">
                     <span class="td-ico">
                       <img *ngIf="item.product.primaryImageUrl" [src]="item.product.primaryImageUrl" class="pr-img" alt="" />
-                      <span *ngIf="!item.product.primaryImageUrl" class="material-icons pr-img-fallback">inventory_2</span>
+                      <span *ngIf="!item.product.primaryImageUrl" class="icon pr-img-fallback">inventory_2</span>
                     </span>
                     <div>
                       <div class="td-name">{{ item.product.name }}</div>
@@ -260,14 +276,17 @@
                 (blur)="phoneTouched = true; closeDropdown()"
                 placeholder="Phone number *"
                 class="field"
-                maxlength="10"
+                [disabled]="isExistingCustomer"
               />
-              <span class="phone-digits" *ngIf="customer.phone"
+              <span class="phone-digits" *ngIf="customer.phone && !isExistingCustomer"
                 >{{ customer.phone.length }}/10</span
               >
+              <button class="cust-change-btn" *ngIf="isExistingCustomer" (click)="clearCustomer()" type="button">
+                Change
+              </button>
             </div>
             <!-- Typeahead dropdown -->
-            <div class="phone-dropdown" *ngIf="showPhoneDropdown || customerSearching">
+            <div class="phone-dropdown" *ngIf="showPhoneDropdown || customerSearching || phoneSearchDone">
               <div class="pd-searching" *ngIf="customerSearching">
                 <span class="pd-spinner"></span> Searching customers…
               </div>
@@ -282,6 +301,11 @@
                 </div>
                 <div class="pd-email" *ngIf="c.email">{{ c.email }}</div>
               </div>
+              <!-- No results — prompt to fill in below -->
+              <div class="pd-new" *ngIf="phoneSearchDone && !customerSearching" (mousedown)="showPhoneDropdown = false; phoneSearchDone = false; nameTouched = false">
+                <span class="pd-new-icon">➕</span>
+                <span>New customer — fill in name &amp; details below</span>
+              </div>
             </div>
             <div class="field-error" *ngIf="phoneError">{{ phoneError }}</div>
           </div>
@@ -295,6 +319,7 @@
               (blur)="nameTouched = true"
               placeholder="Full name *"
               class="field"
+              [disabled]="isExistingCustomer"
             />
             <div class="field-error" *ngIf="nameError">{{ nameError }}</div>
           </div>
@@ -308,6 +333,7 @@
               (blur)="emailTouched = true"
               placeholder="Email (optional)"
               class="field"
+              [disabled]="isExistingCustomer"
             />
             <div class="field-error" *ngIf="emailError">{{ emailError }}</div>
           </div>
@@ -319,6 +345,7 @@
               [(ngModel)]="customer.address"
               placeholder="Address (optional)"
               class="field"
+              [disabled]="isExistingCustomer"
             />
           </div>
         </div>
@@ -358,6 +385,19 @@
             <span>Total Payable</span>
             <span>{{ inr(grandTotal) }}</span>
           </div>
+
+          <!-- Existing khata balance for known customers -->
+          <ng-container *ngIf="customer.id && (customer.pendingAmount ?? 0) > 0">
+            <div class="sum-divider" style="margin-top:.5rem"></div>
+            <div class="sum-row khata-bal-row">
+              <span>📒 Existing Khata</span>
+              <span class="khata-bal-amt">{{ inr(customer.pendingAmount!) }}</span>
+            </div>
+            <div class="sum-row khata-final-row" *ngIf="khataAmountComputed > 0">
+              <span>Khata after this bill</span>
+              <span class="khata-final-amt">{{ inr((customer.pendingAmount ?? 0) + khataAmountComputed) }}</span>
+            </div>
+          </ng-container>
         </div>
 
         <!-- Payment -->
@@ -380,12 +420,38 @@
                 <span>💳</span>Card
               </button>
             </div>
+
+            <!-- Khata options (known customers only) -->
+            <div class="khata-options" *ngIf="canBill">
+              <div class="khata-divider"><span>or add to khata</span></div>
+              <div class="khata-btns">
+                <button
+                  class="pay-btn khata-partial"
+                  [disabled]="!canUseKhata"
+                  [title]="!canUseKhata ? 'Available for known customers only' : ''"
+                  (click)="selectKhataMode('partial')"
+                >
+                  <span>💰</span>Partial + Khata
+                </button>
+                <button
+                  class="pay-btn khata-full"
+                  [disabled]="!canUseKhata"
+                  [title]="!canUseKhata ? 'Available for known customers only' : ''"
+                  (click)="selectKhataMode('khata')"
+                >
+                  <span>📒</span>Full Khata
+                </button>
+              </div>
+              <p class="khata-note" *ngIf="!canUseKhata">
+                Khata available for known customers only
+              </p>
+            </div>
           </div>
 
-          <!-- Step 2a: Cash / Card -->
+          <!-- Step 2a: Cash / Card (full payment) -->
           <div
             class="pay-confirm-box"
-            *ngIf="paymentState === 'confirming' && paymentMethod !== 'upi'"
+            *ngIf="paymentState === 'confirming' && paymentMode === 'full' && paymentMethod !== 'upi'"
           >
             <div class="pc-amount">{{ inr(grandTotal) }}</div>
             <div class="pc-method">
@@ -395,8 +461,9 @@
             <p class="pc-note">
               Collect {{ inr(grandTotal) }} from customer, then confirm
             </p>
-            <button class="btn-confirm" (click)="confirmPayment()">
-              ✓ Payment Received — Confirm Bill
+            <button class="btn-confirm" (click)="confirmPayment()" [disabled]="khataLoading">
+              <span *ngIf="!khataLoading">✓ Payment Received — Confirm Bill</span>
+              <span *ngIf="khataLoading">Saving bill…</span>
             </button>
             <button
               class="btn-back"
@@ -406,10 +473,10 @@
             </button>
           </div>
 
-          <!-- Step 2b: UPI flow -->
+          <!-- Step 2b: UPI flow (full payment) -->
           <div
             class="pay-upi-box"
-            *ngIf="paymentState === 'confirming' && paymentMethod === 'upi'"
+            *ngIf="paymentState === 'confirming' && paymentMode === 'full' && paymentMethod === 'upi'"
           >
             <!-- UPI Init: show amount, ask customer to pay -->
             <div class="upi-init" *ngIf="upiState === 'init'">
@@ -477,6 +544,106 @@
               <div class="upi-received-sub">Saving bill...</div>
             </div>
           </div>
+          <!-- Step 2c: Partial payment + Khata -->
+          <div
+            class="pay-partial-box"
+            *ngIf="paymentState === 'confirming' && paymentMode === 'partial'"
+          >
+            <div class="pc-amount">{{ inr(grandTotal) }}</div>
+
+            <div class="partial-input-row">
+              <label class="partial-label">Amount collecting now (₹)</label>
+              <div class="partial-input-wrap">
+                <span class="partial-prefix">₹</span>
+                <input
+                  type="number"
+                  [(ngModel)]="paidNow"
+                  min="1"
+                  class="partial-input"
+                  placeholder="0"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="field-error" *ngIf="paidNowError">{{ paidNowError }}</div>
+            </div>
+
+            <div class="partial-preview" *ngIf="paidNow && paidNow > 0 && !paidNowError">
+              <div class="partial-preview-row">
+                <span>Collecting now</span>
+                <span class="pp-paid">+ {{ inr(paidNow) }}</span>
+              </div>
+              <div class="partial-preview-row">
+                <span>Khata debit (customer owes)</span>
+                <span class="pp-khata">− {{ inr(khataAmountComputed) }}</span>
+              </div>
+              <div class="partial-preview-divider"></div>
+              <ng-container *ngIf="customer.pendingAmount !== undefined">
+                <div class="partial-preview-row pp-balance-row">
+                  <span>Khata balance after this</span>
+                  <span class="pp-balance">{{ inr((customer.pendingAmount) + khataAmountComputed) }}</span>
+                </div>
+              </ng-container>
+            </div>
+
+            <div class="partial-methods" *ngIf="paidNow && paidNow > 0 && !paidNowError">
+              <label class="partial-label">Pay {{ inr(paidNow) }} via</label>
+              <div class="pay-methods-sm">
+                <button class="pay-btn-sm" [class.selected]="partialMethod === 'cash'" (click)="partialMethod = 'cash'">💵 Cash</button>
+                <button class="pay-btn-sm" [class.selected]="partialMethod === 'upi'"  (click)="partialMethod = 'upi'">📱 UPI</button>
+                <button class="pay-btn-sm" [class.selected]="partialMethod === 'card'" (click)="partialMethod = 'card'">💳 Card</button>
+              </div>
+            </div>
+
+            <button
+              class="btn-confirm"
+              [disabled]="!partialConfirmReady || khataLoading"
+              (click)="confirmPayment()"
+            >
+              <span *ngIf="!khataLoading">✓ Confirm — {{ inr(paidNow ?? 0) }} now + {{ inr(khataAmountComputed) }} to Khata</span>
+              <span *ngIf="khataLoading">Saving bill…</span>
+            </button>
+            <button
+              class="btn-back"
+              (click)="paymentState = 'idle'; paymentMode = 'full'"
+            >
+              ← Change Method
+            </button>
+          </div>
+
+          <!-- Step 2d: Full Khata -->
+          <div
+            class="pay-khata-box"
+            *ngIf="paymentState === 'confirming' && paymentMode === 'khata'"
+          >
+            <div class="khata-confirm-icon">📒</div>
+            <div class="khata-confirm-text">Full amount to Khata</div>
+
+            <div class="khata-debit-preview">
+              <div class="kdp-row">
+                <span>This bill (debit)</span>
+                <span class="kdp-debit">− {{ inr(grandTotal) }}</span>
+              </div>
+              <ng-container *ngIf="(customer.pendingAmount ?? 0) >= 0">
+                <div class="kdp-row kdp-balance-row">
+                  <span>Khata balance after</span>
+                  <span class="kdp-balance">{{ inr((customer.pendingAmount ?? 0) + grandTotal) }}</span>
+                </div>
+              </ng-container>
+            </div>
+
+            <p class="khata-confirm-sub">{{ customer.name }} can pay later</p>
+            <button class="btn-confirm khata-confirm-btn" (click)="confirmPayment()" [disabled]="khataLoading">
+              <span *ngIf="!khataLoading">📒 Confirm — Add {{ inr(grandTotal) }} to Khata</span>
+              <span *ngIf="khataLoading">Saving bill…</span>
+            </button>
+            <button
+              class="btn-back"
+              (click)="paymentState = 'idle'; paymentMode = 'full'"
+            >
+              ← Change Method
+            </button>
+          </div>
+
         </div>
       </div>
       <!-- /pos-right -->
@@ -493,15 +660,18 @@
         placeholder="Search by bill ID, customer name or phone..."
         class="history-search"
       />
-      <span class="history-meta"
-        >{{ savedBills.length }} bill{{
-          savedBills.length !== 1 ? "s" : ""
-        }}
-        this session</span
-      >
+      <span class="history-meta" *ngIf="!historyLoading">
+        {{ savedBills.length }} bill{{ savedBills.length !== 1 ? "s" : "" }}
+      </span>
+      <span class="history-meta" *ngIf="historyLoading">Loading…</span>
     </div>
 
-    <div class="history-empty" *ngIf="savedBills.length === 0">
+    <div class="history-empty" *ngIf="historyLoading">
+      <span>⏳</span>
+      <p>Loading bill history…</p>
+    </div>
+
+    <div class="history-empty" *ngIf="!historyLoading && savedBills.length === 0">
       <span>📋</span>
       <p>No bills yet. Generate your first bill from New Bill tab.</p>
     </div>
@@ -528,6 +698,7 @@
         <div class="h-col-amount">{{ inr(b.grandTotal) }}</div>
         <span class="h-pay-badge" [ngClass]="b.paymentMethod">
           {{ payIcon(b.paymentMethod) }} {{ payLabel(b.paymentMethod) }}
+          <ng-container *ngIf="b.khataAmount > 0"> +📒{{ inr(b.khataAmount) }}</ng-container>
         </span>
         <button
           class="reprint-btn"
@@ -629,7 +800,14 @@
         </div>
         <div class="bd-pay-method">
           {{ payIcon(selectedBill.paymentMethod) }}
-          {{ payLabel(selectedBill.paymentMethod) }} — PAID
+          {{ payLabel(selectedBill.paymentMethod) }}
+          <ng-container *ngIf="selectedBill.khataAmount === 0"> — PAID</ng-container>
+          <ng-container *ngIf="selectedBill.khataAmount > 0">
+            — {{ inr(selectedBill.grandTotal - selectedBill.khataAmount) }} paid now
+          </ng-container>
+        </div>
+        <div class="bd-khata-row" *ngIf="selectedBill.khataAmount > 0">
+          📒 {{ inr(selectedBill.khataAmount) }} added to khata
         </div>
       </div>
     </div>
@@ -722,7 +900,12 @@
     <div class="r-line">================================</div>
     <div class="r-pay">
       Payment: {{ payIcon(printBill.paymentMethod) }}
-      {{ payLabel(printBill.paymentMethod) }} — PAID
+      {{ payLabel(printBill.paymentMethod) }}
+      <ng-container *ngIf="printBill.khataAmount === 0"> — PAID</ng-container>
+      <ng-container *ngIf="printBill.khataAmount > 0">
+        — {{ inr(printBill.grandTotal - printBill.khataAmount) }} collected<br />
+        📒 {{ inr(printBill.khataAmount) }} added to Khata
+      </ng-container>
     </div>
     <div class="r-line">--------------------------------</div>
     <div class="r-thanks">Thank You! Visit Again 🙏</div>

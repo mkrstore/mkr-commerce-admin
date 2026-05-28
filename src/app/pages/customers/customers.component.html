@@ -6,7 +6,15 @@
       <div class="page-hd-title">Customers</div>
       <div class="page-hd-sub">Registered accounts</div>
     </div>
-    <div class="page-hd-right">
+    <div class="page-hd-right" style="gap:10px">
+      <div class="search-bar cust-search">
+        <span class="sb-icon icon icon-sm">search</span>
+        <input type="text" [(ngModel)]="searchQ" (ngModelChange)="onSearch()"
+          placeholder="Search…" />
+        <button class="sb-clear" *ngIf="searchQ" (click)="clearSearch()">
+          <span class="icon icon-xs">close</span>
+        </button>
+      </div>
       <div class="total-chip" *ngIf="typeCounts['All'] != null">
         <span class="icon icon-xs">group</span>
         {{ typeCounts['All'] }} customers
@@ -14,29 +22,7 @@
     </div>
   </div>
 
-  <!-- Search + Pending toggle -->
-  <div class="filter-bar">
-    <div class="search-bar">
-      <span class="sb-icon icon icon-sm">search</span>
-      <input type="text" [(ngModel)]="searchQ" (ngModelChange)="onSearch()"
-        placeholder="Search name, email, phone or CUS-ID…" />
-      <button class="sb-clear" *ngIf="searchQ" (click)="clearSearch()">
-        <span class="icon icon-xs">close</span>
-      </button>
-    </div>
-
-    <div class="showing-label" *ngIf="!loading && totalElements > 0">
-      {{ pageStart }}–{{ pageEnd }} of {{ totalElements }}
-    </div>
-
-    <button class="pending-btn" [class.active]="showPendingOnly" (click)="togglePending()">
-      <span class="icon icon-xs">warning</span>
-      Pending
-      <span class="tab-count pending-count" *ngIf="pendingCount != null">{{ pendingCount }}</span>
-    </button>
-  </div>
-
-  <!-- Type filter pills -->
+  <!-- Type filter pills + Pending at end -->
   <div class="tabs-pill">
     <button class="tab-btn" [class.active]="selectedType === 'All' && !showPendingOnly"
       (click)="setType('All')">
@@ -48,6 +34,10 @@
       (click)="setType(t)">
       {{ typeLabel(t) }}
       <span class="tab-count" *ngIf="typeCounts[t] != null">{{ typeCounts[t] }}</span>
+    </button>
+    <button class="tab-btn tab-pending" [class.active]="showPendingOnly" (click)="togglePending()">
+      <span class="icon icon-xs">warning</span> Pending
+      <span class="tab-count pending-count" *ngIf="pendingCount != null">{{ pendingCount }}</span>
     </button>
   </div>
 

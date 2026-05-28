@@ -65,8 +65,10 @@ export const ORDER_ENDPOINTS = {
 } as const;
 
 export const BILLING_ENDPOINTS = {
+  LIST:    `${API}/billing`,
   PREVIEW: `${API}/billing/preview`,
   CONFIRM: `${API}/billing/confirm`,
+  BY_ID:   (id: string) => `${API}/billing/${id}`,
 } as const;
 
 export const CUSTOMER_ENDPOINTS = {
@@ -77,6 +79,7 @@ export const CUSTOMER_ENDPOINTS = {
   KHATA:         (id: string) => `${API}/customers/${id}/khata`,
   KHATA_COLLECT: (id: string) => `${API}/customers/${id}/khata/collect`,
   ORDERS:        (id: string) => `${API}/customers/${id}/orders`,
+  BILLS:         (id: string) => `${API}/customers/${id}/bills`,
 } as const;
 
 export const INVENTORY_ENDPOINTS = {

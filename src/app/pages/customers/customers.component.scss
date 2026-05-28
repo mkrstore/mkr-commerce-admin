@@ -3,8 +3,15 @@
   overflow: hidden !important;
   gap: 12px !important;
 
-  /* Vertically center the chip with the page title */
   .page-hd { align-items: center; }
+  .page-hd-right { flex-wrap: nowrap; align-items: center; }
+}
+
+/* ── Compact search in header ─────────────────────────────────── */
+.cust-search {
+  flex: 0 0 auto !important;
+  width: 200px;
+  min-width: 0 !important;
 }
 
 /* ── Total customers chip (top-right) ────────────────────────── */
@@ -39,31 +46,16 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* ── Pending button (in header-right) ────────────────────────── */
-.pending-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 14px;
-  height: 36px;
-  border-radius: var(--radius);
-  border: 1.5px solid var(--border);
-  background: var(--surface);
-  color: var(--t2);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all .2s;
-  white-space: nowrap;
-
-  &:hover  { border-color: #F59E0B; color: #F59E0B; }
-  &.active { background: rgba(245,158,11,.12); border-color: #F59E0B; color: #F59E0B; }
+/* ── Pending as last tab (amber theme) ────────────────────────── */
+.tab-pending {
+  &:hover   { color: #F59E0B !important; border-color: #F59E0B !important; }
+  &.active  { background: rgba(245,158,11,.15) !important; border-color: #F59E0B !important;
+              color: #B45309 !important; box-shadow: none !important; }
 
   .pending-count {
     background: rgba(245,158,11,.18);
     color: #B45309;
   }
-
   &.active .pending-count {
     background: rgba(245,158,11,.3);
     color: #92400E;

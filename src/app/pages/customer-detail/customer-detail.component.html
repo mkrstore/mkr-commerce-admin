@@ -24,9 +24,6 @@
   <div class="page-hd">
     <div class="page-hd-left">
       <div style="display:flex;align-items:center;gap:14px">
-        <button class="btn btn-ghost btn-sm" (click)="goBack()">
-          <span class="icon icon-sm">arrow_back</span>
-        </button>
         <div class="cd-avatar" [class]="'cd-avatar-' + customer.type.toLowerCase()">
           {{ avatar(customer.name) }}
         </div>
@@ -74,10 +71,10 @@
       </div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon stat-icon-purple"><span class="icon icon-sm icon-purple">package_2</span></div>
+      <div class="stat-icon stat-icon-purple"><span class="icon icon-sm icon-purple">receipt_long</span></div>
       <div>
-        <div style="font-size:15px;font-weight:800;color:var(--t1)">{{ totalOrders }}</div>
-        <div style="font-size:11px;color:var(--t3)">Total Orders</div>
+        <div style="font-size:15px;font-weight:800;color:var(--t1)">{{ totalPurchases }}</div>
+        <div style="font-size:11px;color:var(--t3)">Purchases</div>
       </div>
     </div>
     <div class="stat-card" [class.stat-card-warn]="currentBalance > 0">
@@ -117,9 +114,13 @@
 
       <!-- Tab bar -->
       <div class="tabs-pill" style="align-self:flex-start;margin-bottom:12px">
+        <button class="tab-btn" [class.active]="activeTab === 'bills'" (click)="activeTab = 'bills'">
+          <span class="icon icon-sm">receipt_long</span> Bills
+          <span style="font-size:11px" *ngIf="totalBills">{{ totalBills }}</span>
+        </button>
         <button class="tab-btn" [class.active]="activeTab === 'orders'" (click)="activeTab = 'orders'">
-          <span class="icon icon-sm">package_2</span> Orders
-          <span style="font-size:11px">{{ totalOrders }}</span>
+          <span class="icon icon-sm">package_2</span> Online Orders
+          <span style="font-size:11px" *ngIf="orders.length">{{ orders.length }}</span>
         </button>
         <button class="tab-btn" [class.active]="activeTab === 'khata'" (click)="activeTab = 'khata'">
           <span class="icon icon-sm">menu_book</span> Khata Book
@@ -129,15 +130,76 @@
         </button>
       </div>
 
-      <!-- Orders tab -->
+      <!-- Bills tab (in-store POS) -->
+      <div *ngIf="activeTab === 'bills'" class="card">
+        <div class="card-hd">
+          <div class="card-hd-title">In-Store Bills</div>
+        </div>
+
+        <div class="empty" style="padding:40px" *ngIf="bills.length === 0">
+          <div class="empty-icon"><span class="icon icon-lg icon-muted">receipt_long</span></div>
+          <div class="empty-title">No in-store bills yet</div>
+        </div>
+
+        <div class="tbl-wrap" *ngIf="bills.length > 0">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Bill ID</th>
+                <th>Date</th>
+                <th>Items</th>
+                <th style="text-align:right">Total</th>
+                <th style="text-align:right">Paid</th>
+                <th>Method</th>
+                <th>Khata</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let b of bills">
+                <td>
+                  <code style="font-size:12px;color:var(--blue)">{{ b.billId }}</code>
+                </td>
+                <td style="white-space:nowrap;font-size:12px;color:var(--t2)">
+                  {{ b.createdAt | date:'d MMM yyyy' }}
+                </td>
+                <td style="font-size:12px;color:var(--t2);max-width:220px">
+                  {{ b.itemsSummary }}
+                  <span style="color:var(--t3)"> ({{ b.itemCount }})</span>
+                </td>
+                <td style="text-align:right;font-weight:700;white-space:nowrap">
+                  {{ fmt(b.grandTotal) }}
+                </td>
+                <td style="text-align:right;font-size:12px;white-space:nowrap"
+                    [style.color]="b.paidNow < b.grandTotal ? 'var(--amber)' : 'var(--green)'">
+                  {{ fmt(b.paidNow) }}
+                </td>
+                <td style="font-size:12px;color:var(--t2)">
+                  {{ billPayIcon(b.paymentMethod) }} {{ b.paymentMethod | titlecase }}
+                </td>
+                <td>
+                  <span *ngIf="b.khataAmount > 0" class="badge badge-amber">
+                    📒 {{ fmt(b.khataAmount) }}
+                  </span>
+                  <span *ngIf="b.khataAmount === 0" class="badge badge-green">Paid</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Orders tab (online e-commerce) -->
       <div *ngIf="activeTab === 'orders'" class="card">
         <div class="card-hd">
-          <div class="card-hd-title">Order History</div>
+          <div class="card-hd-title">Online Orders</div>
         </div>
 
         <div class="empty" style="padding:40px" *ngIf="orders.length === 0">
           <div class="empty-icon"><span class="icon icon-lg icon-muted">package_2</span></div>
-          <div class="empty-title">No orders yet</div>
+          <div class="empty-title">No online orders yet</div>
+          <div class="empty-sub" style="font-size:12px;color:var(--t3);margin-top:6px">
+            Online orders will appear here once the customer app is live.
+          </div>
         </div>
 
         <div class="tbl-wrap" *ngIf="orders.length > 0">

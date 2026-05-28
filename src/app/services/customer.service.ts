@@ -23,6 +23,19 @@ export interface CustomerOrder {
   createdAt:     string;
 }
 
+export interface CustomerBill {
+  id:            string;
+  billId:        string;
+  paymentMethod: string;
+  grandTotal:    number;
+  paidNow:       number;
+  khataAmount:   number;
+  gstEnabled:    boolean;
+  itemsSummary:  string;
+  itemCount:     number;
+  createdAt:     string;
+}
+
 export interface KhataEntry {
   id:            string;
   entryType:     KhataEntryType;
@@ -160,6 +173,12 @@ export class CustomerService {
   getOrders(customerId: string): Observable<CustomerOrder[]> {
     return this.http
       .get<ApiResponse<CustomerOrder[]>>(this.EP.ORDERS(customerId))
+      .pipe(map(r => r.data!));
+  }
+
+  getBills(customerId: string): Observable<CustomerBill[]> {
+    return this.http
+      .get<ApiResponse<CustomerBill[]>>(this.EP.BILLS(customerId))
       .pipe(map(r => r.data!));
   }
 }

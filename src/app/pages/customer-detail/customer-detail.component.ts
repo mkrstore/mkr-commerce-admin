@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
@@ -7,14 +7,14 @@ import { catchError } from 'rxjs/operators';
 import {
   CustomerService, CustomerDetail, CustomerType, AuthMethod,
   KhataEntry, KhataPage, AddKhataEntryRequest, CollectPaymentRequest,
-  CustomerOrder
+  CustomerOrder, CustomerBill
 } from '../../services/customer.service';
 import { extractErrorMessage } from '../../core/models/api.models';
 
 @Component({
   selector: 'app-customer-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TitleCasePipe],
   templateUrl: './customer-detail.component.html',
   styleUrl: './customer-detail.component.scss'
 })
@@ -24,9 +24,12 @@ export class CustomerDetailComponent implements OnInit {
   loading = false;
   error = '';
 
-  activeTab: 'orders' | 'khata' | 'notes' = 'orders';
+  activeTab: 'bills' | 'orders' | 'khata' | 'notes' = 'bills';
 
-  // Orders state
+  // Bills state (in-store POS)
+  bills: CustomerBill[] = [];
+
+  // Orders state (online)
   orders: CustomerOrder[] = [];
 
   // Khata state
@@ -73,13 +76,15 @@ export class CustomerDetailComponent implements OnInit {
     forkJoin({
       customer: this.customerService.getById(id),
       khata:    this.customerService.getKhata(id).pipe(catchError(() => of(emptyKhata))),
-      orders:   this.customerService.getOrders(id).pipe(catchError(() => of([] as CustomerOrder[])))
+      orders:   this.customerService.getOrders(id).pipe(catchError(() => of([] as CustomerOrder[]))),
+      bills:    this.customerService.getBills(id).pipe(catchError(() => of([] as CustomerBill[])))
     }).subscribe({
-      next: ({ customer, khata, orders }) => {
+      next: ({ customer, khata, orders, bills }) => {
         this.customer       = customer;
         this.khataEntries   = khata.entries;
         this.orders         = orders;
-        this.currentBalance = customer.pendingAmount;
+        this.bills          = bills;
+        this.currentBalance = khata.currentBalance;
         this.editForm.type  = customer.type;
         this.loading        = false;
       },
@@ -95,7 +100,9 @@ export class CustomerDetailComponent implements OnInit {
   avatar(name: string): string { return name.split(' ').map(w => w[0]).slice(0, 2).join(''); }
   fmt(n: number): string       { return '₹' + n.toLocaleString('en-IN'); }
 
-  get totalOrders(): number { return this.customer?.totalOrders ?? 0; }
+  get totalOrders():    number { return this.customer?.totalOrders ?? 0; }
+  get totalBills():     number { return this.bills.length; }
+  get totalPurchases(): number { return this.bills.length + this.orders.length; }
 
   address(): string {
     if (!this.customer) return '—';
@@ -143,6 +150,17 @@ export class CustomerDetailComponent implements OnInit {
   payStatusClass(s: string): string {
     return s === 'PAID' ? 'badge-green' : s === 'PENDING' ? 'badge-amber' : 'badge-red';
   }
+
+  billPayIcon(m: string): string {
+    if (m === 'cash')  return '💵';
+    if (m === 'upi')   return '📱';
+    if (m === 'card')  return '💳';
+    if (m === 'khata') return '📒';
+    if (m === 'partial') return '💰';
+    return '💳';
+  }
+
+  fmt2(n: number): string { return '₹' + n.toLocaleString('en-IN'); }
 
   // ── Edit ──
   openEdit(): void {

@@ -7,7 +7,7 @@ import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { ShopSettingsService, ShopSettings } from '../../services/shop-settings.service';
 import { NotificationService } from '../../services/notification.service';
 import { CustomerService } from '../../services/customer.service';
-import { PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
+import { BILLING_ENDPOINTS, PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse } from '../../core/models/api.models';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -32,19 +32,23 @@ interface BillItem {
 }
 
 interface Customer {
+  id?: string;           // backend customer ID — present only for known customers
   phone: string;
   name: string;
   email: string;
   address: string;
+  pendingAmount?: number; // existing khata balance at time of search
 }
 
 interface SavedBill {
-  id: string;
+  id: string;       // MKR-BILL-XXXX display format
+  uuid?: string;    // backend UUID — used for reprint via API
   date: Date;
   customer: Customer;
   items: BillItem[];
   gstEnabled: boolean;
   paymentMethod: string;
+  khataAmount: number;  // 0 = fully paid now; >0 = amount added to khata
   subtotal: number;
   totalDiscount: number;
   gstAmount: number;
@@ -69,9 +73,18 @@ interface ProductPage {
 })
 export class BillingComponent implements OnInit, OnDestroy {
 
-  private readonly EP = PRODUCT_ENDPOINTS;
+  private readonly EP         = PRODUCT_ENDPOINTS;
+  private readonly BILLING_EP = BILLING_ENDPOINTS;
 
-  activeTab: 'new' | 'history' = 'new';
+  private _activeTab: 'new' | 'history' = 'new';
+  get activeTab(): 'new' | 'history' { return this._activeTab; }
+  set activeTab(val: 'new' | 'history') {
+    this._activeTab = val;
+    if (val === 'history' && !this.historyLoaded) this.loadHistory();
+  }
+
+  historyLoading = false;
+  private historyLoaded = false;
 
   // ── Products (from API) ───────────────────────────────────────────────────
   allProducts: BillingProduct[] = [];
@@ -80,8 +93,9 @@ export class BillingComponent implements OnInit, OnDestroy {
   searchQ = '';
   selectedCategory = '';
 
-  // Show limited slice when not filtering; user scrolls to load more
-  productsShown = 20;
+  // Pagination for product list
+  prodPage     = 0;
+  prodPageSize = 20;
 
   // ── Bill state ────────────────────────────────────────────────────────────
   billItems: BillItem[] = [];
@@ -89,6 +103,12 @@ export class BillingComponent implements OnInit, OnDestroy {
   gstEnabled = false;
   paymentMethod: 'cash' | 'upi' | 'card' | null = null;
   paymentState: 'idle' | 'confirming' | 'done' = 'idle';
+
+  // ── Khata payment mode ────────────────────────────────────────────────────
+  paymentMode: 'full' | 'partial' | 'khata' = 'full';
+  paidNow: number | null = null;
+  partialMethod: 'cash' | 'upi' | 'card' | null = null;
+  khataLoading = false;
 
   // ── History ───────────────────────────────────────────────────────────────
   historySearch = '';
@@ -101,16 +121,18 @@ export class BillingComponent implements OnInit, OnDestroy {
   phoneDropdown: Customer[] = [];
   showPhoneDropdown = false;
   customerSearching = false;
+  phoneSearchDone = false;   // true after first search completes with no results
   private phoneSearch$ = new Subject<string>();
   private destroy$    = new Subject<void>();
 
-  // Locally saved customers from past bills (offline fallback)
-  knownCustomers: Customer[] = [];
+  // In-memory customer cache for offline fallback (current session only)
+  private knownCustomers: Customer[] = [];
 
   // ── Validation touched flags ──────────────────────────────────────────────
-  nameTouched  = false;
-  phoneTouched = false;
-  emailTouched = false;
+  nameTouched       = false;
+  phoneTouched      = false;
+  emailTouched      = false;
+  isExistingCustomer = false;  // locked when selected from dropdown
 
   // ── UPI flow ──────────────────────────────────────────────────────────────
   upiState: 'init' | 'waiting' | 'received' = 'init';
@@ -120,9 +142,6 @@ export class BillingComponent implements OnInit, OnDestroy {
   // ── Shop settings ─────────────────────────────────────────────────────────
   shopSettings: ShopSettings;
 
-  private readonly LS_BILLS     = 'mkr_bills';
-  private readonly LS_COUNTER   = 'mkr_bill_counter';
-  private readonly LS_CUSTOMERS = 'mkr_customers';
 
   constructor(
     private http: HttpClient,
@@ -134,7 +153,6 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    this.loadFromStorage();
     this.loadProducts();
 
     this.phoneSearch$.pipe(
@@ -148,14 +166,28 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   loadProducts() {
     this.productsLoading = true;
+    this.fetchProductPage(0, []);
+  }
+
+  private fetchProductPage(page: number, accumulated: BillingProduct[]) {
     this.http.get<ApiResponse<ProductPage>>(this.EP.BASE, {
-      params: { status: 'ACTIVE', size: '500', page: '0', sortBy: 'name', dir: 'asc' }
+      params: { status: 'ACTIVE', size: '500', page: String(page), sortBy: 'name', dir: 'asc' }
     }).subscribe({
       next: res => {
-        this.allProducts = res.data?.content ?? [];
-        this.productsLoading = false;
+        const data  = res.data;
+        const items = [...accumulated, ...(data?.content ?? [])];
+        const isLast = !data || data.number >= data.totalPages - 1;
+        if (isLast) {
+          this.allProducts     = items;
+          this.productsLoading = false;
+        } else {
+          this.fetchProductPage(page + 1, items);
+        }
       },
-      error: () => { this.productsLoading = false; }
+      error: () => {
+        this.allProducts     = accumulated;
+        this.productsLoading = false;
+      }
     });
   }
 
@@ -175,22 +207,17 @@ export class BillingComponent implements OnInit, OnDestroy {
     });
   }
 
+  get prodTotalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredProducts.length / this.prodPageSize));
+  }
+
   get displayedProducts(): BillingProduct[] {
-    const all = this.filteredProducts;
-    const isFiltering = !!this.searchQ.trim() || !!this.selectedCategory;
-    return isFiltering ? all : all.slice(0, this.productsShown);
+    const start = this.prodPage * this.prodPageSize;
+    return this.filteredProducts.slice(start, start + this.prodPageSize);
   }
 
-  get hasMoreProducts(): boolean {
-    const isFiltering = !!this.searchQ.trim() || !!this.selectedCategory;
-    return !isFiltering && this.filteredProducts.length > this.productsShown;
-  }
-
-  onProductListScroll(e: Event) {
-    const el = e.target as HTMLElement;
-    if (el.scrollHeight - el.scrollTop - el.clientHeight < 60) {
-      this.productsShown += 20;
-    }
+  goToProdPage(p: number) {
+    this.prodPage = Math.max(0, Math.min(p, this.prodTotalPages - 1));
   }
 
   // ── Bill items ────────────────────────────────────────────────────────────
@@ -226,15 +253,19 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   private doCustomerSearch(q: string) {
     this.customerSearching = true;
+    this.phoneSearchDone   = false;
     this.customerSvc.list({ search: q, size: 6 }).subscribe({
       next: res => {
         this.phoneDropdown = res.content.map(c => ({
-          phone: c.phone ?? '',
-          name: c.name,
-          email: c.email ?? '',
-          address: '',
+          id:            c.id,
+          phone:         c.phone ?? '',
+          name:          c.name,
+          email:         c.email ?? '',
+          address:       '',
+          pendingAmount: c.pendingAmount,
         }));
         this.showPhoneDropdown = this.phoneDropdown.length > 0;
+        this.phoneSearchDone   = this.phoneDropdown.length === 0;
         this.customerSearching = false;
       },
       error: () => {
@@ -242,14 +273,22 @@ export class BillingComponent implements OnInit, OnDestroy {
           .filter(c => c.phone.includes(q) || c.name.toLowerCase().includes(q.toLowerCase()))
           .slice(0, 6);
         this.showPhoneDropdown = this.phoneDropdown.length > 0;
+        this.phoneSearchDone   = this.phoneDropdown.length === 0;
         this.customerSearching = false;
       },
     });
   }
 
+  private normalizePhone(raw: string): string {
+    let v = raw.replace(/\D/g, '');
+    if (v.startsWith('91') && v.length > 10) v = v.slice(2);
+    return v.slice(0, 10);
+  }
+
   onPhoneInput() {
-    this.customer.phone = this.customer.phone.replace(/\D/g, '').slice(0, 10);
-    this.phoneTouched = true;
+    this.customer.phone = this.normalizePhone(this.customer.phone);
+    this.phoneTouched    = true;
+    this.phoneSearchDone = false;
     const q = this.customer.phone;
     if (q.length >= 3) {
       this.phoneSearch$.next(q);
@@ -261,11 +300,22 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   selectFromDropdown(c: Customer) {
-    this.customer = { ...c };
-    this.phoneDropdown = [];
+    this.customer = { ...c, phone: this.normalizePhone(c.phone) };
+    this.phoneDropdown     = [];
     this.showPhoneDropdown = false;
-    this.phoneTouched = true;
-    this.nameTouched  = true;
+    this.phoneSearchDone   = false;
+    this.phoneTouched      = true;
+    this.nameTouched       = true;
+    this.isExistingCustomer = true;
+  }
+
+  clearCustomer() {
+    this.customer          = { phone: '', name: '', email: '', address: '' };
+    this.isExistingCustomer = false;
+    this.phoneTouched      = false;
+    this.nameTouched       = false;
+    this.emailTouched      = false;
+    this.phoneSearchDone   = false;
   }
 
   closeDropdown() { setTimeout(() => { this.showPhoneDropdown = false; }, 150); }
@@ -310,15 +360,48 @@ export class BillingComponent implements OnInit, OnDestroy {
       && !this.emailError;
   }
 
+  get canUseKhata(): boolean { return !!this.customer.id; }
+
+  get khataAmountComputed(): number {
+    if (this.paymentMode === 'khata') return this.grandTotal;
+    if (this.paymentMode === 'partial') return Math.max(0, this.grandTotal - (this.paidNow ?? 0));
+    return 0;
+  }
+
+  get paidNowError(): string | null {
+    if (this.paymentMode !== 'partial' || this.paidNow === null) return null;
+    if (this.paidNow <= 0) return 'Enter an amount greater than 0';
+    if (this.paidNow >= this.grandTotal) return `Must be less than ${this.inr(this.grandTotal)}`;
+    return null;
+  }
+
+  get partialConfirmReady(): boolean {
+    return this.paymentMode === 'partial'
+      && !!this.paidNow
+      && this.paidNow > 0
+      && !this.paidNowError
+      && !!this.partialMethod;
+  }
+
   get currentBillId(): string { return `MKR-BILL-${this.counter}`; }
 
   // ── Payment flow ──────────────────────────────────────────────────────────
 
   selectPayment(m: 'cash' | 'upi' | 'card') {
     if (!this.canBill) return;
+    this.paymentMode   = 'full';
     this.paymentMethod = m;
-    this.paymentState = 'confirming';
+    this.paymentState  = 'confirming';
     if (m === 'upi') this.upiState = 'init';
+  }
+
+  selectKhataMode(mode: 'partial' | 'khata') {
+    if (!this.canBill || !this.canUseKhata) return;
+    this.paymentMode   = mode;
+    this.paymentMethod = null;
+    this.paidNow       = null;
+    this.partialMethod = null;
+    this.paymentState  = 'confirming';
   }
 
   startUpiWaiting() {
@@ -333,7 +416,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   upiPaymentReceived() {
     if (this.upiTimer) { clearInterval(this.upiTimer); this.upiTimer = null; }
     this.upiState = 'received';
-    setTimeout(() => this.confirmPayment(), 800);
+    setTimeout(() => this.confirmPayment(), 350);
   }
 
   cancelUpiWait() {
@@ -349,32 +432,79 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   confirmPayment() {
-    const bill: SavedBill = {
-      id: `MKR-BILL-${this.counter++}`,
-      date: new Date(),
-      customer: { ...this.customer },
-      items: this.billItems.map(i => ({ ...i, product: { ...i.product } })),
-      gstEnabled: this.gstEnabled,
-      paymentMethod: this.paymentMethod!,
-      subtotal: this.subtotal,
-      totalDiscount: this.totalDiscount,
-      gstAmount: this.gstAmount,
-      grandTotal: this.grandTotal,
+    const khataAmt = this.khataAmountComputed;
+    const effectiveMethod: string =
+      this.paymentMode === 'khata'   ? 'khata' :
+      this.paymentMode === 'partial' ? (this.partialMethod ?? 'cash') :
+      (this.paymentMethod ?? 'cash');
+
+    const body = {
+      customerId:      this.customer.id ?? null,
+      customerPhone:   this.customer.phone || null,
+      customerName:    this.customer.name || null,
+      customerEmail:   this.customer.email || null,
+      customerAddress: this.customer.address || null,
+      items: this.billItems.map(i => ({
+        productId: i.product.id,
+        qty:       i.qty,
+        unitPrice: i.unitPrice,
+        discount:  i.discount || 0,
+      })),
+      gstEnabled:    this.gstEnabled,
+      paymentMethod: effectiveMethod,
+      khataAmount:   khataAmt,
+      paidViaMethod: this.paymentMode === 'partial' ? (this.partialMethod ?? null) : null,
     };
 
-    this.savedBills.unshift(bill);
-    this.printBill = bill;
-    this.paymentState = 'done';
+    this.khataLoading = true;
 
-    const icon   = this.paymentMethod === 'cash' ? '💵' : this.paymentMethod === 'upi' ? '📱' : '💳';
-    const method = this.paymentMethod === 'cash' ? 'Cash' : this.paymentMethod === 'upi' ? 'UPI' : 'Card';
-    this.notifSvc.push('payment', icon, `${method} Payment Received`,
-      `${this.customer.name} paid ${this.inr(this.grandTotal)} — ${bill.id}`);
+    this.http.post<ApiResponse<any>>(this.BILLING_EP.CONFIRM, body).subscribe({
+      next: res => {
+        this.khataLoading = false;
+        const d = res.data;
 
-    if (!this.knownCustomers.find(c => c.phone === this.customer.phone)) {
-      this.knownCustomers.push({ ...this.customer });
-    }
-    this.persist();
+        const bill: SavedBill = {
+          id:   d.billId,
+          uuid: d.id,
+          date: new Date(d.createdAt),
+          customer: d.customer ? {
+            id:            d.customer.id,
+            phone:         d.customer.phone ?? '',
+            name:          d.customer.name,
+            email:         d.customer.email ?? '',
+            address:       '',
+            pendingAmount: Number(d.customer.pendingAmount),
+          } : { ...this.customer },
+          items:         this.billItems.map(i => ({ ...i, product: { ...i.product } })),
+          gstEnabled:    this.gstEnabled,
+          paymentMethod: effectiveMethod,
+          khataAmount:   Number(d.khataAmount),
+          subtotal:      Number(d.subtotal),
+          totalDiscount: Number(d.totalDiscount),
+          gstAmount:     Number(d.gstAmount),
+          grandTotal:    Number(d.grandTotal),
+        };
+
+        this.savedBills.unshift(bill);
+        this.printBill  = bill;
+        this.paymentState = 'done';
+
+        const notifDesc = khataAmt > 0
+          ? `${this.customer.name} — ${this.inr(Number(d.grandTotal) - khataAmt)} now + ${this.inr(khataAmt)} khata`
+          : `${this.customer.name} paid ${this.inr(Number(d.grandTotal))} — ${d.billId}`;
+        this.notifSvc.push('payment', this.payIcon(effectiveMethod),
+          `${this.payLabel(effectiveMethod)} Payment`, notifDesc);
+
+        if (!this.knownCustomers.find(c => c.phone === this.customer.phone)) {
+          this.knownCustomers.push({ ...this.customer });
+        }
+      },
+      error: err => {
+        this.khataLoading = false;
+        const msg = err?.error?.message ?? 'Billing failed. Please try again.';
+        this.notifSvc.push('message', '❌', 'Billing Error', msg);
+      },
+    });
   }
 
   doPrint() { setTimeout(() => window.print(), 100); }
@@ -390,13 +520,21 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.searchQ       = '';
     this.selectedCategory = '';
     this.printBill = null;
-    this.productsShown = 20;
-    this.phoneDropdown = [];
-    this.showPhoneDropdown = false;
+    this.phoneDropdown      = [];
+    this.showPhoneDropdown  = false;
+    this.phoneSearchDone    = false;
+    this.isExistingCustomer = false;
     this.nameTouched   = false;
     this.phoneTouched  = false;
     this.emailTouched  = false;
+    this.prodPage      = 0;
     this.upiState      = 'init';
+    this.paymentMode   = 'full';
+    this.paidNow       = null;
+    this.partialMethod = null;
+    this.khataLoading  = false;
+    this.historyLoaded = false;   // force reload on next history visit
+    this._activeTab    = 'new';
   }
 
   // ── Bill history ──────────────────────────────────────────────────────────
@@ -415,35 +553,59 @@ export class BillingComponent implements OnInit, OnDestroy {
     );
   }
 
-  // ── Storage ───────────────────────────────────────────────────────────────
-
-  private loadFromStorage() {
-    try {
-      const cnt = localStorage.getItem(this.LS_COUNTER);
-      if (cnt) this.counter = parseInt(cnt, 10);
-
-      const raw = localStorage.getItem(this.LS_BILLS);
-      if (raw) {
-        this.savedBills = JSON.parse(raw).map((b: any) => ({ ...b, date: new Date(b.date) }));
-      }
-
-      const custs = localStorage.getItem(this.LS_CUSTOMERS);
-      if (custs) {
-        const saved: Customer[] = JSON.parse(custs);
-        saved.forEach(c => {
-          if (!this.knownCustomers.find(k => k.phone === c.phone)) this.knownCustomers.push(c);
-        });
-      }
-    } catch { /* ignore corrupt storage */ }
+  loadHistory() {
+    this.historyLoading = true;
+    this.http.get<ApiResponse<any>>(this.BILLING_EP.LIST, {
+      params: { page: '0', size: '100' }
+    }).subscribe({
+      next: res => {
+        this.savedBills    = (res.data?.content ?? []).map((d: any) => this.mapApiToBill(d));
+        this.historyLoading = false;
+        this.historyLoaded  = true;
+      },
+      error: () => { this.historyLoading = false; }
+    });
   }
 
-  private persist() {
-    try {
-      localStorage.setItem(this.LS_COUNTER,   String(this.counter));
-      localStorage.setItem(this.LS_BILLS,     JSON.stringify(this.savedBills));
-      localStorage.setItem(this.LS_CUSTOMERS, JSON.stringify(this.knownCustomers));
-    } catch { /* storage quota exceeded */ }
+  private mapApiToBill(d: any): SavedBill {
+    return {
+      id:   d.billId,
+      uuid: d.id,
+      date: new Date(d.createdAt),
+      customer: d.customer ? {
+        id:            d.customer.id,
+        phone:         d.customer.phone    ?? '',
+        name:          d.customer.name     ?? 'Walk-in',
+        email:         d.customer.email    ?? '',
+        address:       '',
+        pendingAmount: Number(d.customer.pendingAmount ?? 0),
+      } : { phone: '', name: 'Walk-in', email: '', address: '' },
+      items: (d.lineItems ?? []).map((li: any) => ({
+        product: {
+          id:              li.productId      ?? '',
+          name:            li.productName    ?? '',
+          sku:             li.productSku     ?? '',
+          priceRetail:     Number(li.unitPrice  ?? 0),
+          gstPercent:      Number(li.gstPercent ?? 0),
+          stockQty:        0,
+          categoryName:    '',
+          primaryImageUrl: null,
+          status:          'ACTIVE',
+        },
+        qty:       li.qty,
+        unitPrice: Number(li.unitPrice ?? 0),
+        discount:  Number(li.discount  ?? 0),
+      })),
+      gstEnabled:    d.gstEnabled    ?? false,
+      paymentMethod: d.paymentMethod ?? '',
+      khataAmount:   Number(d.khataAmount   ?? 0),
+      subtotal:      Number(d.subtotal      ?? 0),
+      totalDiscount: Number(d.totalDiscount ?? 0),
+      gstAmount:     Number(d.gstAmount     ?? 0),
+      grandTotal:    Number(d.grandTotal    ?? 0),
+    };
   }
+
 
   // ── Utilities ─────────────────────────────────────────────────────────────
 
@@ -459,8 +621,20 @@ export class BillingComponent implements OnInit, OnDestroy {
     return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   }
 
-  payLabel(m: string): string { return m === 'cash' ? 'Cash' : m === 'upi' ? 'UPI' : 'Card'; }
-  payIcon(m: string):  string { return m === 'cash' ? '💵' : m === 'upi' ? '📱' : '💳'; }
+  payLabel(m: string): string {
+    if (m === 'cash')  return 'Cash';
+    if (m === 'upi')   return 'UPI';
+    if (m === 'card')  return 'Card';
+    if (m === 'khata') return 'Khata';
+    return m;
+  }
+  payIcon(m: string): string {
+    if (m === 'cash')  return '💵';
+    if (m === 'upi')   return '📱';
+    if (m === 'card')  return '💳';
+    if (m === 'khata') return '📒';
+    return '💰';
+  }
 
   stockClass(qty: number): string {
     if (qty === 0) return 's-out';
