@@ -235,12 +235,12 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   lineSubtotal(item: BillItem): number { return item.qty * item.unitPrice; }
   lineTotal(item: BillItem): number {
-    return Math.max(0, item.qty * item.unitPrice - (item.discount || 0));
+    const disc = Math.max(0, item.discount || 0);
+    return item.qty * item.unitPrice - disc;
   }
   lineGst(item: BillItem): number {
-    return this.gstEnabled
-      ? Math.round((this.lineTotal(item) * item.product.gstPercent) / 100)
-      : 0;
+    if (!this.gstEnabled) return 0;
+    return Math.round((this.lineTotal(item) * item.product.gstPercent / 100) * 100) / 100;
   }
 
   get subtotal():      number { return this.billItems.reduce((s, i) => s + this.lineSubtotal(i), 0); }

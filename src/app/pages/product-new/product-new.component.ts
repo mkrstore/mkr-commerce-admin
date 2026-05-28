@@ -1,9 +1,9 @@
 import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { finalize } from 'rxjs';
+import { concat, from, finalize } from 'rxjs';
 import { PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
 import {
@@ -31,7 +31,7 @@ interface VariantForm {
 @Component({
   selector: 'app-product-new',
   standalone: true,
-  imports: [CommonModule, FormsModule,
+  imports: [CommonModule, FormsModule, RouterLink,
     AppBtnComponent, AppInputComponent,
     AppSelectComponent, AppTextareaComponent, AppCheckboxComponent],
   templateUrl: './product-new.component.html',
@@ -244,8 +244,7 @@ export class ProductNewComponent implements OnInit {
       .subscribe({
         next: () => {
           this.touched = false;
-          // Skip spec fields step if category has no attrs defined
-          this.step = (this.attrDefs.length > 0) ? 3 : 4;
+          this.step = (this.attrLoading || this.attrDefs.length > 0) ? 3 : 4;
         },
         error: e => this.error = extractErrorMessage(e)
       });
@@ -304,32 +303,28 @@ export class ProductNewComponent implements OnInit {
     this.variantError = '';
     this.saving = true;
 
-    const saveVariants$ = this.variants.length > 0
-      ? Promise.all(this.variants.map(v =>
-          this.http.post<ApiResponse<any>>(PRODUCT_ENDPOINTS.VARIANTS(this.productId), {
-            colorName:     v.colorName.trim(),
-            colorHex:      v.colorHex || null,
-            size:          v.size.trim() || null,
-            priceOverride: v.priceOverride || null,
-            stockQty:      v.stockQty || 0,
-          }).toPromise()
-        ))
-      : Promise.resolve([]);
+    const variantRequests = this.variants.map(v =>
+      this.http.post<ApiResponse<any>>(PRODUCT_ENDPOINTS.VARIANTS(this.productId), {
+        colorName:     v.colorName.trim(),
+        colorHex:      v.colorHex || null,
+        size:          v.size.trim() || null,
+        priceOverride: v.priceOverride || null,
+        stockQty:      v.stockQty || 0,
+      })
+    );
 
-    saveVariants$.then(() => {
-      // Set status ACTIVE
-      this.http.patch<ApiResponse<any>>(PRODUCT_ENDPOINTS.BY_ID(this.productId), { status: 'ACTIVE' })
-        .subscribe({
-          next: () => {
-            this.saving = false;
-            this.productId = ''; // clear so discard guard doesn't block
-            this.router.navigate(['/products']);
-          },
-          error: e => { this.saving = false; this.error = extractErrorMessage(e); }
-        });
-    }).catch(e => {
-      this.saving = false;
-      this.variantError = extractErrorMessage(e);
+    const activate$ = this.http.patch<ApiResponse<any>>(
+      PRODUCT_ENDPOINTS.BY_ID(this.productId), { status: 'ACTIVE' }
+    );
+
+    concat(...variantRequests, activate$).pipe(
+      finalize(() => this.saving = false)
+    ).subscribe({
+      complete: () => {
+        this.productId = '';
+        this.router.navigate(['/products']);
+      },
+      error: e => { this.variantError = extractErrorMessage(e); }
     });
   }
 
@@ -371,9 +366,13 @@ export class ProductNewComponent implements OnInit {
   get isLastStep(): boolean { return this.step === 4; }
   get hasNoAttrs(): boolean { return !this.attrLoading && this.attrDefs.length === 0; }
 
+  trackGroup(_: number, grp: { name: string }) { return grp.name; }
+  trackAttr(_: number, attr: AttributeDefinitionDto) { return attr.id; }
+
   get attrGroups(): { name: string; attrs: AttributeDefinitionDto[] }[] {
     const map = new Map<string, AttributeDefinitionDto[]>();
     for (const def of this.attrDefs) {
+      if (def.fieldKey?.toLowerCase() === 'brand') continue;
       const key = def.groupName?.trim() || 'General';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(def);

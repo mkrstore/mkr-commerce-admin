@@ -236,11 +236,27 @@ export class CategoriesComponent implements OnInit {
   initials(name: string) { return name.slice(0, 2).toUpperCase(); }
 
   get parentCategoryOpts() {
+    const blocked = this.modalMode === 'edit' && this.editTarget
+      ? this.collectDescendantIds(this.tree(), this.editTarget.id)
+      : new Set<string>();
     return this.flatTree(this.tree()).map(n => ({
       value: n.id,
       label: n.label,
-      disabled: this.modalMode === 'edit' && n.id === this.editTarget?.id
+      disabled: blocked.has(n.id)
     }));
+  }
+
+  private collectDescendantIds(nodes: CategoryNode[], rootId: string): Set<string> {
+    const ids = new Set<string>();
+    const walk = (list: CategoryNode[], inside: boolean) => {
+      for (const n of list) {
+        const enter = inside || n.id === rootId;
+        if (enter) ids.add(n.id);
+        if (n.children?.length) walk(n.children, enter);
+      }
+    };
+    walk(nodes, false);
+    return ids;
   }
 
   get fieldTypeOpts() {

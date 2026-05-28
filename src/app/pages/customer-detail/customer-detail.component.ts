@@ -173,7 +173,8 @@ export class CustomerDetailComponent implements OnInit {
     if (!this.customer) return;
     if (this.editForm.type !== this.customer.type) {
       this.customerService.updateType(this.customer.id, this.editForm.type).subscribe({
-        next: updated => { if (this.customer) this.customer = { ...this.customer, type: updated.type }; }
+        next: updated => { if (this.customer) this.customer = { ...this.customer, type: updated.type }; },
+        error: err => { this.error = extractErrorMessage(err); }
       });
     }
     this.localNotes    = this.editForm.notes;
