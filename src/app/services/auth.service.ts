@@ -4,7 +4,8 @@ import { Router } from '@angular/router';
 import { Observable, tap, catchError, map, timeout } from 'rxjs';
 import { AUTH_ENDPOINTS }             from '../core/constants/api.constants';
 import { ROLE_META }                  from '../core/constants/roles.constants';
-import { ApiResponse }                from '../core/models/api.models';
+import { ApiResponse, extractErrorCode, ErrorCode } from '../core/models/api.models';
+import { ToastService }              from './toast.service';
 
 // ── Domain types ──────────────────────────────────────────────────────────────
 
@@ -43,7 +44,11 @@ export class AuthService {
   isLoggedIn  = computed(() => this._user() !== null);
   accessToken = computed(() => this._accessToken());
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(
+    private http:  HttpClient,
+    private router: Router,
+    private toast: ToastService,
+  ) {}
 
   // ── APP_INITIALIZER ────────────────────────────────────────────────────────
   // Called once on startup — silently restores session from the HttpOnly cookie.
@@ -52,7 +57,7 @@ export class AuthService {
   initAuth(): Promise<void> {
     return new Promise(resolve => {
       this.http.post<ApiResponse<LoginResponse>>(this.EP.REFRESH, {})
-        .pipe(timeout(5000))
+        .pipe(timeout(28000))
         .subscribe({
           next: res => {
             if (res.data) {
@@ -61,7 +66,13 @@ export class AuthService {
             }
             resolve();
           },
-          error: () => resolve()
+          error: (err) => {
+            // Refresh token present but expired — show toast when user lands on login
+            if (extractErrorCode(err) === ErrorCode.REFRESH_TOKEN_INVALID) {
+              this.toast.show('Your session has expired. Please sign in again.', 'warning');
+            }
+            resolve();
+          }
         });
     });
   }
@@ -105,10 +116,14 @@ export class AuthService {
 
   logout(): void {
     this.http.post(this.EP.LOGOUT, {}).subscribe({ error: () => {} });
+    this.toast.show('You have been signed out successfully.', 'success');
     this.clearSession();
   }
 
-  clearSession(): void {
+  clearSession(reason?: 'session_expired'): void {
+    if (reason === 'session_expired') {
+      this.toast.show('Your session has expired. Please sign in again.', 'warning');
+    }
     this._accessToken.set(null);
     this._user.set(null);
     this.router.navigate(['/login']);

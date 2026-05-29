@@ -107,7 +107,7 @@ export const authInterceptor: HttpInterceptorFn = (
           // ── 5. Session clear ─────────────────────────────────────────
           isRefreshing = false;
           refreshDone$.next(false);
-          auth.clearSession();
+          auth.clearSession('session_expired');
           return throwError(() => refreshError);
         })
       );

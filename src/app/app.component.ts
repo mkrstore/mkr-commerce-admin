@@ -8,13 +8,14 @@ import { SidebarComponent } from './layout/sidebar/sidebar.component';
 import { TopbarComponent } from './layout/topbar/topbar.component';
 import { BottomNavComponent } from './layout/bottom-nav/bottom-nav.component';
 import { ConfirmDialogComponent } from './shared/ui/confirm-dialog/confirm-dialog.component';
+import { ToastComponent } from './shared/ui/toast/toast.component';
 import { ThemeService } from './services/theme.service';
 import { SidebarService } from './services/sidebar.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, CommonModule, SidebarComponent, TopbarComponent, BottomNavComponent, ConfirmDialogComponent],
+  imports: [RouterOutlet, CommonModule, SidebarComponent, TopbarComponent, BottomNavComponent, ConfirmDialogComponent, ToastComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })

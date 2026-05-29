@@ -87,6 +87,7 @@ export class LoginComponent {
       this.location.replaceState('/login');
       return;
     }
+
     if (this.auth.isLoggedIn()) this.router.navigate(['/dashboard']);
   }
 
