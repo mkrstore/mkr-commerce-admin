@@ -105,7 +105,7 @@
   width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
-.l1-thumb-img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.l1-thumb-img { width: 100%; height: 100%; object-fit: cover; }
 .l1-initials  { font-size: 13px; font-weight: 800; }
 
 .l1-info { flex: 1; min-width: 0; }
@@ -150,7 +150,7 @@
   height: 80px;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
-.l2-thumb-img { width: 100%; height: 100%; object-fit: contain; padding: 8px; }
+.l2-thumb-img { width: 100%; height: 100%; object-fit: cover; }
 .l2-initials  { font-size: 22px; font-weight: 800; }
 .l2-status-pill {
   position: absolute; top: 6px; right: 6px;
@@ -226,7 +226,7 @@
   position: relative;
   width: 100%; height: 110px;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
-  img, video { width: 100%; height: 100%; object-fit: contain; padding: 16px; }
+  img, video { width: 100%; height: 100%; object-fit: cover; }
 }
 .cc-initials { font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
 .cc-status-pill { position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 600; padding: 3px 8px; }
@@ -254,7 +254,7 @@
 .cat-logo-cell {
   width: 34px; height: 34px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
-  img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+  img { width: 100%; height: 100%; object-fit: cover; }
 }
 .cat-cell-initials { font-size: 13px; font-weight: 800; }
 
@@ -275,7 +275,7 @@
 .ci-logo {
   width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
-  img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+  img { width: 100%; height: 100%; object-fit: cover; }
 }
 .ci-initials { font-size: 13px; font-weight: 800; }
 .ci-info { display: flex; flex-direction: column; gap: 1px; min-width: 140px; flex-shrink: 0; }

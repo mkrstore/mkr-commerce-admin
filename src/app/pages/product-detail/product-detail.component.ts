@@ -596,9 +596,13 @@ export class ProductDetailComponent implements OnInit {
       : [...current, option];
   }
 
+  trackGroup(_: number, grp: { name: string }) { return grp.name; }
+  trackAttr(_: number, def: AttributeDefinitionDto) { return def.id; }
+
   get attrGroups(): { name: string; attrs: AttributeDefinitionDto[] }[] {
     const map = new Map<string, AttributeDefinitionDto[]>();
     for (const def of this.attrDefs) {
+      if (def.fieldKey?.toLowerCase() === 'brand') continue;
       const key = def.groupName?.trim() || 'General';
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(def);

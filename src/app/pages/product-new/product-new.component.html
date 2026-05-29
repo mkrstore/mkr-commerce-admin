@@ -16,19 +16,17 @@
 <!-- ── FULL PAGE ── -->
 <div class="pnew">
 
-  <!-- Header -->
+  <!-- Header / Breadcrumb -->
   <div class="pnew-hd">
-    <button class="pnew-back" (click)="back()">
-      <span class="icon icon-sm">arrow_back</span>
-    </button>
-    <div class="pnew-hd-text">
-      <div class="pnew-title">New Product</div>
-      <div class="pnew-sub">Step {{ step }} of 4 — {{ stepLabel }}</div>
+    <div class="pnew-breadcrumb">
+      <a class="pnew-bc-link" routerLink="/products">
+        <span class="icon icon-xs">inventory_2</span>
+        Products
+      </a>
+      <span class="icon icon-xs pnew-bc-sep">chevron_right</span>
+      <span class="pnew-bc-current">New Product</span>
     </div>
-    <button class="pnew-discard" (click)="tryDiscard()">
-      <span class="icon icon-sm">close</span>
-      <span class="hide-mobile">Discard</span>
-    </button>
+    <div class="pnew-bc-sub">Step {{ step }} of 4 — {{ stepLabel }}</div>
   </div>
 
   <!-- Step indicator -->
@@ -148,14 +146,14 @@
 
         <!-- Attrs form — grouped by groupName -->
         <ng-container *ngIf="!attrLoading && attrDefs.length > 0">
-          <div class="attr-group" *ngFor="let grp of attrGroups">
+          <div class="attr-group" *ngFor="let grp of attrGroups; trackBy: trackGroup">
             <div class="attr-group-hd">
               <span class="icon icon-sm">tune</span>
               {{ grp.name }}
               <span class="attr-group-count">{{ grp.attrs.length }}</span>
             </div>
             <div class="attr-group-body">
-              <ng-container *ngFor="let attr of grp.attrs">
+              <ng-container *ngFor="let attr of grp.attrs; trackBy: trackAttr">
 
                 <!-- TEXT / NUMBER -->
                 <app-input *ngIf="attr.fieldType === 'TEXT' || attr.fieldType === 'NUMBER'"
@@ -283,7 +281,12 @@
 
   <!-- ── Footer ── -->
   <div class="pnew-footer">
-    <div class="pnew-footer-actions">
+    <button class="pnew-discard-btn" (click)="tryDiscard()" *ngIf="productId">
+      <span class="icon icon-sm">delete_outline</span>
+      <span class="hide-mobile">Discard</span>
+    </button>
+
+    <div class="pnew-footer-right">
       <app-btn variant="ghost" (clicked)="back()">
         <span class="icon icon-sm">arrow_back</span>
         {{ step === 1 ? 'Cancel' : 'Back' }}

@@ -28,35 +28,18 @@
   &:hover { background: var(--surface2); color: var(--t1); }
 }
 
-.adm-pg-title {
-  font-size: 18px;
+// Logo — hidden on desktop (sidebar shows it), visible on mobile only
+.tb-logo {
+  display: none;
+  font-size: 16px;
   font-weight: 800;
   color: var(--t1);
-  flex: 1;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  b { color: var(--blue); font-weight: 900; }
 }
 
-.adm-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 7px 14px;
-  width: 200px;
-
-  input {
-    background: none;
-    border: none;
-    outline: none;
-    font-size: 13px;
-    color: var(--t1);
-    width: 100%;
-    &::placeholder { color: var(--t3); }
-  }
-
-  .search-icon { color: var(--t3); line-height: 1; }
-}
+.tb-spacer { flex: 1; }
 
 // ── Notification Bell ──────────────────────────────────────────────────────────
 
@@ -374,9 +357,8 @@
 // ── Responsive ─────────────────────────────────────────────────────────────────
 
 @media (max-width: 768px) {
-  .menu-btn   { display: flex; }
-  .adm-search { display: none; }
-  .adm-pg-title { font-size: 16px; }
+  .menu-btn { display: flex; }
+  .tb-logo  { display: block; }  // sidebar hidden on mobile — show logo in topbar
 
   .notif-panel {
     position: fixed;
@@ -390,6 +372,6 @@
 
 @media (max-width: 480px) {
   .adm-topbar { padding: 0 12px; gap: 6px; }
-  .adm-pg-title { font-size: 15px; }
+  .tb-logo    { font-size: 14px; }
   .adm-avatar-btn { width: 30px; height: 30px; font-size: 11px; }
 }

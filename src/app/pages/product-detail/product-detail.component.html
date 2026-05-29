@@ -147,14 +147,14 @@
 
     <!-- Grouped attributes -->
     <ng-container *ngIf="attrDefs.length > 0">
-      <div class="attr-group" *ngFor="let grp of attrGroups">
+      <div class="attr-group" *ngFor="let grp of attrGroups; trackBy: trackGroup">
         <div class="attr-group-hd">
           <span class="icon icon-sm">tune</span>
           {{ grp.name }}
           <span class="attr-group-count">{{ grp.attrs.length }}</span>
         </div>
         <div class="form-grid">
-          <div class="fg" *ngFor="let def of grp.attrs">
+          <div class="fg" *ngFor="let def of grp.attrs; trackBy: trackAttr">
             <app-input *ngIf="def.fieldType === 'TEXT'" [label]="def.label"
               [optLabel]="def.unit ?? ''" [required]="def.required"
               [value]="attrValues[def.id]" (valueChange)="attrValues[def.id] = $event"

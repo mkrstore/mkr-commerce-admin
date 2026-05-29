@@ -121,8 +121,8 @@ export class AppSelectComponent implements OnDestroy {
 
   open = signal(false);
   dropdownStyle: Record<string, string> = {};
-  private rafId: number | null = null;
-  private openedAt = { top: 0, left: 0 };
+
+  private readonly onScroll = () => { if (this.open()) this.close(); };
 
   get selectedLabel(): string {
     return this.options.find(o => o.value == this.value)?.label ?? '';
@@ -155,33 +155,17 @@ export class AppSelectComponent implements OnDestroy {
         style['maxHeight'] = Math.min(240, spaceBelow - 8) + 'px';
       }
       this.dropdownStyle = style;
-      this.openedAt = { top: rect.top, left: rect.left };
       this.open.set(true);
-      this.trackPosition();
+      // Close on any scroll anywhere (capture phase catches container scrolls too)
+      document.addEventListener('scroll', this.onScroll, { capture: true, passive: true });
     } else {
       this.close();
     }
   }
 
-  private trackPosition() {
-    const check = () => {
-      if (!this.open()) return;
-      const rect = this.triggerBtn.nativeElement.getBoundingClientRect();
-      if (Math.abs(rect.top - this.openedAt.top) > 2 || Math.abs(rect.left - this.openedAt.left) > 2) {
-        this.close();
-        return;
-      }
-      this.rafId = requestAnimationFrame(check);
-    };
-    this.rafId = requestAnimationFrame(check);
-  }
-
   private close() {
     this.open.set(false);
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = null;
-    }
+    document.removeEventListener('scroll', this.onScroll, { capture: true });
   }
 
   pick(val: any) {
@@ -203,7 +187,7 @@ export class AppSelectComponent implements OnDestroy {
   onEsc() { this.close(); }
 
   ngOnDestroy() {
-    if (this.rafId !== null) cancelAnimationFrame(this.rafId);
+    document.removeEventListener('scroll', this.onScroll, { capture: true });
   }
 
   constructor(private el: ElementRef) {}

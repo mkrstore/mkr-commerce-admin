@@ -254,6 +254,32 @@
   &.s-out { background: #fee2e2; color: #991b1b; }
 }
 
+.pl-loading {
+  display: flex; align-items: center; gap: 8px;
+  padding: 1rem; font-size: .82rem; color: var(--t3);
+}
+.pl-spin { animation: pd-spin .8s linear infinite; }
+
+.prod-pagination {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: .6rem; border-top: 1px solid #f3f4f6;
+}
+.pp-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border: 1px solid #e5e7eb; border-radius: 6px;
+  background: #fff; cursor: pointer; color: var(--t1);
+  &:disabled { opacity: .4; cursor: not-allowed; }
+  &:hover:not(:disabled) { background: #f3f4f6; }
+}
+.pp-info { font-size: .78rem; color: var(--t2); font-weight: 500; min-width: 60px; text-align: center; }
+
+.cust-change-btn {
+  flex-shrink: 0; background: none; border: none; cursor: pointer;
+  font-size: .75rem; font-weight: 600; color: var(--blue); padding: 0 4px;
+  font-family: inherit;
+  &:hover { text-decoration: underline; }
+}
+
 .scroll-hint {
   text-align: center;
   padding: .5rem;
@@ -438,8 +464,9 @@
   padding: .48rem .7rem;
   font-size: .84rem;
   outline: none;
-  transition: border-color .15s;
+  transition: border-color .15s, background .15s;
   &:focus { border-color: #2874F0; }
+  &:disabled { background: #f9fafb; color: #6b7280; cursor: default; border-color: #e5e7eb; }
 }
 
 .field-error {
@@ -491,6 +518,14 @@
   animation: pd-spin .7s linear infinite;
 }
 @keyframes pd-spin { to { transform: rotate(360deg); } }
+.pd-new {
+  display: flex; align-items: center; gap: 8px;
+  padding: .5rem .7rem; font-size: .78rem; color: var(--blue);
+  font-weight: 500; cursor: pointer;
+  border-top: 1px solid var(--border);
+  &:hover { background: var(--hover); }
+}
+.pd-new-icon { font-size: .85rem; }
 
 // GST toggle
 .gst-toggle {
@@ -540,6 +575,11 @@
   &.gst-row span:last-child { color: #6b7280; }
 }
 .gst-note { font-size: .68rem; color: #9ca3af; }
+
+.khata-bal-row   { margin-top: .15rem; }
+.khata-bal-amt   { font-weight: 700; color: #7c3aed; }
+.khata-final-row { margin-top: .15rem; }
+.khata-final-amt { font-weight: 700; color: #ef4444; }
 .sum-divider { border-top: 1px dashed #e5e7eb; margin: .5rem 0; }
 .sum-total {
   display: flex;
@@ -585,6 +625,134 @@
   &.cash:hover { border-color: #16a34a; color: #16a34a; background: #f0fdf4; }
   &.upi:hover  { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
   &.card:hover { border-color: #2874F0; color: #2874F0; background: #eff6ff; }
+}
+
+// ─── KHATA OPTIONS ────────────────────────────────────────────────────────────
+
+.khata-options { margin-top: .5rem; }
+
+.khata-divider {
+  display: flex; align-items: center; gap: .5rem; margin: .65rem 0 .5rem;
+  &::before, &::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
+  span { font-size: .68rem; color: #9ca3af; white-space: nowrap; }
+}
+
+.khata-btns { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+
+.pay-btn.khata-partial {
+  &:hover:not(:disabled) { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
+  &:disabled { opacity: .4; cursor: not-allowed; }
+}
+.pay-btn.khata-full {
+  &:hover:not(:disabled) { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
+  &:disabled { opacity: .4; cursor: not-allowed; }
+}
+
+.khata-note {
+  font-size: .7rem; color: #9ca3af; text-align: center; margin-top: .4rem;
+}
+
+// ─── PARTIAL PAYMENT BOX ──────────────────────────────────────────────────────
+
+.pay-partial-box { }
+
+.partial-input-row { margin: .75rem 0 .5rem; }
+
+.partial-label {
+  display: block; font-size: .72rem; color: #6b7280; font-weight: 500;
+  margin-bottom: .25rem;
+}
+
+.partial-input-wrap {
+  display: flex; align-items: center;
+  border: 1.5px solid #d1d5db; border-radius: 8px; overflow: hidden;
+  &:focus-within { border-color: #2874F0; }
+}
+.partial-prefix {
+  padding: .45rem .6rem; background: #f9fafb; font-size: .84rem;
+  color: #6b7280; border-right: 1px solid #d1d5db; flex-shrink: 0;
+}
+.partial-input {
+  flex: 1; border: none; outline: none;
+  padding: .45rem .6rem; font-size: 1rem; font-weight: 700;
+  color: #111827;
+  &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { -webkit-appearance: none; }
+}
+
+.partial-preview {
+  background: #f9fafb; border-radius: 8px; padding: .55rem .75rem;
+  margin-bottom: .65rem;
+}
+.partial-preview-row {
+  display: flex; justify-content: space-between;
+  font-size: .82rem; color: #374151;
+  margin-bottom: .3rem;
+  &:last-child { margin-bottom: 0; }
+}
+.partial-preview-divider { border-top: 1px dashed #e5e7eb; margin: .35rem 0; }
+.pp-paid     { font-weight: 700; color: #16a34a; }
+.pp-khata    { font-weight: 700; color: #ef4444; }
+.pp-balance-row span:first-child { color: #6b7280; font-size: .78rem; }
+.pp-balance  { font-weight: 700; color: #7c3aed; }
+
+.partial-methods { margin-bottom: .75rem; }
+.pay-methods-sm { display: flex; gap: .35rem; margin-top: .3rem; }
+.pay-btn-sm {
+  flex: 1; padding: .45rem .2rem;
+  border: 1.5px solid #e5e7eb; border-radius: 8px;
+  background: #f9fafb; cursor: pointer;
+  font-size: .72rem; font-weight: 600; color: #374151;
+  transition: all .15s;
+  &.selected { border-color: #2874F0; background: #eff6ff; color: #2874F0; }
+  &:hover:not(.selected) { background: #f3f4f6; }
+}
+
+// ─── FULL KHATA BOX ───────────────────────────────────────────────────────────
+
+.pay-khata-box { text-align: center; }
+.khata-confirm-icon { font-size: 2.5rem; margin-bottom: .4rem; display: block; }
+.khata-confirm-text { font-size: .9rem; font-weight: 600; color: #7c3aed; margin-bottom: .75rem; }
+.khata-confirm-sub  { font-size: .78rem; color: #9ca3af; margin-bottom: .875rem; }
+
+.khata-debit-preview {
+  background: #fef2f2; border-radius: 8px; padding: .55rem .75rem;
+  margin-bottom: .75rem; text-align: left;
+}
+.kdp-row {
+  display: flex; justify-content: space-between;
+  font-size: .82rem; color: #374151; margin-bottom: .25rem;
+  &:last-child { margin-bottom: 0; }
+}
+.kdp-debit   { font-weight: 700; color: #ef4444; }
+.kdp-balance-row {
+  border-top: 1px dashed #fca5a5; padding-top: .25rem; margin-top: .25rem;
+  span:first-child { color: #6b7280; font-size: .78rem; }
+}
+.kdp-balance { font-weight: 700; color: #7c3aed; }
+
+.khata-confirm-btn {
+  background: #7c3aed !important;
+  &:hover { background: #6d28d9 !important; }
+}
+
+// ─── SUCCESS SCREEN KHATA ─────────────────────────────────────────────────────
+
+.ss-khata {
+  display: inline-block;
+  font-size: .82rem; color: #7c3aed; font-weight: 600;
+  background: #faf5ff; border-radius: 6px; padding: .25rem .75rem;
+  margin: .2rem 0;
+}
+
+// ─── HISTORY BADGE KHATA ──────────────────────────────────────────────────────
+
+.h-pay-badge.khata { background: #faf5ff; color: #7c3aed; }
+
+// ─── BILL DETAIL KHATA ROW ────────────────────────────────────────────────────
+
+.bd-khata-row {
+  text-align: center; font-size: .82rem; font-weight: 600; color: #7c3aed;
+  background: #faf5ff; border-radius: 6px; padding: .3rem .5rem; margin-top: .4rem;
 }
 
 // Cash/Card confirm

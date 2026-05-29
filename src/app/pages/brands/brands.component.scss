@@ -43,7 +43,7 @@
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
 
-  img, video { width: 100%; height: 100%; object-fit: contain; padding: 16px; }
+  img, video { width: 100%; height: 100%; object-fit: cover; }
 }
 
 .bc-initials {
@@ -111,7 +111,7 @@
   width: 72px; height: 72px; border-radius: 12px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
   position: relative; border: 1px solid var(--border);
-  img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
+  img { width: 100%; height: 100%; object-fit: cover; }
 }
 .ls-initials { font-size: 24px; font-weight: 800; }
 .ls-uploading {
@@ -146,7 +146,7 @@
   width: 36px; height: 36px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--surface2);
   display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;
-  img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+  img { width: 100%; height: 100%; object-fit: cover; }
 }
 
 .slug-badge {
@@ -178,7 +178,7 @@
 .ci-logo {
   width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center; overflow: hidden;
-  img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+  img { width: 100%; height: 100%; object-fit: cover; }
 }
 
 .ci-initials {
