@@ -7,14 +7,14 @@
         [class.active]="activeTab === 'new'"
         (click)="activeTab = 'new'"
       >
-        🧾 New Bill
+        <span class="icon icon-sm">receipt_long</span> New Bill
       </button>
       <button
         class="tab"
         [class.active]="activeTab === 'history'"
         (click)="activeTab = 'history'"
       >
-        📋 Bill History
+        <span class="icon icon-sm">history</span> Bill History
         <span class="tab-badge" *ngIf="savedBills.length">{{
           savedBills.length
         }}</span>
@@ -32,7 +32,7 @@
         *ngIf="paymentState === 'done'"
         (click)="startNewBill()"
       >
-        ➕ New Bill
+        <span class="icon icon-sm">add</span> New Bill
       </button>
     </div>
   </div>
@@ -41,31 +41,52 @@
   <ng-container *ngIf="activeTab === 'new'">
     <!-- SUCCESS STATE -->
     <div class="success-screen" *ngIf="paymentState === 'done' && printBill">
-      <div class="ss-icon">✅</div>
+      <div class="ss-icon"><span class="icon" style="color:var(--green);font-size:3.5rem;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 48">check_circle</span></div>
       <h2 class="ss-heading">Payment Confirmed!</h2>
       <p class="ss-id">{{ printBill.id }}</p>
       <p class="ss-amount">{{ inr(printBill.grandTotal) }}</p>
       <p class="ss-method">
-        {{ payIcon(printBill.paymentMethod) }}
+        <span class="icon icon-sm">{{ payIconName(printBill.paymentMethod) }}</span>
         {{ payLabel(printBill.paymentMethod) }}
         <ng-container *ngIf="printBill.khataAmount === 0"> — PAID</ng-container>
         <ng-container *ngIf="printBill.khataAmount > 0"> — {{ inr(printBill.grandTotal - printBill.khataAmount) }} collected</ng-container>
       </p>
       <p class="ss-khata" *ngIf="printBill.khataAmount > 0">
-        📒 {{ inr(printBill.khataAmount) }} added to {{ printBill.customer.name }}'s Khata
+        <span class="icon icon-sm">menu_book</span> {{ inr(printBill.khataAmount) }} added to {{ printBill.customer.name }}'s Khata
       </p>
       <p class="ss-customer">
         {{ printBill.customer.name }} &middot; {{ printBill.customer.phone }}
       </p>
       <div class="ss-actions">
-        <button class="btn-print" (click)="doPrint()">🖨️ Print Receipt</button>
+        <button class="btn-print" (click)="doPrint()">
+          <span class="icon icon-sm">print</span> Print
+        </button>
+        <button class="btn-pdf" (click)="downloadPdf(printBill)" [disabled]="pdfLoading">
+          <span class="icon icon-sm">{{ pdfLoading ? 'hourglass_top' : 'picture_as_pdf' }}</span>
+          PDF
+        </button>
+        <button class="btn-email" (click)="sendEmail(printBill)"
+                *ngIf="printBill.customer?.email"
+                [disabled]="emailSending">
+          <span class="icon icon-sm">{{ emailSending ? 'hourglass_top' : 'mail' }}</span>
+          Email
+        </button>
+        <button class="btn-whatsapp" (click)="shareWhatsApp(printBill)"
+                *ngIf="printBill.customer?.phone">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+          </svg>
+          WhatsApp
+        </button>
         <button class="btn-start-new" (click)="startNewBill()">
-          ➕ New Bill
+          <span class="icon icon-sm">add</span> New Bill
         </button>
       </div>
-      <p class="ss-hint">
-        Print dialog opens — works with thermal printers (80mm) and normal
-        printers (A4).
+      <p class="ss-hint" *ngIf="emailSentMsg">
+        <span class="icon icon-sm" style="color:var(--green);vertical-align:middle">check_circle</span> {{ emailSentMsg }}
+      </p>
+      <p class="ss-hint" *ngIf="!emailSentMsg">
+        Print opens dialog (80mm thermal / A4) · PDF downloads a formatted invoice.
       </p>
     </div>
 
@@ -76,7 +97,7 @@
         <!-- Product Search -->
         <div class="search-card">
           <div class="search-box">
-            <span class="si">🔍</span>
+            <span class="si icon icon-sm">search</span>
             <input
               type="text"
               [(ngModel)]="searchQ"
@@ -264,7 +285,7 @@
       <div class="pos-right">
         <!-- Customer Details -->
         <div class="card">
-          <div class="card-title">👤 Customer Details</div>
+          <div class="card-title"><span class="icon icon-sm">person</span> Customer Details</div>
 
           <!-- Phone with typeahead -->
           <div class="field-wrap">
@@ -303,7 +324,7 @@
               </div>
               <!-- No results — prompt to fill in below -->
               <div class="pd-new" *ngIf="phoneSearchDone && !customerSearching" (mousedown)="showPhoneDropdown = false; phoneSearchDone = false; nameTouched = false">
-                <span class="pd-new-icon">➕</span>
+                <span class="icon icon-sm pd-new-icon">person_add</span>
                 <span>New customer — fill in name &amp; details below</span>
               </div>
             </div>
@@ -353,7 +374,7 @@
         <!-- Bill Summary -->
         <div class="card" *ngIf="billItems.length > 0">
           <div class="card-title">
-            🧾 Bill Summary
+            <span class="icon icon-sm">receipt_long</span> Bill Summary
             <label
               class="gst-toggle"
               title="GST is tax added by government. Turn ON if your shop is GST registered."
@@ -390,7 +411,7 @@
           <ng-container *ngIf="customer.id && (customer.pendingAmount ?? 0) > 0">
             <div class="sum-divider" style="margin-top:.5rem"></div>
             <div class="sum-row khata-bal-row">
-              <span>📒 Existing Khata</span>
+              <span><span class="icon icon-sm">menu_book</span> Existing Khata</span>
               <span class="khata-bal-amt">{{ inr(customer.pendingAmount!) }}</span>
             </div>
             <div class="sum-row khata-final-row" *ngIf="khataAmountComputed > 0">
@@ -402,7 +423,7 @@
 
         <!-- Payment -->
         <div class="card" *ngIf="billItems.length > 0">
-          <div class="card-title">💳 Payment</div>
+          <div class="card-title"><span class="icon icon-sm">payments</span> Payment</div>
 
           <!-- Step 1: Select method -->
           <div *ngIf="paymentState === 'idle'">
@@ -411,13 +432,13 @@
             </p>
             <div class="pay-methods" [class.locked]="!canBill">
               <button class="pay-btn cash" (click)="selectPayment('cash')">
-                <span>💵</span>Cash
+                <span class="icon icon-sm">currency_rupee</span>Cash
               </button>
               <button class="pay-btn upi" (click)="selectPayment('upi')">
-                <span>📱</span>UPI
+                <span class="icon icon-sm">qr_code_scanner</span>UPI
               </button>
               <button class="pay-btn card" (click)="selectPayment('card')">
-                <span>💳</span>Card
+                <span class="icon icon-sm">credit_card</span>Card
               </button>
             </div>
 
@@ -431,7 +452,7 @@
                   [title]="!canUseKhata ? 'Available for known customers only' : ''"
                   (click)="selectKhataMode('partial')"
                 >
-                  <span>💰</span>Partial + Khata
+                  <span class="icon icon-sm">account_balance_wallet</span>Partial + Khata
                 </button>
                 <button
                   class="pay-btn khata-full"
@@ -439,7 +460,7 @@
                   [title]="!canUseKhata ? 'Available for known customers only' : ''"
                   (click)="selectKhataMode('khata')"
                 >
-                  <span>📒</span>Full Khata
+                  <span class="icon icon-sm">menu_book</span>Full Khata
                 </button>
               </div>
               <p class="khata-note" *ngIf="!canUseKhata">
@@ -455,7 +476,7 @@
           >
             <div class="pc-amount">{{ inr(grandTotal) }}</div>
             <div class="pc-method">
-              {{ payIcon(paymentMethod!) }}
+              <span class="icon icon-sm">{{ payIconName(paymentMethod!) }}</span>
               {{ payLabel(paymentMethod!) }} Payment
             </div>
             <p class="pc-note">
@@ -492,14 +513,14 @@
                 </p>
               </div>
               <div class="upi-apps">
-                <span title="PhonePe">📱</span>
-                <span title="Google Pay">💰</span>
-                <span title="Paytm">🔵</span>
-                <span title="Any UPI App">📲</span>
+                <span class="icon icon-sm" title="PhonePe">phone_android</span>
+                <span class="icon icon-sm" title="Google Pay">g_mobiledata</span>
+                <span class="icon icon-sm" title="Paytm">wallet</span>
+                <span class="icon icon-sm" title="Any UPI App">qr_code_2</span>
                 <span class="upi-apps-label">Any UPI app</span>
               </div>
               <button class="btn-upi-wait" (click)="startUpiWaiting()">
-                📡 I'm Waiting for Payment
+                <span class="icon icon-sm">wifi_tethering</span> Waiting for Payment
               </button>
               <div class="upi-divider">— or —</div>
               <button class="btn-confirm-sm" (click)="confirmPayment()">
@@ -517,7 +538,7 @@
             <div class="upi-waiting" *ngIf="upiState === 'waiting'">
               <div class="upi-pulse-wrap">
                 <div class="upi-pulse"></div>
-                <span class="upi-pulse-icon">📡</span>
+                <span class="icon upi-pulse-icon">wifi_tethering</span>
               </div>
               <div class="upi-wait-amount">{{ inr(grandTotal) }}</div>
               <div class="upi-wait-status">Waiting for UPI payment...</div>
@@ -539,7 +560,7 @@
 
             <!-- UPI Received: success flash before confirming -->
             <div class="upi-received" *ngIf="upiState === 'received'">
-              <div class="upi-received-icon">✅</div>
+              <div class="upi-received-icon"><span class="icon" style="color:var(--green);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 48">check_circle</span></div>
               <div class="upi-received-text">UPI Payment Received!</div>
               <div class="upi-received-sub">Saving bill...</div>
             </div>
@@ -588,9 +609,9 @@
             <div class="partial-methods" *ngIf="paidNow && paidNow > 0 && !paidNowError">
               <label class="partial-label">Pay {{ inr(paidNow) }} via</label>
               <div class="pay-methods-sm">
-                <button class="pay-btn-sm" [class.selected]="partialMethod === 'cash'" (click)="partialMethod = 'cash'">💵 Cash</button>
-                <button class="pay-btn-sm" [class.selected]="partialMethod === 'upi'"  (click)="partialMethod = 'upi'">📱 UPI</button>
-                <button class="pay-btn-sm" [class.selected]="partialMethod === 'card'" (click)="partialMethod = 'card'">💳 Card</button>
+                <button class="pay-btn-sm" [class.selected]="partialMethod === 'cash'" (click)="partialMethod = 'cash'"><span class="icon icon-xs">currency_rupee</span> Cash</button>
+                <button class="pay-btn-sm" [class.selected]="partialMethod === 'upi'"  (click)="partialMethod = 'upi'"><span class="icon icon-xs">qr_code_scanner</span> UPI</button>
+                <button class="pay-btn-sm" [class.selected]="partialMethod === 'card'" (click)="partialMethod = 'card'"><span class="icon icon-xs">credit_card</span> Card</button>
               </div>
             </div>
 
@@ -615,7 +636,7 @@
             class="pay-khata-box"
             *ngIf="paymentState === 'confirming' && paymentMode === 'khata'"
           >
-            <div class="khata-confirm-icon">📒</div>
+            <div class="khata-confirm-icon"><span class="icon" style="color:var(--blue)">menu_book</span></div>
             <div class="khata-confirm-text">Full amount to Khata</div>
 
             <div class="khata-debit-preview">
@@ -633,7 +654,7 @@
 
             <p class="khata-confirm-sub">{{ customer.name }} can pay later</p>
             <button class="btn-confirm khata-confirm-btn" (click)="confirmPayment()" [disabled]="khataLoading">
-              <span *ngIf="!khataLoading">📒 Confirm — Add {{ inr(grandTotal) }} to Khata</span>
+              <span *ngIf="!khataLoading"><span class="icon icon-sm">menu_book</span> Confirm — Add {{ inr(grandTotal) }} to Khata</span>
               <span *ngIf="khataLoading">Saving bill…</span>
             </button>
             <button
@@ -667,12 +688,12 @@
     </div>
 
     <div class="history-empty" *ngIf="historyLoading">
-      <span>⏳</span>
+      <span class="icon icon-xl" style="color:var(--t3)">sync</span>
       <p>Loading bill history…</p>
     </div>
 
     <div class="history-empty" *ngIf="!historyLoading && savedBills.length === 0">
-      <span>📋</span>
+      <span class="icon icon-xl" style="color:var(--t3)">receipt_long</span>
       <p>No bills yet. Generate your first bill from New Bill tab.</p>
     </div>
 
@@ -697,14 +718,17 @@
         </div>
         <div class="h-col-amount">{{ inr(b.grandTotal) }}</div>
         <span class="h-pay-badge" [ngClass]="b.paymentMethod">
-          {{ payIcon(b.paymentMethod) }} {{ payLabel(b.paymentMethod) }}
-          <ng-container *ngIf="b.khataAmount > 0"> +📒{{ inr(b.khataAmount) }}</ng-container>
+          <span class="icon icon-xs">{{ payIconName(b.paymentMethod) }}</span> {{ payLabel(b.paymentMethod) }}
+          <ng-container *ngIf="b.khataAmount > 0">
+            + <span class="icon icon-xs">menu_book</span>{{ inr(b.khataAmount) }}
+          </ng-container>
         </span>
         <button
           class="reprint-btn"
           (click)="$event.stopPropagation(); reprintBill(b)"
+          title="Print"
         >
-          🖨
+          <span class="icon icon-sm">print</span>
         </button>
       </div>
     </div>
@@ -729,7 +753,9 @@
           {{ fmtDate(selectedBill.date) }} at {{ fmtTime(selectedBill.date) }}
         </div>
       </div>
-      <button class="bd-close" (click)="closeBillDetail()">✕</button>
+      <button class="bd-close" (click)="closeBillDetail()">
+        <span class="icon icon-sm">close</span>
+      </button>
     </div>
 
     <div class="bd-body">
@@ -739,13 +765,13 @@
         <div class="bd-customer">
           <span class="bd-cust-name">{{ selectedBill.customer.name }}</span>
           <span class="bd-cust-phone"
-            >📱 {{ selectedBill.customer.phone }}</span
+            ><span class="icon icon-xs">phone_android</span> {{ selectedBill.customer.phone }}</span
           >
           <span class="bd-cust-email" *ngIf="selectedBill.customer.email"
-            >✉ {{ selectedBill.customer.email }}</span
+            ><span class="icon icon-xs">mail</span> {{ selectedBill.customer.email }}</span
           >
           <span class="bd-cust-addr" *ngIf="selectedBill.customer.address"
-            >📍 {{ selectedBill.customer.address }}</span
+            ><span class="icon icon-xs">location_on</span> {{ selectedBill.customer.address }}</span
           >
         </div>
       </div>
@@ -799,7 +825,7 @@
           <span>Total Paid</span><span>{{ inr(selectedBill.grandTotal) }}</span>
         </div>
         <div class="bd-pay-method">
-          {{ payIcon(selectedBill.paymentMethod) }}
+          <span class="icon icon-sm">{{ payIconName(selectedBill.paymentMethod) }}</span>
           {{ payLabel(selectedBill.paymentMethod) }}
           <ng-container *ngIf="selectedBill.khataAmount === 0"> — PAID</ng-container>
           <ng-container *ngIf="selectedBill.khataAmount > 0">
@@ -807,109 +833,32 @@
           </ng-container>
         </div>
         <div class="bd-khata-row" *ngIf="selectedBill.khataAmount > 0">
-          📒 {{ inr(selectedBill.khataAmount) }} added to khata
+          <span class="icon icon-sm">menu_book</span> {{ inr(selectedBill.khataAmount) }} added to khata
         </div>
       </div>
     </div>
 
     <div class="bd-foot">
       <button class="bd-btn-print" (click)="reprintBill(selectedBill)">
-        🖨 Print Receipt
+        <span class="icon icon-sm">print</span> Print
+      </button>
+      <button class="bd-btn-pdf" (click)="downloadPdf(selectedBill)" [disabled]="pdfLoading">
+        <span class="icon icon-sm">picture_as_pdf</span> PDF
+      </button>
+      <button class="bd-btn-email" (click)="sendEmail(selectedBill)"
+              *ngIf="selectedBill.customer?.email" [disabled]="emailSending">
+        <span class="icon icon-sm">mail</span> Email
+      </button>
+      <button class="bd-btn-whatsapp" (click)="shareWhatsApp(selectedBill)"
+              *ngIf="selectedBill.customer?.phone">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+        </svg>
+        WhatsApp
       </button>
       <button class="bd-btn-close" (click)="closeBillDetail()">Close</button>
     </div>
   </div>
 </div>
 
-<!-- ═══ PRINT RECEIPT ═══ -->
-<div class="print-receipt" *ngIf="printBill">
-  <div class="receipt">
-    <div class="r-shop">{{ shopSettings.name }}</div>
-    <div class="r-sub">{{ shopSettings.tagline }}</div>
-    <div class="r-contact" *ngIf="shopSettings.phone || shopSettings.email">
-      <span *ngIf="shopSettings.phone">Ph: {{ shopSettings.phone }}</span>
-      <span *ngIf="shopSettings.email"> | {{ shopSettings.email }}</span>
-    </div>
-    <div class="r-address" *ngIf="shopSettings.address">
-      {{ shopSettings.address }}
-    </div>
-    <div class="r-gstin" *ngIf="shopSettings.gstin">
-      GSTIN: {{ shopSettings.gstin }}
-    </div>
-    <div class="r-line">================================</div>
-    <div class="r-block">
-      <div><b>Bill No:</b> {{ printBill.id }}</div>
-      <div><b>Date :</b> {{ fmtDate(printBill.date) }}</div>
-      <div><b>Time :</b> {{ fmtTime(printBill.date) }}</div>
-    </div>
-    <div class="r-line">--------------------------------</div>
-    <div class="r-block">
-      <div><b>Customer:</b> {{ printBill.customer.name }}</div>
-      <div><b>Phone :</b> {{ printBill.customer.phone }}</div>
-      <div *ngIf="printBill.customer.email">
-        <b>Email :</b> {{ printBill.customer.email }}
-      </div>
-      <div *ngIf="printBill.customer.address">
-        <b>Address:</b> {{ printBill.customer.address }}
-      </div>
-    </div>
-    <div class="r-line">--------------------------------</div>
-    <table class="r-table">
-      <thead>
-        <tr>
-          <th class="r-th-item">Item</th>
-          <th class="r-th-num">Qty</th>
-          <th class="r-th-num">Rate</th>
-          <th class="r-th-num">Amt</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let item of printBill.items; let i = index">
-          <td class="r-td-item">
-            {{ i + 1 }}. {{ item.product.name }}<br />
-            <span class="r-sku">{{ item.product.sku }}</span>
-            <span *ngIf="item.discount" class="r-disc">
-              | Disc: {{ inr(item.discount) }}</span
-            >
-          </td>
-          <td class="r-td-num">{{ item.qty }}</td>
-          <td class="r-td-num">{{ inr(item.unitPrice) }}</td>
-          <td class="r-td-num">{{ inr(lineTotal(item)) }}</td>
-        </tr>
-      </tbody>
-    </table>
-    <div class="r-line">--------------------------------</div>
-    <div class="r-sum-rows">
-      <div class="r-sum-row">
-        <span>Subtotal</span><span>{{ inr(printBill.subtotal) }}</span>
-      </div>
-      <div class="r-sum-row" *ngIf="printBill.totalDiscount > 0">
-        <span>Discount</span><span>-{{ inr(printBill.totalDiscount) }}</span>
-      </div>
-      <div
-        class="r-sum-row"
-        *ngIf="printBill.gstEnabled && printBill.gstAmount > 0"
-      >
-        <span>GST</span><span>{{ inr(printBill.gstAmount) }}</span>
-      </div>
-    </div>
-    <div class="r-line">================================</div>
-    <div class="r-total">
-      <span>TOTAL</span><span>{{ inr(printBill.grandTotal) }}</span>
-    </div>
-    <div class="r-line">================================</div>
-    <div class="r-pay">
-      Payment: {{ payIcon(printBill.paymentMethod) }}
-      {{ payLabel(printBill.paymentMethod) }}
-      <ng-container *ngIf="printBill.khataAmount === 0"> — PAID</ng-container>
-      <ng-container *ngIf="printBill.khataAmount > 0">
-        — {{ inr(printBill.grandTotal - printBill.khataAmount) }} collected<br />
-        📒 {{ inr(printBill.khataAmount) }} added to Khata
-      </ng-container>
-    </div>
-    <div class="r-line">--------------------------------</div>
-    <div class="r-thanks">Thank You! Visit Again 🙏</div>
-    <div class="r-note">Computer generated bill. No signature required.</div>
-    <div class="r-line">================================</div>
-  </div>
-</div>
+<!-- Print receipt rendered via printInNewWindow() in TypeScript — no DOM template needed -->

@@ -52,13 +52,6 @@
 
 </aside>
 
-<!-- ── Active indicator bar (position: fixed — never clipped by overflow) ── -->
-<div class="adm-active-bar"
-     *ngIf="activeBarVisible"
-     [style.top.px]="activeBarTop"
-     [style.height.px]="activeBarHeight">
-</div>
-
 <!-- ── Desktop/Tablet: full-height sub-sidebar panel (hidden on mobile) ── -->
 <div class="adm-subsidebar"
      *ngIf="activeSubmenu"

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -142,12 +142,19 @@ export class BillingComponent implements OnInit, OnDestroy {
   // ── Shop settings ─────────────────────────────────────────────────────────
   shopSettings: ShopSettings;
 
+  // ── PDF / Email / Share ───────────────────────────────────────────────────
+  pdfLoading   = false;
+  emailSending = false;
+  emailSentMsg = '';
+
 
   constructor(
     private http: HttpClient,
     private settingsSvc: ShopSettingsService,
     private notifSvc: NotificationService,
     private customerSvc: CustomerService,
+    private cdr: ChangeDetectorRef,
+    private zone: NgZone,
   ) {
     this.shopSettings = this.settingsSvc.get();
   }
@@ -507,7 +514,391 @@ export class BillingComponent implements OnInit, OnDestroy {
     });
   }
 
-  doPrint() { setTimeout(() => window.print(), 100); }
+  doPrint() { this.printInNewWindow(this.printBill); }
+
+  private printInNewWindow(bill: SavedBill | null) {
+    if (!bill) return;
+    const s      = this.shopSettings;
+    const win    = window.open('', '_blank', 'width=960,height=820,scrollbars=yes');
+    if (!win) { alert('Allow pop-ups to print the invoice.'); return; }
+
+    const paidNow  = bill.grandTotal - bill.khataAmount;
+    const hasKhata = bill.khataAmount > 0;
+    const hasDisc  = bill.totalDiscount > 0;
+    const hasGst   = bill.gstEnabled && bill.gstAmount > 0;
+    const showSub  = hasDisc || hasGst;
+    const date     = `${this.fmtDate(bill.date)}, ${this.fmtTime(bill.date)}`;
+
+    const itemRows = bill.items.map((item, i) => {
+      const net   = item.qty * item.unitPrice - (item.discount || 0);
+      const gstPc = bill.gstEnabled ? item.product.gstPercent : 0;
+      const total = net + net * gstPc / 100;
+      const rowBg = i % 2 === 1 ? '#f8faff' : '#ffffff';
+      let cells = `
+        <td class="td-num">${i + 1}</td>
+        <td class="td-name">${this.esc(item.product.name)}</td>
+        <td class="td-sku">${this.esc(item.product.sku)}</td>
+        <td class="td-center">${item.qty}</td>
+        <td class="td-right">${this.inr(item.unitPrice)}</td>`;
+      if (hasDisc) cells += `<td class="td-right">${item.discount ? this.inr(item.discount) : '<span style="color:#c0c0c0">—</span>'}</td>`;
+      if (hasGst)  cells += `<td class="td-center">${gstPc > 0 ? gstPc + '%' : '<span style="color:#c0c0c0">—</span>'}</td>`;
+      cells += `<td class="td-right td-amt">${this.inr(total)}</td>`;
+      return `<tr style="background:${rowBg}">${cells}</tr>`;
+    }).join('');
+
+    const thDisc = hasDisc ? `<th class="th-right" style="width:9%">Discount</th>` : '';
+    const thGst  = hasGst  ? `<th class="th-center" style="width:7%">GST %</th>`   : '';
+
+    const sumRows = [
+      showSub ? `<div class="s-row"><span class="s-lbl">Subtotal</span><span class="s-amt">${this.inr(bill.subtotal)}</span></div>` : '',
+      hasDisc ? `<div class="s-row"><span class="s-lbl">Discount</span><span class="s-amt s-disc">− ${this.inr(bill.totalDiscount)}</span></div>` : '',
+      hasGst  ? `<div class="s-row"><span class="s-lbl">GST</span><span class="s-amt s-gst">+ ${this.inr(bill.gstAmount)}</span></div>` : '',
+    ].filter(Boolean).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Invoice ${this.esc(bill.id)}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Arial,Helvetica,sans-serif;font-size:9.5px;color:#1e293b;
+  background:#f1f5f9;min-height:100vh}
+
+/* ── PAGE WRAPPER ─────────────────────────────────── */
+.page{max-width:760px;margin:24px auto;background:#fff;border-radius:6px;
+  overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.10)}
+
+/* ── TOP ACCENT BAR ───────────────────────────────── */
+.top-bar{height:4px;background:linear-gradient(to right,#2874F0,#FF9F00)}
+
+/* ── HEADER ───────────────────────────────────────── */
+.hdr{padding:24px 32px 20px;display:flex;justify-content:space-between;
+  align-items:flex-start;border-bottom:1px solid #e2e8f0}
+.logo-text{font-size:24px;font-weight:900;letter-spacing:-.8px;line-height:1}
+.logo-mkr{color:#2874F0}
+.logo-com{color:#FF9F00}
+.shop-tag{font-size:8px;color:#64748b;margin-top:3px;font-style:italic}
+.shop-info{margin-top:8px;font-size:8px;color:#475569;line-height:1.9}
+.shop-info .gstin{font-weight:700;color:#1e293b;margin-top:2px}
+.inv-block{text-align:right}
+.inv-label{display:inline-block;border:1.5px solid #2874F0;color:#2874F0;
+  font-size:8px;font-weight:800;padding:2px 10px;border-radius:3px;
+  letter-spacing:1.8px;margin-bottom:8px}
+.inv-number{font-size:18px;font-weight:800;color:#1e293b;letter-spacing:-.3px}
+.inv-date{font-size:8px;color:#64748b;margin-top:5px}
+
+/* ── BODY ─────────────────────────────────────────── */
+.body{padding:20px 32px 28px}
+
+/* ── INFO ROW ─────────────────────────────────────── */
+.info-row{display:flex;gap:12px;margin-bottom:20px}
+.info-box{flex:1;padding:12px 14px;border:1px solid #e2e8f0;border-radius:5px}
+.info-box.billed{border-top:3px solid #2874F0}
+.info-box.payment{border-top:3px solid ${hasKhata ? '#C02A2A' : '#16803E'}}
+.info-cap{font-size:7px;font-weight:800;color:#2874F0;letter-spacing:1.2px;
+  text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #e2e8f0}
+.cust-name{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px}
+.info-line{font-size:8.5px;color:#1e293b;margin-bottom:3px;display:flex;gap:6px}
+.info-key{color:#64748b;min-width:38px;font-size:7.5px;font-weight:700;padding-top:1px}
+.pay-method{font-size:15px;font-weight:800;color:#1e293b;margin-bottom:5px}
+.chip{display:inline-block;font-size:7px;font-weight:700;padding:2px 8px;
+  border-radius:10px;margin-right:3px;border:1px solid}
+.chip-paid{background:#f0fdf4;color:#166534;border-color:#bbf7d0}
+.chip-partial{background:#fff1f2;color:#9f1239;border-color:#fecdd3}
+.chip-gst{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+.pay-detail{font-size:8px;color:#475569;margin-top:7px;line-height:1.9}
+.pay-detail strong{color:#1e293b}
+
+/* ── SECTION TITLE ────────────────────────────────── */
+.sec-title{font-size:6.5px;font-weight:800;color:#94a3b8;letter-spacing:1.4px;
+  text-transform:uppercase;margin-bottom:7px;padding-bottom:5px;
+  border-bottom:1.5px solid #e2e8f0}
+
+/* ── ITEMS TABLE ──────────────────────────────────── */
+table.items{width:100%;border-collapse:collapse;margin-bottom:14px;border:1px solid #e2e8f0}
+table.items thead tr{background:#EBF2FF}
+table.items thead th{color:#1e40af;padding:8px 7px;font-size:7px;font-weight:800;
+  border:none;border-bottom:2px solid #2874F0;letter-spacing:.6px;text-transform:uppercase;text-align:left}
+.th-right{text-align:right!important}
+.th-center{text-align:center!important}
+table.items tbody tr{border-bottom:1px solid #f1f5f9}
+table.items tbody td{padding:7px 7px;font-size:8.5px;color:#334155;vertical-align:middle}
+.td-num{text-align:center;color:#94a3b8;width:4%}
+.td-name{font-weight:600;color:#1e293b}
+.td-sku{color:#64748b;font-family:monospace;font-size:8px}
+.td-center{text-align:center}
+.td-right{text-align:right}
+.td-amt{font-weight:700;color:#1e293b}
+
+/* ── SUMMARY ──────────────────────────────────────── */
+.sum-wrap{display:flex;justify-content:flex-end;margin-bottom:16px}
+.sum-box{width:38%;min-width:210px;border:1px solid #e2e8f0;border-radius:5px;overflow:hidden}
+.s-row{display:flex;justify-content:space-between;padding:6px 10px;
+  font-size:8.5px;border-bottom:1px solid #f1f5f9}
+.s-lbl{color:#64748b}
+.s-amt{font-weight:600;color:#334155}
+.s-disc{color:#16803E}
+.s-gst{color:#2874F0}
+.grand-row{display:flex;justify-content:space-between;align-items:center;
+  padding:11px 10px;background:#EBF2FF;border-top:2px solid #2874F0}
+.gt-lbl{font-size:8px;font-weight:800;color:#1e40af;letter-spacing:.6px;text-transform:uppercase}
+.gt-amt{font-size:16px;font-weight:900;color:#FF9F00}
+
+/* ── PAYMENT SUMMARY ──────────────────────────────── */
+.pay-sum{border:1px solid #e2e8f0;border-radius:5px;overflow:hidden;margin-bottom:16px}
+.pay-sum-hdr{background:#f8fafc;padding:8px 14px;font-size:7px;font-weight:800;
+  color:#2874F0;letter-spacing:1.2px;text-transform:uppercase;border-bottom:1px solid #e2e8f0}
+.pay-row{display:flex;justify-content:space-between;align-items:center;
+  padding:8px 14px;border-bottom:1px solid #f8fafc;font-size:8.5px}
+.p-lbl{color:#64748b}
+.p-val{font-weight:700;color:#1e293b}
+.p-green{color:#16803E}
+.p-red{color:#C02A2A}
+.p-blue{color:#2874F0}
+.khata-note{padding:8px 14px;font-size:8px;color:#64748b;font-style:italic;
+  border-top:1px solid #fecaca;background:#fff8f8}
+
+/* ── FOOTER ───────────────────────────────────────── */
+.footer{padding:12px 32px;border-top:1px dashed #e2e8f0;text-align:center;
+  font-size:8px;color:#94a3b8}
+.footer strong{color:#64748b}
+
+/* ── PRINT ────────────────────────────────────────── */
+@page{size:A4;margin:0}
+@media print{
+  body{background:#fff}
+  .page{box-shadow:none;border-radius:0;margin:0;max-width:100%}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
+</style></head>
+<body>
+
+<div class="page">
+  <div class="top-bar"></div>
+
+  <!-- ══ HEADER ══ -->
+  <div class="hdr">
+    <div>
+      <div class="logo-text">
+        <span class="logo-mkr">MKR</span><span class="logo-com">Commerce</span>
+      </div>
+      ${s.tagline ? `<div class="shop-tag">${this.esc(s.tagline)}</div>` : ''}
+      <div class="shop-info">
+        ${s.address ? `<div>${this.esc(s.address)}</div>` : ''}
+        ${(s.phone || s.phone2) ? `<div>Ph: ${this.esc(s.phone)}${s.phone2 ? ' &nbsp;/&nbsp; ' + this.esc(s.phone2) : ''}</div>` : ''}
+        ${s.email ? `<div>${this.esc(s.email)}</div>` : ''}
+        ${s.gstin ? `<div class="gstin">GSTIN: ${this.esc(s.gstin)}</div>` : ''}
+      </div>
+    </div>
+    <div class="inv-block">
+      <div class="inv-label">INVOICE</div>
+      <div class="inv-number">${this.esc(bill.id)}</div>
+      <div class="inv-date">${this.esc(date)}</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- ══ BILLED TO + PAYMENT ══ -->
+    <div class="info-row">
+      <div class="info-box billed">
+        <div class="info-cap">Billed To</div>
+        <div class="cust-name">${this.esc(bill.customer.name)}</div>
+        ${bill.customer.phone ? `<div class="info-line"><span class="info-key">Phone</span>${this.esc(bill.customer.phone)}</div>` : ''}
+        ${bill.customer.email ? `<div class="info-line"><span class="info-key">Email</span>${this.esc(bill.customer.email)}</div>` : ''}
+      </div>
+      <div class="info-box payment">
+        <div class="info-cap">Payment</div>
+        <div class="pay-method">${this.esc(bill.paymentMethod).toUpperCase()}</div>
+        <div>
+          ${bill.gstEnabled ? `<span class="chip chip-gst">GST</span>` : ''}
+          ${hasKhata ? `<span class="chip chip-partial">Partial Payment</span>` : `<span class="chip chip-paid">Fully Paid</span>`}
+        </div>
+        ${hasKhata ? `<div class="pay-detail">
+          Collected: <strong>${this.inr(paidNow)}</strong><br>
+          Khata (deferred): <strong style="color:#C02A2A">${this.inr(bill.khataAmount)}</strong>
+        </div>` : ''}
+      </div>
+    </div>
+
+    <!-- ══ ITEMS ══ -->
+    <div class="sec-title">Items</div>
+    <table class="items">
+      <thead>
+        <tr>
+          <th style="width:4%;text-align:center">#</th>
+          <th style="width:${hasDisc && hasGst ? '27' : hasDisc || hasGst ? '31' : '37'}%">Item</th>
+          <th style="width:11%">SKU</th>
+          <th class="th-center" style="width:6%">Qty</th>
+          <th class="th-right" style="width:12%">Unit Price</th>
+          ${thDisc}${thGst}
+          <th class="th-right" style="width:13%">Amount</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+
+    <!-- ══ SUMMARY ══ -->
+    <div class="sum-wrap">
+      <div class="sum-box">
+        ${sumRows}
+        <div class="grand-row">
+          <span class="gt-lbl">Grand Total</span>
+          <span class="gt-amt">${this.inr(bill.grandTotal)}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PAYMENT SUMMARY ══ -->
+    <div class="pay-sum">
+      <div class="pay-sum-hdr">Payment Summary</div>
+      <div class="pay-row">
+        <span class="p-lbl">Payment Method</span>
+        <span class="p-val p-blue">${this.esc(bill.paymentMethod).toUpperCase()}</span>
+      </div>
+      <div class="pay-row">
+        <span class="p-lbl">Amount Collected</span>
+        <span class="p-val p-green">${this.inr(paidNow)}</span>
+      </div>
+      ${hasKhata ? `
+      <div class="pay-row">
+        <span class="p-lbl">Deferred to Khata</span>
+        <span class="p-val p-red">${this.inr(bill.khataAmount)}</span>
+      </div>
+      <div class="khata-note">
+        ${this.inr(bill.khataAmount)} has been recorded in ${this.esc(bill.customer.name)}'s Khata.
+        Check the Khata tab for the current outstanding balance.
+      </div>` : ''}
+    </div>
+
+  </div><!-- /body -->
+
+  <!-- ══ FOOTER ══ -->
+  <div class="footer">
+    Thank you for shopping at <strong>${this.esc(s.name)}</strong> &nbsp;&bull;&nbsp;
+    Computer generated invoice &mdash; no signature required.
+  </div>
+</div><!-- /page -->
+
+<script>
+  window.onload = function() {
+    window.print();
+    window.onafterprint = function() {
+      try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch(e) {}
+      window.close();
+    };
+  };
+<\/script>
+</body></html>`;
+
+    win.document.write(html);
+    win.document.close();
+  }
+
+  private esc(s: string | undefined | null): string {
+    if (!s) return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── PDF download ──────────────────────────────────────────────────────────
+  downloadPdf(bill: SavedBill | null) {
+    if (!bill) return;
+    const uuid = bill.uuid;
+    if (!uuid) { alert('Bill UUID not available — save the bill first.'); return; }
+    this.pdfLoading = true;
+    const s = this.shopSettings;
+    const params: Record<string, string> = {
+      shopName:    s.name    || '',
+      shopTagline: s.tagline || '',
+      shopAddress: s.address || '',
+      shopPhone:   s.phone   || '',
+      shopPhone2:  s.phone2  || '',
+      shopEmail:   s.email   || '',
+      shopGstin:   s.gstin   || '',
+    };
+    const query = new URLSearchParams(params).toString();
+    this.http.get(`/api/billing/${uuid}/pdf?${query}`, { responseType: 'blob' })
+      .subscribe({
+        next: blob => {
+          const url = URL.createObjectURL(blob);
+          const a   = document.createElement('a');
+          a.href     = url;
+          a.download = `${bill.id}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.pdfLoading = false;
+        },
+        error: () => { this.pdfLoading = false; alert('PDF generation failed.'); }
+      });
+  }
+
+  // ── Email ─────────────────────────────────────────────────────────────────
+  sendEmail(bill: SavedBill | null) {
+    if (!bill?.uuid) return;
+    this.emailSending = true;
+    this.emailSentMsg = '';
+    const s = this.shopSettings;
+    this.http.post(`/api/billing/${bill.uuid}/send-email`, {
+      shopName:    s.name    || '',
+      shopTagline: s.tagline || '',
+      shopAddress: s.address || '',
+      shopPhone:   s.phone   || '',
+      shopPhone2:  s.phone2  || '',
+      shopEmail:   s.email   || '',
+      shopGstin:   s.gstin   || '',
+      toEmail:     bill.customer.email || null,
+    }).subscribe({
+      next: () => {
+        this.emailSending = false;
+        this.emailSentMsg = `Invoice sent to ${bill.customer.email}`;
+        setTimeout(() => this.emailSentMsg = '', 4000);
+      },
+      error: () => { this.emailSending = false; alert('Failed to send email.'); }
+    });
+  }
+
+  // ── WhatsApp share ────────────────────────────────────────────────────────
+  shareWhatsApp(bill: SavedBill | null) {
+    if (!bill?.customer?.phone) return;
+    const s       = this.shopSettings;
+    const phone   = bill.customer.phone.replace(/\D/g, '');
+    const e91     = phone.startsWith('91') ? phone : `91${phone}`;
+    const paidNow = bill.grandTotal - bill.khataAmount;
+    const date    = `${this.fmtDate(bill.date)}, ${this.fmtTime(bill.date)}`;
+
+    const itemLines = bill.items.map((item, i) => {
+      const net   = item.qty * item.unitPrice - (item.discount || 0);
+      const gstPc = bill.gstEnabled ? item.product.gstPercent : 0;
+      const total = net + net * gstPc / 100;
+      return `  ${i + 1}. ${item.product.name} (${item.product.sku})\n     ${item.qty} x ${this.inr(item.unitPrice)}${item.discount ? ' - disc ' + this.inr(item.discount) : ''} = *${this.inr(total)}*`;
+    }).join('\n');
+
+    const lines = [
+      `🧾 *INVOICE — ${bill.id}*`,
+      `📅 ${date}`,
+      `🏪 *${s.name}*`,
+      s.address ? `📍 ${s.address}` : '',
+      s.phone   ? `📞 ${s.phone}` : '',
+      s.gstin   ? `GST: ${s.gstin}` : '',
+      '',
+      `👤 *${bill.customer.name}*`,
+      bill.customer.phone ? `📱 ${bill.customer.phone}` : '',
+      '',
+      `*Items:*`,
+      itemLines,
+      '',
+      `Subtotal : ${this.inr(bill.subtotal)}`,
+      bill.totalDiscount > 0 ? `Discount : - ${this.inr(bill.totalDiscount)}` : '',
+      bill.gstEnabled && bill.gstAmount > 0 ? `GST      : + ${this.inr(bill.gstAmount)}` : '',
+      `*TOTAL   : ${this.inr(bill.grandTotal)}*`,
+      '',
+      `💳 Payment: ${this.payLabel(bill.paymentMethod)}`,
+      `✅ Paid Now: *${this.inr(paidNow)}*`,
+      bill.khataAmount > 0 ? `📒 Khata (Due): *${this.inr(bill.khataAmount)}*` : '',
+      '',
+      `Thank you for shopping at *${s.name}*! 🙏`,
+    ].filter(l => !!l).join('\n');
+
+    window.open(`https://wa.me/${e91}?text=${encodeURIComponent(lines)}`, '_blank');
+  }
 
   startNewBill() {
     this.shopSettings = this.settingsSvc.get();
@@ -539,9 +930,13 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   // ── Bill history ──────────────────────────────────────────────────────────
 
-  viewBillDetail(b: SavedBill)  { this.selectedBill = b; }
-  closeBillDetail()             { this.selectedBill = null; }
-  reprintBill(b: SavedBill)     { this.printBill = b; setTimeout(() => window.print(), 100); }
+  viewBillDetail(b: SavedBill) {
+    this.zone.run(() => { this.selectedBill = b; this.cdr.detectChanges(); });
+  }
+  closeBillDetail() {
+    this.zone.run(() => { this.selectedBill = null; this.cdr.detectChanges(); });
+  }
+  reprintBill(b: SavedBill) { this.printInNewWindow(b); }
 
   get filteredHistory(): SavedBill[] {
     const q = this.historySearch.toLowerCase();
@@ -628,6 +1023,15 @@ export class BillingComponent implements OnInit, OnDestroy {
     if (m === 'khata') return 'Khata';
     return m;
   }
+  // Material Symbol name for each payment method (used in template icon spans)
+  payIconName(m: string): string {
+    if (m === 'cash')  return 'currency_rupee';
+    if (m === 'upi')   return 'qr_code_scanner';
+    if (m === 'card')  return 'credit_card';
+    if (m === 'khata') return 'menu_book';
+    return 'payments';
+  }
+  // Emoji kept for plain-text contexts (WhatsApp, notifications)
   payIcon(m: string): string {
     if (m === 'cash')  return '💵';
     if (m === 'upi')   return '📱';

@@ -21,6 +21,7 @@
 
 .tab {
   position: relative;
+  display: inline-flex; align-items: center; gap: 5px;
   padding: .45rem 1.1rem;
   border: none;
   border-radius: 8px;
@@ -31,6 +32,7 @@
   cursor: pointer;
   transition: all .15s;
   white-space: nowrap;
+  .icon { font-size: 16px; }
 
   &.active { background: #2874F0; color: #fff; }
 }
@@ -60,6 +62,7 @@
 }
 
 .btn-new-bill {
+  display: inline-flex; align-items: center; gap: 4px;
   padding: .4rem .9rem;
   background: #16a34a;
   color: #fff;
@@ -95,29 +98,27 @@
   flex-wrap: wrap;
 }
 
-.btn-print {
-  padding: .65rem 1.25rem;
-  background: #2874F0;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: .875rem;
-  font-weight: 600;
-  cursor: pointer;
-  &:hover { background: #1d5ed4; }
+// ── Shared action button base ──────────────────────────────────────────────────
+%action-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: .6rem 1.1rem;
+  border: none; border-radius: 8px;
+  font-size: .84rem; font-weight: 600; cursor: pointer;
+  transition: background .15s, opacity .15s;
+  .icon { font-size: 16px; flex-shrink: 0; }
+  svg   { flex-shrink: 0; }
+  &:disabled { opacity: .6; cursor: not-allowed; }
 }
 
-.btn-start-new {
-  padding: .65rem 1.25rem;
-  background: #16a34a;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: .875rem;
-  font-weight: 600;
-  cursor: pointer;
-  &:hover { background: #15803d; }
-}
+.btn-print     { @extend %action-btn; background: #2874F0; color: #fff; &:hover { background: #1d5ed4; } }
+.btn-pdf       { @extend %action-btn; background: #7c3aed; color: #fff; &:hover { background: #6d28d9; } }
+.btn-email     { @extend %action-btn; background: #d97706; color: #fff; &:hover { background: #b45309; } }
+.btn-whatsapp  { @extend %action-btn; background: #25d366; color: #fff; &:hover { background: #1aab50; } }
+.btn-start-new { @extend %action-btn; background: #16a34a; color: #fff; &:hover { background: #15803d; } }
+
+.bd-btn-pdf      { @extend .btn-pdf;      padding: .45rem .9rem; font-size: .8rem; }
+.bd-btn-email    { @extend .btn-email;    padding: .45rem .9rem; font-size: .8rem; }
+.bd-btn-whatsapp { @extend .btn-whatsapp; padding: .45rem .9rem; font-size: .8rem; }
 
 // ─── POS LAYOUT ───────────────────────────────────────────────────────────────
 
@@ -1200,75 +1201,7 @@
   &:hover { background: #e5e7eb; }
 }
 
-// ─── PRINT RECEIPT ────────────────────────────────────────────────────────────
-
-.print-receipt { display: none; }
-
-.receipt {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #000;
-  padding: 4mm;
-  box-sizing: border-box;
-
-  .r-shop    { text-align: center; font-size: 18px; font-weight: bold; letter-spacing: 1px; }
-  .r-sub     { text-align: center; font-size: 10px; }
-  .r-contact { text-align: center; font-size: 10px; margin-top: 1mm; }
-  .r-address { text-align: center; font-size: 10px; }
-  .r-gstin   { text-align: center; font-size: 10px; font-weight: bold; margin-bottom: 1mm; }
-  .r-line   { color: #555; font-size: 10px; margin: 2mm 0; }
-  .r-block div { margin: 1mm 0; font-size: 11px; }
-
-  .r-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
-    margin: 1mm 0;
-    .r-th-item { text-align: left; border-bottom: 1px solid #000; padding: 1mm 0; width: 55%; }
-    .r-th-num  { text-align: right; border-bottom: 1px solid #000; padding: 1mm 1mm; }
-    .r-td-item { padding: 1mm 0; vertical-align: top; }
-    .r-td-num  { text-align: right; padding: 1mm 1mm; vertical-align: top; white-space: nowrap; }
-  }
-
-  .r-sku  { font-size: 9px; color: #555; }
-  .r-disc { font-size: 9px; color: #555; }
-
-  .r-sum-rows { margin: 1mm 0; }
-  .r-sum-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    margin: .5mm 0;
-  }
-
-  .r-total {
-    display: flex;
-    justify-content: space-between;
-    font-size: 16px;
-    font-weight: bold;
-    margin: 1mm 0;
-  }
-
-  .r-pay    { text-align: center; font-weight: bold; font-size: 11px; margin: 1mm 0; }
-  .r-thanks { text-align: center; font-size: 13px; font-weight: bold; margin: 2mm 0 1mm; }
-  .r-note   { text-align: center; font-size: 9px; color: #555; }
-}
-
-@media print {
-  .billing-page { display: none !important; }
-  .bd-overlay   { display: none !important; }
-  .print-receipt {
-    display: block !important;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-  }
-  @page {
-    size: 80mm auto;
-    margin: 3mm;
-  }
-}
+// Print is handled via a new window — no @media print needed in this component.
 
 // ─── RESPONSIVE ───────────────────────────────────────────────────────────────
 

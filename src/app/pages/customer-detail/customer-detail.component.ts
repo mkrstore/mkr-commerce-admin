@@ -7,7 +7,7 @@ import { catchError } from 'rxjs/operators';
 import {
   CustomerService, CustomerDetail, CustomerType, AuthMethod,
   KhataEntry, KhataPage, AddKhataEntryRequest, CollectPaymentRequest,
-  CustomerOrder, CustomerBill
+  UpdateCustomerRequest, CustomerOrder, CustomerBill
 } from '../../services/customer.service';
 import { extractErrorMessage } from '../../core/models/api.models';
 
@@ -42,7 +42,20 @@ export class CustomerDetailComponent implements OnInit {
 
   // ── Edit modal ──
   showEditModal = false;
-  editForm = { type: 'RETAIL' as CustomerType, notes: '' };
+  editSaving    = false;
+  editError     = '';
+  editForm = {
+    firstName:         '',
+    lastName:          '',
+    phone:             '',
+    email:             '',
+    type:              'RETAIL' as CustomerType,
+    addressStreet:     '',
+    addressCity:       '',
+    addressState:      '',
+    addressPostalCode: '',
+    addressCountry:    '',
+  };
 
   // ── Collect payment modal ──
   showCollectModal = false;
@@ -151,13 +164,13 @@ export class CustomerDetailComponent implements OnInit {
     return s === 'PAID' ? 'badge-green' : s === 'PENDING' ? 'badge-amber' : 'badge-red';
   }
 
-  billPayIcon(m: string): string {
-    if (m === 'cash')  return '💵';
-    if (m === 'upi')   return '📱';
-    if (m === 'card')  return '💳';
-    if (m === 'khata') return '📒';
-    if (m === 'partial') return '💰';
-    return '💳';
+  billPayIconName(m: string): string {
+    if (m === 'cash')    return 'currency_rupee';
+    if (m === 'upi')     return 'qr_code_scanner';
+    if (m === 'card')    return 'credit_card';
+    if (m === 'khata')   return 'menu_book';
+    if (m === 'partial') return 'account_balance_wallet';
+    return 'payments';
   }
 
   fmt2(n: number): string { return '₹' + n.toLocaleString('en-IN'); }
@@ -165,20 +178,61 @@ export class CustomerDetailComponent implements OnInit {
   // ── Edit ──
   openEdit(): void {
     if (!this.customer) return;
-    this.editForm = { type: this.customer.type, notes: this.localNotes };
+    const c = this.customer;
+    this.editForm = {
+      firstName:         c.firstName         || '',
+      lastName:          c.lastName          || '',
+      phone:             c.phone             || '',
+      email:             c.email             || '',
+      type:              c.type,
+      addressStreet:     c.addressStreet     || '',
+      addressCity:       c.addressCity       || '',
+      addressState:      c.addressState      || '',
+      addressPostalCode: c.addressPostalCode || '',
+      addressCountry:    c.addressCountry    || '',
+    };
+    this.editError     = '';
     this.showEditModal = true;
   }
 
   saveEdit(): void {
-    if (!this.customer) return;
-    if (this.editForm.type !== this.customer.type) {
-      this.customerService.updateType(this.customer.id, this.editForm.type).subscribe({
-        next: updated => { if (this.customer) this.customer = { ...this.customer, type: updated.type }; },
-        error: err => { this.error = extractErrorMessage(err); }
-      });
+    if (!this.customer || this.editSaving) return;
+    if (!this.editForm.firstName.trim() || !this.editForm.lastName.trim()) {
+      this.editError = 'First name and last name are required.';
+      return;
     }
-    this.localNotes    = this.editForm.notes;
-    this.showEditModal = false;
+    if (!this.editForm.phone.trim()) {
+      this.editError = 'Phone number is required.';
+      return;
+    }
+
+    this.editSaving = true;
+    this.editError  = '';
+
+    const req: UpdateCustomerRequest = {
+      firstName:         this.editForm.firstName.trim(),
+      lastName:          this.editForm.lastName.trim(),
+      phone:             this.editForm.phone.trim(),
+      email:             this.editForm.email.trim() || null,
+      type:              this.editForm.type,
+      addressStreet:     this.editForm.addressStreet.trim()     || null,
+      addressCity:       this.editForm.addressCity.trim()       || null,
+      addressState:      this.editForm.addressState.trim()      || null,
+      addressPostalCode: this.editForm.addressPostalCode.trim() || null,
+      addressCountry:    this.editForm.addressCountry.trim()    || null,
+    };
+
+    this.customerService.update(this.customer.id, req).subscribe({
+      next: updated => {
+        this.customer      = updated;
+        this.editSaving    = false;
+        this.showEditModal = false;
+      },
+      error: err => {
+        this.editError  = extractErrorMessage(err);
+        this.editSaving = false;
+      }
+    });
   }
 
   // ── Collect payment ──

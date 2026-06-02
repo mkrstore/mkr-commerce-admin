@@ -174,11 +174,12 @@
                   {{ fmt(b.paidNow) }}
                 </td>
                 <td style="font-size:12px;color:var(--t2)">
-                  {{ billPayIcon(b.paymentMethod) }} {{ b.paymentMethod | titlecase }}
+                  <span class="icon icon-xs">{{ billPayIconName(b.paymentMethod) }}</span>
+                  {{ b.paymentMethod | titlecase }}
                 </td>
                 <td>
                   <span *ngIf="b.khataAmount > 0" class="badge badge-amber">
-                    📒 {{ fmt(b.khataAmount) }}
+                    <span class="icon icon-xs">menu_book</span> {{ fmt(b.khataAmount) }}
                   </span>
                   <span *ngIf="b.khataAmount === 0" class="badge badge-green">Paid</span>
                 </td>
@@ -436,31 +437,98 @@
      EDIT CUSTOMER MODAL
 ══════════════════════ -->
 <div class="overlay" *ngIf="showEditModal" (click)="showEditModal = false"></div>
-<div class="modal" *ngIf="showEditModal" (click)="$event.stopPropagation()">
+<div class="modal modal-lg" *ngIf="showEditModal" (click)="$event.stopPropagation()">
   <div class="modal-hd">
-    <span class="modal-title">Edit Customer — {{ customer?.name }}</span>
+    <div>
+      <div class="modal-title">Edit Customer</div>
+      <div style="font-size:12px;color:var(--t3)" *ngIf="customer">{{ customer.customerId }} · {{ customer.name }}</div>
+    </div>
     <button class="modal-close" (click)="showEditModal = false">
       <span class="icon icon-sm">close</span>
     </button>
   </div>
+
   <div class="modal-body">
+
+    <div class="alert alert-error" *ngIf="editError">
+      <span class="icon icon-sm">warning</span> {{ editError }}
+    </div>
+
+    <!-- Name -->
+    <div class="edit-section-label">Name</div>
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">First Name <span class="req">*</span></label>
+        <input class="f-input" [(ngModel)]="editForm.firstName" placeholder="First name" />
+      </div>
+      <div class="field">
+        <label class="field-label">Last Name <span class="req">*</span></label>
+        <input class="f-input" [(ngModel)]="editForm.lastName" placeholder="Last name" />
+      </div>
+    </div>
+
+    <!-- Contact -->
+    <div class="edit-section-label">Contact</div>
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">Phone <span class="req">*</span></label>
+        <input class="f-input" [(ngModel)]="editForm.phone" placeholder="10-digit mobile number"
+          type="tel" maxlength="10" />
+      </div>
+      <div class="field">
+        <label class="field-label">Email <span class="opt">(optional)</span></label>
+        <input class="f-input" [(ngModel)]="editForm.email" placeholder="customer@email.com"
+          type="email" />
+      </div>
+    </div>
+
+    <!-- Type -->
+    <div class="edit-section-label">Account</div>
     <div class="field">
       <label class="field-label">Customer Type</label>
       <select class="f-select" [(ngModel)]="editForm.type">
-        <option value="RETAIL">Retail</option>
-        <option value="WHOLESALE">Wholesale</option>
-        <option value="BROKER">Broker</option>
+        <option value="RETAIL">Retail — walk-in / regular customer</option>
+        <option value="WHOLESALE">Wholesale — bulk buyer</option>
+        <option value="BROKER">Broker — dealer / reseller</option>
       </select>
     </div>
+
+    <!-- Address -->
+    <div class="edit-section-label">Address <span class="opt" style="font-weight:400;font-size:11px;text-transform:none">(optional)</span></div>
     <div class="field">
-      <label class="field-label">Staff Notes <span class="opt">(optional)</span></label>
-      <textarea class="f-textarea" [(ngModel)]="editForm.notes" rows="3"
-        placeholder="Internal notes about this customer…"></textarea>
+      <label class="field-label">Street</label>
+      <input class="f-input" [(ngModel)]="editForm.addressStreet" placeholder="Street / area" />
     </div>
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">City</label>
+        <input class="f-input" [(ngModel)]="editForm.addressCity" placeholder="City" />
+      </div>
+      <div class="field">
+        <label class="field-label">State</label>
+        <input class="f-input" [(ngModel)]="editForm.addressState" placeholder="State" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">PIN Code</label>
+        <input class="f-input" [(ngModel)]="editForm.addressPostalCode" placeholder="e.g. 400001"
+          maxlength="6" />
+      </div>
+      <div class="field">
+        <label class="field-label">Country</label>
+        <input class="f-input" [(ngModel)]="editForm.addressCountry" placeholder="India" />
+      </div>
+    </div>
+
   </div>
+
   <div class="modal-ft">
-    <button class="btn btn-ghost" (click)="showEditModal = false">Cancel</button>
-    <button class="btn btn-primary" (click)="saveEdit()">Save Changes</button>
+    <button class="btn btn-ghost" (click)="showEditModal = false" [disabled]="editSaving">Cancel</button>
+    <button class="btn btn-primary" (click)="saveEdit()" [disabled]="editSaving">
+      <span class="icon icon-sm">{{ editSaving ? 'hourglass_top' : 'save' }}</span>
+      {{ editSaving ? 'Saving…' : 'Save Changes' }}
+    </button>
   </div>
 </div>
 

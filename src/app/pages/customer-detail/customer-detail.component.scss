@@ -1,3 +1,16 @@
+/* Edit modal section divider labels */
+.edit-section-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--t3);
+  padding: 10px 0 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+  &:first-child { padding-top: 0; }
+}
+
 /* Customer avatar (initials) */
 .cd-avatar {
   width: 52px; height: 52px; border-radius: 14px;

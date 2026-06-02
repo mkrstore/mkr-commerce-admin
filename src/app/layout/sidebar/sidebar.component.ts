@@ -1,8 +1,6 @@
-import { Component, computed, HostListener, OnDestroy, OnInit, ElementRef } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, NavigationEnd } from '@angular/router';
+import { Component, computed, HostListener, OnDestroy, OnInit } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { Subscription } from 'rxjs';
-import { filter } from 'rxjs/operators';
 import { SidebarService } from '../../services/sidebar.service';
 import { AuthService, UserRole } from '../../services/auth.service';
 import { ICONS } from '../../core/constants/icons.constants';
@@ -96,24 +94,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
       .filter(group => group.items.length > 0);
   });
 
-  // ── Active bar (position: fixed, outside sidebar) ─────────────────────────
-  activeBarTop = 0;
-  activeBarHeight = 36;
-  activeBarVisible = false;
-  private routerSub?: Subscription;
-
-  private updateActiveBar() {
-    const active: HTMLElement | null = this.el.nativeElement.querySelector('.adm-item.on');
-    if (active) {
-      const rect = active.getBoundingClientRect();
-      this.activeBarTop = rect.top;
-      this.activeBarHeight = rect.height;
-      this.activeBarVisible = true;
-    } else {
-      this.activeBarVisible = false;
-    }
-  }
-
   // ── Submenu state ─────────────────────────────────────────────────────────
   activeSubmenu: NavItem | null = null;
   submenuLeft = 230;
@@ -161,21 +141,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
     public sidebar: SidebarService,
     public auth: AuthService,
     private router: Router,
-    private el: ElementRef
   ) {}
 
-  ngOnInit() {
-    // Position bar on initial load and after every navigation
-    setTimeout(() => this.updateActiveBar(), 0);
-    this.routerSub = this.router.events
-      .pipe(filter(e => e instanceof NavigationEnd))
-      .subscribe(() => setTimeout(() => this.updateActiveBar(), 0));
-  }
-
-  ngOnDestroy() {
-    this.routerSub?.unsubscribe();
-    if (this.closeTimer) clearTimeout(this.closeTimer);
-  }
+  ngOnInit()    {}
+  ngOnDestroy() { if (this.closeTimer) clearTimeout(this.closeTimer); }
 
   onNavClick() { this.sidebar.close(); }
 }

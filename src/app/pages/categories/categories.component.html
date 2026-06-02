@@ -30,7 +30,7 @@
              [class.active]="selectedRoot?.id === cat.id"
              (click)="selectRoot(cat)">
           <div class="l1-thumb"
-               [style.background]="cat.imageUrl ? 'var(--surface2)' : categoryColor(cat.name)+'18'">
+               [style.background]="cat.imageUrl ? 'var(--surface2)' : categoryColor(cat.name)+'28'">
             <img *ngIf="cat.imageUrl && !cat.imageIsVideo" [src]="cat.imageUrl" [alt]="cat.name" class="l1-thumb-img"/>
             <span *ngIf="!cat.imageUrl" class="l1-initials" [style.color]="categoryColor(cat.name)">{{ initials(cat.name) }}</span>
           </div>
@@ -90,7 +90,7 @@
           <div class="cat-l2-grid" *ngIf="subCategories.length > 0">
             <div class="cat-l2-card" *ngFor="let sub of subCategories" (click)="openEdit(sub)">
               <div class="l2-thumb"
-                   [style.background]="sub.imageUrl ? 'var(--surface2)' : categoryColor(sub.name)+'18'">
+                   [style.background]="sub.imageUrl ? 'var(--surface2)' : categoryColor(sub.name)+'28'">
                 <img *ngIf="sub.imageUrl && !sub.imageIsVideo" [src]="sub.imageUrl" [alt]="sub.name" class="l2-thumb-img"/>
                 <span *ngIf="!sub.imageUrl" class="l2-initials" [style.color]="categoryColor(sub.name)">{{ initials(sub.name) }}</span>
                 <span class="l2-status-pill badge" [class.badge-green]="sub.isActive" [class.badge-gray]="!sub.isActive">

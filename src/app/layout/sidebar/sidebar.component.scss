@@ -8,8 +8,7 @@
   height: 100vh;
   position: sticky;
   top: 0;
-  /* overflow: visible so the active bar can poke outside the right edge */
-  overflow: visible;
+  overflow: hidden;
   transition: background .3s, border-color .3s, transform .28s cubic-bezier(.4,0,.2,1);
 }
 
@@ -53,7 +52,17 @@
   position: relative; text-decoration: none;
 
   &:hover { background: rgba(40,116,240,.06); }
-  &.on  { background: rgba(40,116,240,.08); }
+  &.on  {
+    background: rgba(40,116,240,.08);
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0; top: 4px; bottom: 4px;
+      width: 3px;
+      background: var(--blue);
+      border-radius: 0 3px 3px 0;
+    }
+  }
 }
 .adm-item-icon {
   width: 24px; text-align: center; flex-shrink: 0;
@@ -74,21 +83,6 @@
   &.open { transform: rotate(90deg); }
 }
 .adm-item-has-sub { user-select: none; }
-
-/* ── Active indicator bar: position fixed so it's never clipped ── */
-.adm-active-bar {
-  position: fixed;
-  left: 230px;
-  width: 4px;
-  background: var(--blue);
-  border-radius: 0 3px 3px 0;
-  z-index: 400;
-  pointer-events: none;
-  transition: top .18s cubic-bezier(.4,0,.2,1), height .18s cubic-bezier(.4,0,.2,1);
-
-  @media (max-width: 1024px) and (min-width: 769px) { left: 64px; }
-  @media (max-width: 768px) { display: none; }
-}
 
 /* ── Mobile inline accordion (hidden on desktop/tablet) ── */
 .adm-sub-inline { display: none; }

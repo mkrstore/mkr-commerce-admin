@@ -28,15 +28,27 @@
   &:hover { background: var(--surface2); color: var(--t1); }
 }
 
-// Logo — hidden on desktop (sidebar shows it), visible on mobile only
+// Logo — hidden on desktop (sidebar shows it), visible on mobile/tablet only
 .tb-logo {
   display: none;
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--t1);
-  letter-spacing: -0.3px;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
   white-space: nowrap;
-  b { color: var(--blue); font-weight: 900; }
+  flex-shrink: 0;
+}
+.tb-logo-mkr { color: var(--blue); }
+.tb-logo-com { color: var(--orange); }
+
+// Page title — shown on desktop only (logo already in sidebar on desktop)
+.tb-title {
+  display: none;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--t1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tb-spacer { flex: 1; }
@@ -356,9 +368,15 @@
 
 // ── Responsive ─────────────────────────────────────────────────────────────────
 
+// Desktop: sidebar is visible — show page title in topbar, hide logo
+@media (min-width: 769px) {
+  .tb-title { display: block; }
+}
+
+// Mobile/Tablet: sidebar is hidden — show logo in topbar, hide page title
 @media (max-width: 768px) {
   .menu-btn { display: flex; }
-  .tb-logo  { display: block; }  // sidebar hidden on mobile — show logo in topbar
+  .tb-logo  { display: block; }
 
   .notif-panel {
     position: fixed;
@@ -372,6 +390,6 @@
 
 @media (max-width: 480px) {
   .adm-topbar { padding: 0 12px; gap: 6px; }
-  .tb-logo    { font-size: 14px; }
+  .tb-logo    { font-size: 16px; }
   .adm-avatar-btn { width: 30px; height: 30px; font-size: 11px; }
 }

@@ -67,6 +67,19 @@ export interface CollectPaymentRequest {
   note?:         string;
 }
 
+export interface UpdateCustomerRequest {
+  firstName:         string;
+  lastName:          string;
+  phone:             string;
+  email:             string | null;
+  type:              CustomerType;
+  addressStreet:     string | null;
+  addressCity:       string | null;
+  addressState:      string | null;
+  addressPostalCode: string | null;
+  addressCountry:    string | null;
+}
+
 export interface CustomerSummary {
   id:            string;
   customerId:    string;
@@ -137,6 +150,12 @@ export class CustomerService {
   getById(id: string): Observable<CustomerDetail> {
     return this.http
       .get<ApiResponse<CustomerDetail>>(this.EP.BY_ID(id))
+      .pipe(map(r => r.data!));
+  }
+
+  update(id: string, req: UpdateCustomerRequest): Observable<CustomerDetail> {
+    return this.http
+      .patch<ApiResponse<CustomerDetail>>(this.EP.BY_ID(id), req)
       .pipe(map(r => r.data!));
   }
 

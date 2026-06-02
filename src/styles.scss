@@ -165,6 +165,23 @@ img {
   max-width: 100%;
 }
 
+/* ── Global print — hide entire app shell, only show .print-receipt ── */
+@media print {
+  app-sidebar,
+  app-topbar,
+  app-bottom-nav,
+  .sidebar-overlay,
+  .ptr-wrap,
+  .adm-aside,
+  .adm-topbar,
+  .app-content > app-topbar { display: none !important; }
+
+  .app-shell,
+  .app-content { display: block !important; }
+
+  .app-main { padding: 0 !important; margin: 0 !important; }
+}
+
 /* ── Input resets ── */
 input[type="number"] {
   -moz-appearance: textfield;
