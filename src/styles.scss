@@ -1453,16 +1453,55 @@ input[type="radio"] {
     bottom: 0;
     left: 0;
     right: 0;
+    margin: 0;
     transform: none;
     width: 100%;
     max-width: 100%;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+
+    /*
+     * iOS Safari fix: the desktop modal uses display:flex + overflow:hidden
+     * with modal-body having flex:1 + min-height:0. On iOS WebKit this creates
+     * a circular size dependency — the parent height is "fit-content" (from
+     * content) but the child wants to fill the parent — which iOS resolves by
+     * collapsing the body to 0px, leaving only the sticky header visible.
+     *
+     * Fix: switch to display:block so the modal scrolls as a normal block.
+     * The header becomes position:sticky so it stays pinned at the top.
+     * This works on every iOS version without any flex tricks.
+     */
+    display: block;
+    height: auto;
     max-height: 90vh;
+    max-height: 90dvh;   /* dvh stays stable when Safari chrome shows/hides */
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
     animation: slideUpSheet 0.25s ease;
   }
   .modal-sm,
   .modal-lg {
     width: 100%;
+  }
+  /* Header sticks to the top of the scrollable sheet */
+  .modal-hd {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--surface);
+  }
+  /* Body: parent now owns the scroll, so body itself doesn't need to */
+  .modal-body {
+    flex: none;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Footer sticks to the bottom — body content scrolls between header and footer */
+  .modal-ft {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface);
+    z-index: 1;
   }
 
   /* Table — horizontal scroll always */

@@ -30,6 +30,7 @@ export const AUTH_ENDPOINTS = {
 
 export const USER_ENDPOINTS = {
   BASE:               `${API}/users`,
+  CHECK:              `${API}/users/check`,
   BY_ID:              (id: string) => `${API}/users/${id}`,
   UPDATE:             (id: string) => `${API}/users/${id}`,
   STATUS:             (id: string) => `${API}/users/${id}/status`,

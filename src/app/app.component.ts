@@ -68,41 +68,10 @@ export class AppComponent implements AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.setupPullToRefresh();
+    // Pull-to-refresh disabled — causes unwanted page reloads on iOS which
+    // clear the in-memory access token and trigger unnecessary re-auth flows.
+    // this.setupPullToRefresh();
   }
 
-  private setupPullToRefresh(): void {
-    const mainEl = document.querySelector('.app-main') as HTMLElement;
-    if (!mainEl) return;
-
-    mainEl.addEventListener('touchstart', (e: TouchEvent) => {
-      if (mainEl.scrollTop > 2 || this.isLoginPage) return;
-      this.ptrStartY = e.touches[0].clientY;
-      this.ptrStartX = e.touches[0].clientX;
-      this.ptrActive = true;
-    }, { passive: true });
-
-    mainEl.addEventListener('touchmove', (e: TouchEvent) => {
-      if (!this.ptrActive) return;
-      const dy = e.touches[0].clientY - this.ptrStartY;
-      const dx = Math.abs(e.touches[0].clientX - this.ptrStartX);
-      if (dx > 30 || dy <= 0) { this.ptrActive = false; this.ptrOffset = 0; return; }
-      this.ptrOffset    = Math.min(Math.round(dy * 0.45), this.PTR_MAX);
-      this.ptrTriggered = dy > this.PTR_THRESHOLD;
-    }, { passive: true });
-
-    mainEl.addEventListener('touchend', () => {
-      if (!this.ptrActive) return;
-      this.ptrActive = false;
-      if (this.ptrTriggered) {
-        this.ptrLoading   = true;
-        this.ptrTriggered = false;
-        this.ptrOffset    = 40;
-        setTimeout(() => location.reload(), 400);
-      } else {
-        this.ptrOffset    = 0;
-        this.ptrTriggered = false;
-      }
-    }, { passive: true });
-  }
+  // private setupPullToRefresh(): void { ... }
 }

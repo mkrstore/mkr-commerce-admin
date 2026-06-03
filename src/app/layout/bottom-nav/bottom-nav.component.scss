@@ -88,7 +88,9 @@
   .bottom-nav { display: flex; }
 }
 
-/* Hide 5th item on very small phones, show on wider phones */
+/* Shrink label + icon on very small phones so all 5 items fit */
 @media (max-width: 360px) {
-  .bnav-item:last-child { display: none; }
+  .bnav-label  { font-size: 9px; }
+  .bnav-icon   { font-size: 20px; }
+  .bnav-item   { padding: 4px 2px; }
 }

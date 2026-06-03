@@ -186,16 +186,23 @@
       </div>
     </div>
 
+    <!-- ── Step 1: Personal & Role ── -->
     <div *ngIf="formStep === 1">
       <div class="form-row three-col">
         <app-input label="First Name" [required]="true" [touched]="step1Touched"
-          [value]="form.firstName" (valueChange)="form.firstName = $event"
+          [autoCapFirst]="true"
+          [externalError]="formErrors.firstName"
+          [value]="form.firstName" (valueChange)="onNameChange('firstName', $event)"
           placeholder="e.g. Ravi" />
         <app-input label="Middle Name" optLabel="optional"
-          [value]="form.middleName" (valueChange)="form.middleName = $event"
+          [autoCapFirst]="true"
+          [externalError]="formErrors.middleName"
+          [value]="form.middleName" (valueChange)="onNameChange('middleName', $event)"
           placeholder="optional" />
         <app-input label="Last Name" [required]="true" [touched]="step1Touched"
-          [value]="form.lastName" (valueChange)="form.lastName = $event"
+          [autoCapFirst]="true"
+          [externalError]="formErrors.lastName"
+          [value]="form.lastName" (valueChange)="onNameChange('lastName', $event)"
           placeholder="e.g. Kumar" />
       </div>
       <div class="name-preview" *ngIf="form.firstName || form.lastName">
@@ -203,10 +210,15 @@
         <span class="preview-value">{{ previewFullName() }}</span>
       </div>
       <div class="form-row two-col">
-        <app-input label="Company Email" type="email" [required]="true" [touched]="step1Touched"
-          errorMsg="Valid email is required"
-          [value]="form.email" (valueChange)="form.email = $event"
-          placeholder="ravi.kumar@mkr.com" />
+        <div>
+          <app-input label="Company Email" type="email" [required]="true" [touched]="step1Touched"
+            [externalError]="emailError"
+            [value]="form.email" (valueChange)="onEmailChange($event)"
+            placeholder="ravi.kumar@mkr.com" />
+          <div class="checking-hint" *ngIf="emailChecking">
+            <span class="icon icon-xs spin">progress_activity</span> Checking availability…
+          </div>
+        </div>
         <app-select label="Role" [required]="true" [touched]="step1Touched"
           placeholder="Select role"
           [options]="roleSelectOptions()"
@@ -223,15 +235,21 @@
       </div>
     </div>
 
+    <!-- ── Step 2: Contact ── -->
     <div *ngIf="formStep === 2">
       <div class="form-row two-col">
-        <app-input label="Mobile Number" type="tel" [required]="true" [touched]="step2Touched"
-          errorMsg="Mobile number is required"
-          [value]="form.mobileNumber" (valueChange)="form.mobileNumber = $event"
-          placeholder="+91 9876543210" />
-        <app-input label="Alternative Phone" optLabel="optional" type="tel"
-          [value]="form.alternativePhone" (valueChange)="form.alternativePhone = $event"
-          placeholder="optional" />
+        <div>
+          <app-phone-input label="Mobile Number" [required]="true" [touched]="step2Touched"
+            [externalError]="phoneError"
+            [value]="form.mobileNumber" (valueChange)="onPhoneChange($event)" (blurred)="step2Touched = true" />
+          <div class="checking-hint" *ngIf="phoneChecking">
+            <span class="icon icon-xs spin">progress_activity</span> Checking availability…
+          </div>
+        </div>
+        <app-phone-input label="Alternative Phone" optLabel="optional"
+          [touched]="step2Touched"
+          [externalError]="formErrors.altPhone"
+          [value]="form.alternativePhone" (valueChange)="onAltPhoneChange($event)" (blurred)="step2Touched = true" />
       </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" (click)="prevStep()">
@@ -243,6 +261,7 @@
       </div>
     </div>
 
+    <!-- ── Step 3: Address ── -->
     <div *ngIf="formStep === 3">
       <p class="step-note">All address fields are optional.</p>
       <div class="form-row two-col">
@@ -255,18 +274,26 @@
       </div>
       <div class="form-row two-col">
         <app-input label="City"
-          [value]="form.addressCity" (valueChange)="form.addressCity = $event"
+          [touched]="step3Touched"
+          [externalError]="formErrors.city"
+          [value]="form.addressCity" (valueChange)="onAlphaSpaceChange('city', $event)"
           placeholder="e.g. Bengaluru" />
         <app-input label="State"
-          [value]="form.addressState" (valueChange)="form.addressState = $event"
+          [touched]="step3Touched"
+          [externalError]="formErrors.state"
+          [value]="form.addressState" (valueChange)="onAlphaSpaceChange('state', $event)"
           placeholder="e.g. Karnataka" />
       </div>
       <div class="form-row two-col">
-        <app-input label="Postal Code"
-          [value]="form.addressPostalCode" (valueChange)="form.addressPostalCode = $event"
+        <app-input label="Postal Code" type="tel" inputmode="numeric"
+          [touched]="step3Touched"
+          [externalError]="formErrors.postalCode"
+          [value]="form.addressPostalCode" (valueChange)="onPostalChange($event)"
           placeholder="e.g. 560001" />
         <app-input label="Country"
-          [value]="form.addressCountry" (valueChange)="form.addressCountry = $event"
+          [touched]="step3Touched"
+          [externalError]="formErrors.country"
+          [value]="form.addressCountry" (valueChange)="onAlphaSpaceChange('country', $event)"
           placeholder="e.g. India" />
       </div>
       <div class="alert alert-error" style="margin-bottom:8px" *ngIf="createError">{{ createError }}</div>

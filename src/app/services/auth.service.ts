@@ -26,12 +26,18 @@ interface LoginResponse {
   user:        AuthUser;
 }
 
+interface SessionCache {
+  accessToken: string;
+  user:        AuthUser;
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
 
   private readonly EP = AUTH_ENDPOINTS;
+  private static readonly SESSION_KEY = 'mkr_session';
 
   // In-memory only — never stored in localStorage/sessionStorage (security).
   // withCredentials is handled globally by the interceptor; the HttpOnly
@@ -51,11 +57,18 @@ export class AuthService {
   ) {}
 
   // ── APP_INITIALIZER ────────────────────────────────────────────────────────
-  // Called once on startup — silently restores session from the HttpOnly cookie.
-  // withCredentials is added by the interceptor (auth endpoint, so no Bearer).
+  // Called once on startup. First tries sessionStorage (instant, survives page
+  // reloads in the same browser session). Falls back to the HttpOnly cookie
+  // refresh endpoint when sessionStorage is empty or its token has expired.
 
   initAuth(): Promise<void> {
     return new Promise(resolve => {
+      // Fast path: restore from sessionStorage — no network call needed.
+      // This is the primary fix for iOS Safari where cross-origin cookies are
+      // often blocked by ITP, causing the cookie-based refresh to fail even
+      // seconds after login.
+      if (this.restoreFromSession()) { resolve(); return; }
+
       this.http.post<ApiResponse<LoginResponse>>(this.EP.REFRESH, {})
         .pipe(timeout(28000))
         .subscribe({
@@ -63,18 +76,56 @@ export class AuthService {
             if (res.data) {
               this._accessToken.set(res.data.accessToken);
               this._user.set(res.data.user);
+              this.saveToSession(res.data.accessToken, res.data.user);
             }
             resolve();
           },
           error: (err) => {
-            // Refresh token present but expired — show toast when user lands on login
-            if (extractErrorCode(err) === ErrorCode.REFRESH_TOKEN_INVALID) {
+            const code = extractErrorCode(err);
+            // Show "session expired" only when a real prior session existed but
+            // the refresh token is now invalid/revoked. NOT when there was no
+            // session at all (NO_SESSION = first open, PWA fresh launch, etc.).
+            if (code === ErrorCode.REFRESH_TOKEN_INVALID) {
               this.toast.show('Your session has expired. Please sign in again.', 'warning');
             }
             resolve();
           }
         });
     });
+  }
+
+  private restoreFromSession(): boolean {
+    try {
+      const raw = sessionStorage.getItem(AuthService.SESSION_KEY);
+      if (!raw) return false;
+      const cache: SessionCache = JSON.parse(raw);
+      const payload = this.decodeJwt(cache.accessToken);
+      // Reject if token is missing or already expired
+      if (!payload || payload.exp * 1000 <= Date.now()) {
+        sessionStorage.removeItem(AuthService.SESSION_KEY);
+        return false;
+      }
+      this._accessToken.set(cache.accessToken);
+      this._user.set(cache.user);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private saveToSession(token: string, user: AuthUser): void {
+    try {
+      sessionStorage.setItem(AuthService.SESSION_KEY, JSON.stringify({ accessToken: token, user }));
+    } catch { /* storage quota exceeded — non-fatal */ }
+  }
+
+  private decodeJwt(token: string): { exp: number } | null {
+    try {
+      const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(b64));
+    } catch {
+      return null;
+    }
   }
 
   // ── Login ──────────────────────────────────────────────────────────────────
@@ -88,6 +139,7 @@ export class AuthService {
         if (res.data) {
           this._accessToken.set(res.data.accessToken);
           this._user.set(res.data.user);
+          this.saveToSession(res.data.accessToken, res.data.user);
         }
       })
     );
@@ -103,6 +155,7 @@ export class AuthService {
         if (res.data) {
           this._accessToken.set(res.data.accessToken);
           this._user.set(res.data.user);
+          this.saveToSession(res.data.accessToken, res.data.user);
         }
       }),
       // Map to void so callers don't depend on the shape of the response.
@@ -124,6 +177,7 @@ export class AuthService {
     if (reason === 'session_expired') {
       this.toast.show('Your session has expired. Please sign in again.', 'warning');
     }
+    try { sessionStorage.removeItem(AuthService.SESSION_KEY); } catch {}
     this._accessToken.set(null);
     this._user.set(null);
     this.router.navigate(['/login']);
@@ -181,6 +235,7 @@ export class AuthService {
         if (res.data) {
           this._accessToken.set(res.data.accessToken);
           this._user.set(res.data.user);
+          this.saveToSession(res.data.accessToken, res.data.user);
         }
       })
     );
@@ -195,6 +250,7 @@ export class AuthService {
         if (res.data) {
           this._accessToken.set(res.data.accessToken);
           this._user.set(res.data.user);
+          this.saveToSession(res.data.accessToken, res.data.user);
         }
       })
     );

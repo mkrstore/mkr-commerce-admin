@@ -41,6 +41,7 @@ const ALL_NAV_GROUPS: NavGroup[] = [
           { icon: ICONS.categories,  label: 'Categories',   route: '/categories',   roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'] },
           { icon: ICONS.lookupLists, label: 'Lookup Lists', route: '/lookup-lists', roles: ['SUPER_ADMIN', 'ADMIN'] },
           { icon: ICONS.promotions,  label: 'Promotions',   route: '/promotions',   roles: ['SUPER_ADMIN', 'ADMIN'] },
+          { icon: ICONS.settings,    label: 'Settings',     route: '/settings',     roles: ['SUPER_ADMIN', 'ADMIN'] },
         ]
       },
       { icon: ICONS.inventory, label: 'Inventory', route: '/inventory', roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'], badge: '3', badgeClass: 'red' },
@@ -65,8 +66,7 @@ const ALL_NAV_GROUPS: NavGroup[] = [
   {
     label: 'System',
     items: [
-      { icon: ICONS.staff,    label: 'Staff',    route: '/users',    roles: ['SUPER_ADMIN', 'ADMIN', 'SALES'] },
-      { icon: ICONS.settings, label: 'Settings', route: '/settings', roles: ['SUPER_ADMIN', 'ADMIN'] },
+      { icon: ICONS.staff, label: 'Staff', route: '/users', roles: ['SUPER_ADMIN', 'ADMIN', 'SALES'] },
     ]
   }
 ];

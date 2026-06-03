@@ -20,6 +20,7 @@ import { CommonModule } from '@angular/common';
         [placeholder]="placeholder"
         [disabled]="disabled"
         [class.error]="showError"
+        [attr.autocapitalize]="autoCapFirst ? 'sentences' : null"
         (input)="onInput($event)"
         (blur)="blurred.emit()"
         (wheel)="onWheel($event)"
@@ -27,7 +28,7 @@ import { CommonModule } from '@angular/common';
       />
       <div class="field-error" *ngIf="showError">
         <span class="icon icon-xs">error</span>
-        {{ errorMsg || label + ' is required' }}
+        {{ externalError || errorMsg || label + ' is required' }}
       </div>
       <div class="field-hint" *ngIf="hint && !showError">{{ hint }}</div>
     </div>
@@ -45,13 +46,16 @@ export class AppInputComponent {
   @Input() hint = '';
   @Input() optLabel = '';
   @Input() minVal: number | null = null;
+  @Input() externalError: string | null = null;
+  @Input() autoCapFirst: boolean = false;
 
   @Output() valueChange = new EventEmitter<any>();
   @Output() blurred     = new EventEmitter<void>();
 
   get showError(): boolean {
-    if (!this.required) return false;
     if (!this.touched && !this.dirty) return false;
+    if (this.externalError) return true;
+    if (!this.required) return false;
     const v = this.value;
     if (v === null || v === undefined || String(v).trim() === '') return true;
     if (this.type === 'number' && this.minVal !== null) return Number(v) < this.minVal;
@@ -62,7 +66,14 @@ export class AppInputComponent {
 
   onInput(e: Event) {
     this.dirty = true;
-    const raw = (e.target as HTMLInputElement).value;
+    let raw = (e.target as HTMLInputElement).value;
+    if (this.autoCapFirst && raw.length > 0) {
+      const capped = raw.charAt(0).toUpperCase() + raw.slice(1);
+      if (capped !== raw) {
+        (e.target as HTMLInputElement).value = capped;
+        raw = capped;
+      }
+    }
     this.valueChange.emit(this.type === 'number' ? (raw === '' ? null : Number(raw)) : raw);
   }
 
