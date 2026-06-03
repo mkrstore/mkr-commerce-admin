@@ -17,7 +17,9 @@ interface BillingProduct {
   name: string;
   sku: string;
   categoryName: string;
-  priceRetail: number;
+  priceRetail:    number;
+  priceWholesale: number | null;
+  priceBroker:    number | null;
   gstPercent: number;
   stockQty: number;
   primaryImageUrl: string | null;
@@ -32,12 +34,13 @@ interface BillItem {
 }
 
 interface Customer {
-  id?: string;           // backend customer ID — present only for known customers
+  id?: string;
   phone: string;
   name: string;
   email: string;
   address: string;
-  pendingAmount?: number; // existing khata balance at time of search
+  pendingAmount?: number;
+  type?: 'RETAIL' | 'WHOLESALE' | 'BROKER';
 }
 
 interface SavedBill {
@@ -161,12 +164,36 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.loadProducts();
+    this.fetchNextBillNumber();
 
     this.phoneSearch$.pipe(
       debounceTime(280),
       distinctUntilChanged(),
       takeUntil(this.destroy$)
     ).subscribe(q => this.doCustomerSearch(q));
+  }
+
+  // Fetch the most recent bill so the preview number shown on the new-bill tab
+  // reflects the actual sequence, not the hardcoded 1001 default.
+  private fetchNextBillNumber() {
+    this.http.get<ApiResponse<any>>(this.BILLING_EP.LIST, { params: { page: '0', size: '1' } })
+      .subscribe({
+        next: res => {
+          const bills = res.data?.content ?? [];
+          if (bills.length > 0) {
+            const num = parseInt((bills[0].billId as string)?.replace('MKR-BILL-', '') ?? '0', 10);
+            if (!isNaN(num) && num >= 1001) this.counter = num + 1;
+          }
+        }
+      });
+  }
+
+  // Returns the right price tier for the current customer type.
+  priceFor(p: BillingProduct): number {
+    const type = this.customer.type;
+    if (type === 'WHOLESALE' && p.priceWholesale) return p.priceWholesale;
+    if (type === 'BROKER'    && p.priceBroker)    return p.priceBroker;
+    return p.priceRetail;
   }
 
   // ── Products from API ─────────────────────────────────────────────────────
@@ -233,7 +260,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     if (p.stockQty === 0) return;
     const existing = this.billItems.find(i => i.product.sku === p.sku);
     if (existing) { existing.qty++; return; }
-    this.billItems.push({ product: p, qty: 1, unitPrice: p.priceRetail, discount: 0 });
+    this.billItems.push({ product: p, qty: 1, unitPrice: this.priceFor(p), discount: 0 });
   }
 
   removeItem(index: number) { this.billItems.splice(index, 1); }
@@ -270,6 +297,7 @@ export class BillingComponent implements OnInit, OnDestroy {
           email:         c.email ?? '',
           address:       '',
           pendingAmount: c.pendingAmount,
+          type:          c.type,
         }));
         this.showPhoneDropdown = this.phoneDropdown.length > 0;
         this.phoneSearchDone   = this.phoneDropdown.length === 0;
@@ -307,6 +335,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   }
 
   selectFromDropdown(c: Customer) {
+    const prevType = this.customer.type;
     this.customer = { ...c, phone: this.normalizePhone(c.phone) };
     this.phoneDropdown     = [];
     this.showPhoneDropdown = false;
@@ -314,6 +343,13 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.phoneTouched      = true;
     this.nameTouched       = true;
     this.isExistingCustomer = true;
+    // Reprice existing bill items if customer type changed
+    if (c.type && c.type !== prevType) {
+      this.billItems = this.billItems.map(i => ({
+        ...i,
+        unitPrice: this.priceFor(i.product)
+      }));
+    }
   }
 
   clearCustomer() {
@@ -495,6 +531,9 @@ export class BillingComponent implements OnInit, OnDestroy {
         this.savedBills.unshift(bill);
         this.printBill  = bill;
         this.paymentState = 'done';
+        // Keep counter in sync with the actual sequence from the backend
+        const nextNum = parseInt(d.billId?.replace('MKR-BILL-', '') ?? '0', 10);
+        if (!isNaN(nextNum)) this.counter = nextNum + 1;
 
         const notifDesc = khataAmt > 0
           ? `${this.customer.name} — ${this.inr(Number(d.grandTotal) - khataAmt)} now + ${this.inr(khataAmt)} khata`
@@ -819,11 +858,20 @@ table.items tbody td{padding:7px 7px;font-size:8.5px;color:#334155;vertical-alig
       .subscribe({
         next: blob => {
           const url = URL.createObjectURL(blob);
-          const a   = document.createElement('a');
-          a.href     = url;
-          a.download = `${bill.id}.pdf`;
-          a.click();
-          URL.revokeObjectURL(url);
+          // iOS Safari ignores the `download` attribute on blob URLs — open in
+          // a new tab so the browser's built-in PDF viewer handles it instead.
+          const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          if (isIos) {
+            window.open(url, '_blank');
+          } else {
+            const a = document.createElement('a');
+            a.href     = url;
+            a.download = `${bill!.id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+          setTimeout(() => URL.revokeObjectURL(url), 10000);
           this.pdfLoading = false;
         },
         error: () => { this.pdfLoading = false; alert('PDF generation failed.'); }

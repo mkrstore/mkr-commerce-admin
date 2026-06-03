@@ -104,7 +104,10 @@ export class ProductNewComponent implements OnInit {
   }
 
   get brandOpts() {
-    return this.brands.map(b => ({ value: b.id, label: b.name }));
+    return [
+      { value: '', label: 'No brand' },
+      ...this.brands.map(b => ({ value: b.id, label: b.name }))
+    ];
   }
 
   get gstOpts() {
