@@ -854,7 +854,7 @@ table.items tbody td{padding:7px 7px;font-size:8.5px;color:#334155;vertical-alig
       shopGstin:   s.gstin   || '',
     };
     const query = new URLSearchParams(params).toString();
-    this.http.get(`/api/billing/${uuid}/pdf?${query}`, { responseType: 'blob' })
+    this.http.get(`${this.BILLING_EP.PDF(uuid)}?${query}`, { responseType: 'blob' })
       .subscribe({
         next: blob => {
           const url = URL.createObjectURL(blob);
@@ -884,7 +884,7 @@ table.items tbody td{padding:7px 7px;font-size:8.5px;color:#334155;vertical-alig
     this.emailSending = true;
     this.emailSentMsg = '';
     const s = this.shopSettings;
-    this.http.post(`/api/billing/${bill.uuid}/send-email`, {
+    this.http.post(this.BILLING_EP.EMAIL(bill.uuid!), {
       shopName:    s.name    || '',
       shopTagline: s.tagline || '',
       shopAddress: s.address || '',
