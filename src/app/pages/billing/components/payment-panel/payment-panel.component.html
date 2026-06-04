@@ -169,7 +169,7 @@
       </div>
       <div class="kdp-row kdp-balance-row" *ngIf="customer.pendingAmount !== undefined">
         <span>Khata balance after</span>
-        <span class="kdp-balance">{{ inr(customer.pendingAmount + grandTotal) }}</span>
+        <span class="kdp-balance">{{ inr(customer.pendingAmount! + grandTotal) }}</span>
       </div>
     </div>
 
