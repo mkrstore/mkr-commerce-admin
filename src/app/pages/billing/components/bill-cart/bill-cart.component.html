@@ -47,13 +47,17 @@
             </div>
           </td>
           <td class="td-price">
-            <input type="number" [(ngModel)]="item.unitPrice" min="0" class="price-in" />
+            <input type="number" [(ngModel)]="item.unitPrice" min="0" class="price-in"
+              (keydown)="blockNeg($event)"
+              (change)="stripLeadingZero($event, item, 'unitPrice')" />
             <span class="negotiated" *ngIf="item.unitPrice !== item.product.priceRetail">
               MRP {{ inr(item.product.priceRetail) }}
             </span>
           </td>
           <td class="td-disc">
-            <input type="number" [(ngModel)]="item.discount" min="0" placeholder="0" class="disc-in" />
+            <input type="number" [(ngModel)]="item.discount" min="0" placeholder="0" class="disc-in"
+              (keydown)="blockNeg($event)"
+              (change)="stripLeadingZero($event, item, 'discount')" />
           </td>
           <td class="tr gst-pct" *ngIf="gstEnabled">{{ item.product.gstPercent }}%</td>
           <td class="tr gst-amt" *ngIf="gstEnabled">{{ inr(lineGst(item)) }}</td>

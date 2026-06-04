@@ -43,8 +43,23 @@
       (shareEmailToChange)="shareEmailTo = $event">
     </app-bill-success>
 
+    <!-- PAYMENT ERROR STATE -->
+    <div class="pay-error-screen" *ngIf="paymentError && paymentState !== 'done'">
+      <div class="pes-icon"><span class="icon" style="color:var(--red);font-size:3.5rem;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 48">cancel</span></div>
+      <h2 class="pes-heading">Payment Failed</h2>
+      <p class="pes-msg">{{ paymentError }}</p>
+      <div class="pes-actions">
+        <button class="btn-retry" (click)="retryPayment()">
+          <span class="icon icon-sm">refresh</span> Try Again
+        </button>
+        <button class="btn-cancel-bill" (click)="startNewBill()">
+          <span class="icon icon-sm">close</span> Cancel Bill
+        </button>
+      </div>
+    </div>
+
     <!-- POS LAYOUT -->
-    <div class="pos-layout" *ngIf="paymentState !== 'done'">
+    <div class="pos-layout" *ngIf="paymentState !== 'done' && !paymentError">
 
       <!-- ── LEFT: Product search + Bill items ──────────────────────── -->
       <div class="pos-left">
@@ -179,6 +194,15 @@
     </div>
     <!-- /pos-layout -->
   </ng-container>
+
+  <!-- ── PAYMENT PROCESSING OVERLAY ──────────────────────────────────── -->
+  <div class="pay-processing-overlay" *ngIf="khataLoading">
+    <div class="pay-processing-box">
+      <div class="pay-proc-spinner"></div>
+      <div class="pay-proc-title">Processing Payment…</div>
+      <div class="pay-proc-sub">Please wait, do not close this screen</div>
+    </div>
+  </div>
 
   <!-- ── BILL HISTORY ──────────────────────────────────────────────────── -->
   <app-bill-history

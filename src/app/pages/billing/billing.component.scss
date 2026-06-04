@@ -1276,6 +1276,84 @@
 
 // Print is handled via a new window — no @media print needed in this component.
 
+// ─── PAYMENT PROCESSING OVERLAY ──────────────────────────────────────────────
+
+.pay-processing-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pay-processing-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .75rem;
+  min-width: 240px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.2);
+}
+
+.pay-proc-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #2874F0;
+  border-radius: 50%;
+  animation: proc-spin .8s linear infinite;
+}
+
+@keyframes proc-spin { to { transform: rotate(360deg); } }
+
+.pay-proc-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.pay-proc-sub {
+  font-size: .78rem;
+  color: #9ca3af;
+}
+
+// ─── PAYMENT ERROR SCREEN ─────────────────────────────────────────────────────
+
+.pay-error-screen {
+  text-align: center;
+  padding: 3rem 1rem;
+  max-width: 380px;
+  margin: 0 auto;
+}
+
+.pes-icon   { display: block; margin-bottom: .5rem; }
+.pes-heading { font-size: 1.4rem; font-weight: 700; color: #ef4444; margin: 0 0 .5rem; }
+.pes-msg    { font-size: .875rem; color: #6b7280; margin: 0 0 1.5rem; line-height: 1.6; }
+
+.pes-actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }
+
+.btn-retry {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: .6rem 1.25rem; background: #2874F0; color: #fff;
+  border: none; border-radius: 8px; font-size: .875rem; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+  &:hover { background: #1d5ed4; }
+}
+
+.btn-cancel-bill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: .6rem 1.25rem; background: #f3f4f6; color: #374151;
+  border: none; border-radius: 8px; font-size: .875rem; font-weight: 600;
+  cursor: pointer; transition: background .15s;
+  &:hover { background: #e5e7eb; }
+}
+
 // ─── RESPONSIVE ───────────────────────────────────────────────────────────────
 
 @media (max-width: 900px) {

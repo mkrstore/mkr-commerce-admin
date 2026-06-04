@@ -114,7 +114,9 @@
       <div class="partial-input-wrap">
         <span class="partial-prefix">₹</span>
         <input type="number" [(ngModel)]="paidNow" min="1" class="partial-input"
-          placeholder="0" autocomplete="off" />
+          placeholder="0" autocomplete="off"
+          (keydown)="blockNeg($event)"
+          (change)="sanitizePaidNow($event)" />
       </div>
       <div class="field-error" *ngIf="paidNowError">{{ paidNowError }}</div>
     </div>

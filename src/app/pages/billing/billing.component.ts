@@ -73,6 +73,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   showEmailInput  = false;
   shareEmailTo    = '';
   whatsappSending = false;
+  paymentError    = '';
 
   shopSettings: ShopSettings;
 
@@ -223,7 +224,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       },
       error: err => {
         this.khataLoading = false;
-        this.notifSvc.push('message', '❌', 'Billing Error', err?.error?.message ?? 'Billing failed.');
+        this.paymentError = err?.error?.message ?? 'Payment failed. Please try again.';
       },
     });
   }
@@ -377,6 +378,10 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   // ── Reset ─────────────────────────────────────────────────────────────────
 
+  retryPayment() {
+    this.paymentError = '';
+  }
+
   startNewBill() {
     this.shopSettings      = this.settingsSvc.get();
     this.billItems         = [];
@@ -385,6 +390,7 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.isExistingCustomer = false;
     this.paymentState      = 'idle';
     this.khataLoading      = false;
+    this.paymentError      = '';
     this.searchQ           = '';
     this.selectedCategory  = '';
     this.prodPage          = 0;

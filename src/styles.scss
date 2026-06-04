@@ -1,4 +1,5 @@
-@use 'colors' as t;
+﻿@use 'colors' as t;
+@use 'tokens' as tk;
 
 *,
 *::before,
@@ -91,6 +92,37 @@
   --topbar-bg: #ffffff;
   --num-color: #111827;
   --scrollbar: #e2e6ed;
+
+  // Type scale - usable in any component as var(--text-sm) etc.
+  --text-2xs : #{tk.$text-2xs};
+  --text-xs  : #{tk.$text-xs};
+  --text-sm  : #{tk.$text-sm};
+  --text-md  : #{tk.$text-md};
+  --text-base: #{tk.$text-base};
+  --text-lg  : #{tk.$text-lg};
+  --text-xl  : #{tk.$text-xl};
+  --text-2xl : #{tk.$text-2xl};
+  --text-3xl : #{tk.$text-3xl};
+  --text-4xl : #{tk.$text-4xl};
+
+  // Spacing scale - use as var(--space-4) etc. for padding, margin, gap.
+  --space-1 : #{tk.$space-1};
+  --space-2 : #{tk.$space-2};
+  --space-3 : #{tk.$space-3};
+  --space-4 : #{tk.$space-4};
+  --space-5 : #{tk.$space-5};
+  --space-6 : #{tk.$space-6};
+  --space-8 : #{tk.$space-8};
+  --space-10: #{tk.$space-10};
+  --space-12: #{tk.$space-12};
+  --space-16: #{tk.$space-16};
+
+  // Breakpoints as CSS vars - mainly for JS access if needed.
+  --bp-xs : #{tk.$xs};
+  --bp-sm : #{tk.$sm};
+  --bp-md : #{tk.$md};
+  --bp-lg : #{tk.$lg};
+  --bp-xl : #{tk.$xl};
 }
 
 /* ── DARK ── */
@@ -136,7 +168,16 @@
 
 /* ── Base ── */
 html {
-  font-size: 14px;
+  /* Desktop: 14px base — 1rem = 14px */
+  font-size: 87.5%;
+}
+
+/* Mobile: step up to browser default 16px so 1rem = 16px.
+   - Stops iOS Safari auto-zoom (triggers on font-size < 16px)
+   - Improves readability on small screens
+   - All rem values in components automatically scale up slightly */
+@media (max-width: 768px) {
+  html { font-size: 100%; }
 }
 body {
   font-family: var(--font);
@@ -180,6 +221,13 @@ img {
   .app-content { display: block !important; }
 
   .app-main { padding: 0 !important; margin: 0 !important; }
+}
+
+/* ── iOS input zoom fix — 1rem = 16px on mobile (set above), satisfies Safari's threshold ── */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 1rem;
+  }
 }
 
 /* ── Input resets ── */
@@ -481,8 +529,8 @@ input:-webkit-autofill:focus {
   background: var(--input-bg);
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 9px 11px;
-  font-size: 13px;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-md);
   color: var(--t1);
   font-family: var(--font);
   width: 100%;
@@ -1606,6 +1654,7 @@ input[type="radio"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  vertical-align: middle;
   white-space: nowrap;
   direction: ltr;
   font-feature-settings: "liga";
@@ -1669,3 +1718,56 @@ input[type="radio"] {
 .req { color: var(--red); }
 /* Optional hint text */
 .opt { font-weight: 400; color: var(--t3); font-size: 0.9em; }
+
+
+// Responsive visibility helpers
+// Use these classes in HTML to show or hide content at specific screen sizes.
+// "show-xs" means visible only on xs screens, hidden everywhere else.
+// "hide-xs" means hidden only on xs screens, visible everywhere else.
+
+.show-xs  { display: none; @media (max-width: tk.$xs)  { display: block; } }
+.show-sm  { display: none; @media (max-width: tk.$sm)  { display: block; } }
+.show-md  { display: none; @media (max-width: tk.$md)  { display: block; } }
+.show-lg  { display: none; @media (max-width: tk.$lg)  { display: block; } }
+.show-xl  { display: none; @media (max-width: tk.$xl)  { display: block; } }
+
+.hide-xs  { @media (max-width: tk.$xs)  { display: none !important; } }
+.hide-sm  { @media (max-width: tk.$sm)  { display: none !important; } }
+.hide-md  { @media (max-width: tk.$md)  { display: none !important; } }
+.hide-lg  { @media (max-width: tk.$lg)  { display: none !important; } }
+.hide-xl  { @media (max-width: tk.$xl)  { display: none !important; } }
+
+
+// Responsive font-size helpers
+// Apply to any element to get a named size from the type scale.
+
+.text-2xs  { font-size: var(--text-2xs); }
+.text-xs   { font-size: var(--text-xs);  }
+.text-sm   { font-size: var(--text-sm);  }
+.text-md   { font-size: var(--text-md);  }
+.text-base { font-size: var(--text-base);}
+.text-lg   { font-size: var(--text-lg);  }
+.text-xl   { font-size: var(--text-xl);  }
+.text-2xl  { font-size: var(--text-2xl); }
+.text-3xl  { font-size: var(--text-3xl); }
+.text-4xl  { font-size: var(--text-4xl); }
+
+
+// Responsive page padding
+// Replaces hard-coded padding on .page with values that adapt per screen.
+
+.page {
+  padding: var(--space-6) var(--space-6);
+
+  @media (max-width: tk.$lg) {
+    padding: var(--space-5) var(--space-5);
+  }
+
+  @media (max-width: tk.$md) {
+    padding: var(--space-4) var(--space-4);
+  }
+
+  @media (max-width: tk.$sm) {
+    padding: var(--space-3) var(--space-3);
+  }
+}

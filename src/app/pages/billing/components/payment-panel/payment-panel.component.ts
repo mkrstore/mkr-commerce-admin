@@ -115,6 +115,15 @@ export class PaymentPanelComponent implements OnDestroy {
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
+  blockNeg(e: KeyboardEvent) {
+    if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
+  }
+
+  sanitizePaidNow(e: Event) {
+    const val = parseFloat((e.target as HTMLInputElement).value);
+    this.paidNow = isNaN(val) || val < 0 ? null : val;
+  }
+
   reset() {
     this.paymentMethod = null;
     this.paymentMode   = 'full';
