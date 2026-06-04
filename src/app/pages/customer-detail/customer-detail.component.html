@@ -496,29 +496,32 @@
     <!-- Address -->
     <div class="edit-section-label">Address <span class="opt" style="font-weight:400;font-size:11px;text-transform:none">(optional)</span></div>
     <div class="field">
-      <label class="field-label">Street</label>
-      <input class="f-input" [(ngModel)]="editForm.addressStreet" placeholder="Street / area" />
+      <label class="field-label">Street / Door No.</label>
+      <input class="f-input" [(ngModel)]="editForm.addressStreet" placeholder="e.g. 12-3, Gandhi Road" />
     </div>
     <div class="field-row">
       <div class="field">
-        <label class="field-label">City</label>
-        <input class="f-input" [(ngModel)]="editForm.addressCity" placeholder="City" />
+        <label class="field-label">Town / Village</label>
+        <input class="f-input" [(ngModel)]="editForm.addressCity" placeholder="e.g. Ramachandrapuram" />
+      </div>
+      <div class="field">
+        <label class="field-label">Mandal</label>
+        <input class="f-input" [(ngModel)]="editForm.addressMandal" placeholder="e.g. Eluru Mandal" />
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">District</label>
+        <input class="f-input" [(ngModel)]="editForm.addressDistrict" placeholder="e.g. West Godavari" />
       </div>
       <div class="field">
         <label class="field-label">State</label>
-        <input class="f-input" [(ngModel)]="editForm.addressState" placeholder="State" />
+        <input class="f-input" [(ngModel)]="editForm.addressState" placeholder="e.g. Andhra Pradesh" />
       </div>
     </div>
-    <div class="field-row">
-      <div class="field">
-        <label class="field-label">PIN Code</label>
-        <input class="f-input" [(ngModel)]="editForm.addressPostalCode" placeholder="e.g. 400001"
-          maxlength="6" />
-      </div>
-      <div class="field">
-        <label class="field-label">Country</label>
-        <input class="f-input" [(ngModel)]="editForm.addressCountry" placeholder="India" />
-      </div>
+    <div class="field" style="max-width:50%">
+      <label class="field-label">Pincode</label>
+      <input class="f-input" [(ngModel)]="editForm.addressPostalCode" placeholder="e.g. 534003" maxlength="6" />
     </div>
 
   </div>

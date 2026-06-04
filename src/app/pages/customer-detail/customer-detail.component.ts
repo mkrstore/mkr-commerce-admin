@@ -52,9 +52,10 @@ export class CustomerDetailComponent implements OnInit {
     type:              'RETAIL' as CustomerType,
     addressStreet:     '',
     addressCity:       '',
+    addressMandal:     '',
+    addressDistrict:   '',
     addressState:      '',
     addressPostalCode: '',
-    addressCountry:    '',
   };
 
   // ── Collect payment modal ──
@@ -122,9 +123,10 @@ export class CustomerDetailComponent implements OnInit {
     const parts = [
       this.customer.addressStreet,
       this.customer.addressCity,
+      this.customer.addressMandal,
+      this.customer.addressDistrict,
       this.customer.addressState,
       this.customer.addressPostalCode,
-      this.customer.addressCountry
     ].filter(Boolean);
     return parts.length ? parts.join(', ') : '—';
   }
@@ -187,9 +189,10 @@ export class CustomerDetailComponent implements OnInit {
       type:              c.type,
       addressStreet:     c.addressStreet     || '',
       addressCity:       c.addressCity       || '',
+      addressMandal:     c.addressMandal     || '',
+      addressDistrict:   c.addressDistrict   || '',
       addressState:      c.addressState      || '',
       addressPostalCode: c.addressPostalCode || '',
-      addressCountry:    c.addressCountry    || '',
     };
     this.editError     = '';
     this.showEditModal = true;
@@ -215,11 +218,12 @@ export class CustomerDetailComponent implements OnInit {
       phone:             this.editForm.phone.trim(),
       email:             this.editForm.email.trim() || null,
       type:              this.editForm.type,
-      addressStreet:     this.editForm.addressStreet.trim()     || null,
-      addressCity:       this.editForm.addressCity.trim()       || null,
-      addressState:      this.editForm.addressState.trim()      || null,
+      addressStreet:     this.editForm.addressStreet.trim()   || null,
+      addressCity:       this.editForm.addressCity.trim()     || null,
+      addressMandal:     this.editForm.addressMandal.trim()   || null,
+      addressDistrict:   this.editForm.addressDistrict.trim() || null,
+      addressState:      this.editForm.addressState.trim()    || null,
       addressPostalCode: this.editForm.addressPostalCode.trim() || null,
-      addressCountry:    this.editForm.addressCountry.trim()    || null,
     };
 
     this.customerService.update(this.customer.id, req).subscribe({

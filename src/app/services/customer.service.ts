@@ -67,6 +67,20 @@ export interface CollectPaymentRequest {
   note?:         string;
 }
 
+export interface CreateCustomerRequest {
+  firstName:         string;
+  lastName:          string;
+  phone:             string;
+  email:             string | null;
+  type:              CustomerType;
+  addressStreet:     string | null;
+  addressCity:       string | null;
+  addressMandal:     string | null;
+  addressDistrict:   string | null;
+  addressState:      string | null;
+  addressPostalCode: string | null;
+}
+
 export interface UpdateCustomerRequest {
   firstName:         string;
   lastName:          string;
@@ -75,9 +89,10 @@ export interface UpdateCustomerRequest {
   type:              CustomerType;
   addressStreet:     string | null;
   addressCity:       string | null;
+  addressMandal:     string | null;
+  addressDistrict:   string | null;
   addressState:      string | null;
   addressPostalCode: string | null;
-  addressCountry:    string | null;
 }
 
 export interface CustomerSummary {
@@ -102,9 +117,10 @@ export interface CustomerDetail extends CustomerSummary {
   updatedAt:         string;
   addressStreet:     string | null;
   addressCity:       string | null;
+  addressMandal:     string | null;
+  addressDistrict:   string | null;
   addressState:      string | null;
   addressPostalCode: string | null;
-  addressCountry:    string | null;
 }
 
 export interface CustomerPage {
@@ -131,6 +147,12 @@ export interface CustomerListParams {
 export class CustomerService {
   private http = inject(HttpClient);
   private EP   = CUSTOMER_ENDPOINTS;
+
+  create(req: CreateCustomerRequest): Observable<CustomerDetail> {
+    return this.http
+      .post<ApiResponse<CustomerDetail>>(this.EP.BASE, req)
+      .pipe(map(r => r.data!));
+  }
 
   list(params: CustomerListParams = {}): Observable<CustomerPage> {
     let p = new HttpParams();

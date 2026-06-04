@@ -441,6 +441,22 @@
   justify-content: space-between;
 }
 
+.new-cust-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--primary, #2874f0);
+  background: transparent;
+  border: 1px solid var(--primary, #2874f0);
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+  line-height: 1.6;
+  &:hover { background: #eff6ff; }
+}
+
 // Customer
 .field-wrap { position: relative; margin-bottom: .45rem; &.last { margin-bottom: 0; } }
 
@@ -1208,4 +1224,23 @@
 @media (max-width: 900px) {
   .pos-layout { grid-template-columns: 1fr; }
   .pos-right  { position: static; }
+}
+
+// ─── NEW CUSTOMER MODAL HELPERS ───────────────────────────────────────────────
+
+.addr-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  margin: 4px 0 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+  font-family: var(--font);
+  &:hover { opacity: .75; }
+  .opt { font-weight: 400; color: var(--t3); }
 }

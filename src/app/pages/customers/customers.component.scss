@@ -199,3 +199,23 @@
   .pg-btn   { min-width: 32px; height: 32px; font-size: 12px; }
   .pg-info  { display: none; }
 }
+
+/* ── Address toggle button ────────────────────────────────────── */
+.addr-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  margin: 4px 0 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--blue);
+  font-family: var(--font);
+
+  &:hover { opacity: .75; }
+
+  .opt { font-weight: 400; color: var(--t3); }
+}

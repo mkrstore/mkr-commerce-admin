@@ -5,11 +5,14 @@ import { Router } from '@angular/router';
 import { Subject, forkJoin, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { CustomerService, CustomerSummary, CustomerType, AuthMethod, CustomerPage } from '../../services/customer.service';
 import { extractErrorMessage } from '../../core/models/api.models';
+import { AppBtnComponent, AppInputComponent, AppSelectComponent } from '../../shared/ui';
+import type { SelectOption } from '../../shared/ui';
+import { validateName, validateEmail, validateIndianMobile, validatePostalCode } from '../../core/utils/validation.utils';
 
 @Component({
   selector: 'app-customers',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AppBtnComponent, AppInputComponent, AppSelectComponent],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss'
 })
@@ -36,6 +39,30 @@ export class CustomersComponent implements OnInit, OnDestroy {
   customers: CustomerSummary[] = [];
   loading   = false;
   error     = '';
+
+  // ── Create modal ──────────────────────────────────────────────────────────
+  showCreate    = false;
+  creating      = false;
+  createError   = '';
+  createTouched = false;
+  showAddress   = false;
+
+  createForm = {
+    firstName: '', lastName: '', phone: '', email: '', type: 'RETAIL' as CustomerType,
+    addressStreet: '', addressCity: '', addressMandal: '', addressDistrict: '', addressState: '', addressPostalCode: '',
+  };
+
+  readonly typeOpts: SelectOption[] = [
+    { value: 'RETAIL',    label: 'Retail' },
+    { value: 'WHOLESALE', label: 'Wholesale' },
+    { value: 'BROKER',    label: 'Broker' },
+  ];
+
+  get firstNameError(): string | null { return this.createTouched ? validateName(this.createForm.firstName) : null; }
+  get lastNameError():  string | null { return this.createTouched ? validateName(this.createForm.lastName)  : null; }
+  get phoneError():     string | null { return this.createTouched ? validateIndianMobile(this.createForm.phone) : null; }
+  get emailError():     string | null { return this.createTouched ? validateEmail(this.createForm.email)    : null; }
+  get postalError():    string | null { return this.createTouched ? validatePostalCode(this.createForm.addressPostalCode) : null; }
 
   // ── Search debounce ───────────────────────────────────────────────────────
   private searchInput$ = new Subject<string>();
@@ -167,6 +194,62 @@ export class CustomersComponent implements OnInit, OnDestroy {
   typeLabel(t: CustomerType): string {
     return t.charAt(0) + t.slice(1).toLowerCase();
   }
+
+  // ── Create customer ───────────────────────────────────────────────────────
+
+  openCreate(): void {
+    this.createForm = {
+      firstName: '', lastName: '', phone: '', email: '', type: 'RETAIL',
+      addressStreet: '', addressCity: '', addressMandal: '', addressDistrict: '', addressState: '', addressPostalCode: '',
+    };
+    this.createError   = '';
+    this.createTouched = false;
+    this.showAddress   = false;
+    this.showCreate    = true;
+  }
+
+  closeCreate(): void { this.showCreate = false; this.createError = ''; }
+
+  submitCreate(): void {
+    this.createTouched = true;
+    const f = this.createForm;
+    if (!f.firstName.trim() || !f.lastName.trim() || !f.phone.trim()) return;
+    if (validateName(f.firstName) || validateName(f.lastName)) return;
+    if (validateIndianMobile(f.phone)) return;
+    if (f.email.trim() && validateEmail(f.email)) return;
+    if (f.addressPostalCode.trim() && validatePostalCode(f.addressPostalCode)) return;
+
+    this.creating    = true;
+    this.createError = '';
+
+    this.customerService.create({
+      firstName:         f.firstName.trim(),
+      lastName:          f.lastName.trim(),
+      phone:             f.phone.trim(),
+      email:             f.email.trim() || null,
+      type:              f.type,
+      addressStreet:     f.addressStreet.trim()   || null,
+      addressCity:       f.addressCity.trim()     || null,
+      addressMandal:     f.addressMandal.trim()   || null,
+      addressDistrict:   f.addressDistrict.trim() || null,
+      addressState:      f.addressState.trim()    || null,
+      addressPostalCode: f.addressPostalCode.trim() || null,
+    }).subscribe({
+      next: customer => {
+        this.creating   = false;
+        this.showCreate = false;
+        this.page       = 0;
+        this.load();
+        this.loadCounts();
+      },
+      error: err => {
+        this.createError = extractErrorMessage(err);
+        this.creating    = false;
+      }
+    });
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   avatar(name: string): string { return name.split(' ').map(w => w[0]).slice(0, 2).join(''); }
   fmt(n: number):       string { return '₹' + n.toLocaleString('en-IN'); }

@@ -19,6 +19,7 @@
         <span class="icon icon-xs">group</span>
         {{ typeCounts['All'] }} customers
       </div>
+      <app-btn variant="primary" size="sm" icon="person_add" (clicked)="openCreate()">New Customer</app-btn>
     </div>
   </div>
 
@@ -161,4 +162,86 @@
 
   </div>
 
+</div>
+
+<!-- ── NEW CUSTOMER MODAL ── -->
+<div class="overlay" *ngIf="showCreate" (click)="closeCreate()"></div>
+<div class="modal modal-lg" *ngIf="showCreate" (click)="$event.stopPropagation()">
+
+  <div class="modal-hd">
+    <div>
+      <div class="modal-title">New Customer</div>
+      <div style="font-size:12px;color:var(--t3)">Add a customer account manually</div>
+    </div>
+    <button class="modal-close" (click)="closeCreate()"><span class="icon icon-sm">close</span></button>
+  </div>
+
+  <div class="modal-body">
+    <div class="alert alert-error" *ngIf="createError">
+      <span class="icon icon-sm">warning</span> {{ createError }}
+    </div>
+
+    <!-- Name row -->
+    <div class="field-row">
+      <app-input label="First Name" [required]="true" [touched]="createTouched" [autoCapFirst]="true"
+        [value]="createForm.firstName" (valueChange)="createForm.firstName = $event"
+        [externalError]="firstNameError" placeholder="e.g. Ravi" />
+      <app-input label="Last Name" [required]="true" [touched]="createTouched" [autoCapFirst]="true"
+        [value]="createForm.lastName" (valueChange)="createForm.lastName = $event"
+        [externalError]="lastNameError" placeholder="e.g. Kumar" />
+    </div>
+
+    <!-- Contact row -->
+    <div class="field-row">
+      <app-input label="Phone" type="tel" [required]="true" [touched]="createTouched"
+        [value]="createForm.phone" (valueChange)="createForm.phone = $event"
+        [externalError]="phoneError" placeholder="10-digit mobile" hint="Must start with 6, 7, 8 or 9" />
+      <app-input label="Email" optLabel="optional" type="email" [touched]="createTouched"
+        [value]="createForm.email" (valueChange)="createForm.email = $event"
+        [externalError]="emailError" placeholder="customer@email.com" />
+    </div>
+
+    <!-- Type -->
+    <app-select label="Customer Type" [required]="true" [options]="typeOpts"
+      [value]="createForm.type" (valueChange)="createForm.type = $event" />
+
+    <!-- Address toggle -->
+    <button class="addr-toggle" type="button" (click)="showAddress = !showAddress">
+      <span class="icon icon-sm">{{ showAddress ? 'expand_less' : 'location_on' }}</span>
+      {{ showAddress ? 'Hide address' : 'Add address' }}
+      <span class="opt">(optional)</span>
+    </button>
+
+    <ng-container *ngIf="showAddress">
+      <app-input label="Street / Door No." optLabel="optional"
+        [value]="createForm.addressStreet" (valueChange)="createForm.addressStreet = $event"
+        placeholder="e.g. 12-3, Gandhi Road" />
+      <div class="field-row">
+        <app-input label="Town / Village" optLabel="optional"
+          [value]="createForm.addressCity" (valueChange)="createForm.addressCity = $event"
+          placeholder="e.g. Ramachandrapuram" />
+        <app-input label="Mandal" optLabel="optional"
+          [value]="createForm.addressMandal" (valueChange)="createForm.addressMandal = $event"
+          placeholder="e.g. Eluru Mandal" />
+      </div>
+      <div class="field-row">
+        <app-input label="District" optLabel="optional"
+          [value]="createForm.addressDistrict" (valueChange)="createForm.addressDistrict = $event"
+          placeholder="e.g. West Godavari" />
+        <app-input label="State" optLabel="optional"
+          [value]="createForm.addressState" (valueChange)="createForm.addressState = $event"
+          placeholder="e.g. Andhra Pradesh" />
+      </div>
+      <app-input label="Pincode" optLabel="optional" [touched]="createTouched"
+        [value]="createForm.addressPostalCode" (valueChange)="createForm.addressPostalCode = $event"
+        [externalError]="postalError" placeholder="e.g. 534003" />
+    </ng-container>
+  </div>
+
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeCreate()">Cancel</app-btn>
+    <app-btn variant="primary" icon="person_add" [loading]="creating" (clicked)="submitCreate()">
+      Create Customer
+    </app-btn>
+  </div>
 </div>

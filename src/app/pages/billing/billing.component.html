@@ -285,7 +285,12 @@
       <div class="pos-right">
         <!-- Customer Details -->
         <div class="card">
-          <div class="card-title"><span class="icon icon-sm">person</span> Customer Details</div>
+          <div class="card-title">
+            <span class="icon icon-sm">person</span> Customer Details
+            <button class="new-cust-btn" type="button" (click)="openNewCustomer()" title="Add new customer">
+              <span class="icon icon-xs">person_add</span> New
+            </button>
+          </div>
 
           <!-- Phone with typeahead -->
           <div class="field-wrap">
@@ -322,10 +327,10 @@
                 </div>
                 <div class="pd-email" *ngIf="c.email">{{ c.email }}</div>
               </div>
-              <!-- No results — prompt to fill in below -->
-              <div class="pd-new" *ngIf="phoneSearchDone && !customerSearching" (mousedown)="showPhoneDropdown = false; phoneSearchDone = false; nameTouched = false">
+              <!-- No results — open new customer modal -->
+              <div class="pd-new" *ngIf="phoneSearchDone && !customerSearching" (mousedown)="openNewCustomer()">
                 <span class="icon icon-sm pd-new-icon">person_add</span>
-                <span>New customer — fill in name &amp; details below</span>
+                <span>No match — create new customer</span>
               </div>
             </div>
             <div class="field-error" *ngIf="phoneError">{{ phoneError }}</div>
@@ -862,3 +867,81 @@
 </div>
 
 <!-- Print receipt rendered via printInNewWindow() in TypeScript — no DOM template needed -->
+
+<!-- ═══ NEW CUSTOMER MODAL ═══ -->
+<div class="overlay" *ngIf="showNewCustomer" (click)="closeNewCustomer()"></div>
+<div class="modal modal-lg" *ngIf="showNewCustomer" (click)="$event.stopPropagation()">
+
+  <div class="modal-hd">
+    <div>
+      <div class="modal-title">New Customer</div>
+      <div style="font-size:12px;color:var(--t3)">Create and select for this bill</div>
+    </div>
+    <button class="modal-close" (click)="closeNewCustomer()"><span class="icon icon-sm">close</span></button>
+  </div>
+
+  <div class="modal-body">
+    <div class="alert alert-error" *ngIf="newCustError">
+      <span class="icon icon-sm">warning</span> {{ newCustError }}
+    </div>
+
+    <div class="field-row">
+      <app-input label="First Name" [required]="true" [touched]="newCustTouched" [autoCapFirst]="true"
+        [value]="newCustForm.firstName" (valueChange)="newCustForm.firstName = $event"
+        [externalError]="newCustFirstNameError" placeholder="e.g. Ravi" />
+      <app-input label="Last Name" [required]="true" [touched]="newCustTouched" [autoCapFirst]="true"
+        [value]="newCustForm.lastName" (valueChange)="newCustForm.lastName = $event"
+        [externalError]="newCustLastNameError" placeholder="e.g. Kumar" />
+    </div>
+
+    <div class="field-row">
+      <app-input label="Phone" type="tel" [required]="true" [touched]="newCustTouched"
+        [value]="newCustForm.phone" (valueChange)="newCustForm.phone = $event"
+        [externalError]="newCustPhoneError" placeholder="10-digit mobile" hint="Must start with 6, 7, 8 or 9" />
+      <app-input label="Email" optLabel="optional" type="email" [touched]="newCustTouched"
+        [value]="newCustForm.email" (valueChange)="newCustForm.email = $event"
+        [externalError]="newCustEmailError" placeholder="customer@email.com" />
+    </div>
+
+    <app-select label="Customer Type" [required]="true" [options]="typeOpts"
+      [value]="newCustForm.type" (valueChange)="newCustForm.type = $event" />
+
+    <button class="addr-toggle" type="button" (click)="showNewCustAddress = !showNewCustAddress">
+      <span class="icon icon-sm">{{ showNewCustAddress ? 'expand_less' : 'location_on' }}</span>
+      {{ showNewCustAddress ? 'Hide address' : 'Add address' }}
+      <span class="opt">(optional)</span>
+    </button>
+
+    <ng-container *ngIf="showNewCustAddress">
+      <app-input label="Street / Door No." optLabel="optional"
+        [value]="newCustForm.addressStreet" (valueChange)="newCustForm.addressStreet = $event"
+        placeholder="e.g. 12-3, Gandhi Road" />
+      <div class="field-row">
+        <app-input label="Town / Village" optLabel="optional"
+          [value]="newCustForm.addressCity" (valueChange)="newCustForm.addressCity = $event"
+          placeholder="e.g. Ramachandrapuram" />
+        <app-input label="Mandal" optLabel="optional"
+          [value]="newCustForm.addressMandal" (valueChange)="newCustForm.addressMandal = $event"
+          placeholder="e.g. Eluru Mandal" />
+      </div>
+      <div class="field-row">
+        <app-input label="District" optLabel="optional"
+          [value]="newCustForm.addressDistrict" (valueChange)="newCustForm.addressDistrict = $event"
+          placeholder="e.g. West Godavari" />
+        <app-input label="State" optLabel="optional"
+          [value]="newCustForm.addressState" (valueChange)="newCustForm.addressState = $event"
+          placeholder="e.g. Andhra Pradesh" />
+      </div>
+      <app-input label="Pincode" optLabel="optional" [touched]="newCustTouched"
+        [value]="newCustForm.addressPostalCode" (valueChange)="newCustForm.addressPostalCode = $event"
+        [externalError]="newCustPostalError" placeholder="e.g. 534003" />
+    </ng-container>
+  </div>
+
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeNewCustomer()">Cancel</app-btn>
+    <app-btn variant="primary" icon="person_add" [loading]="creatingCustomer" (clicked)="submitNewCustomer()">
+      Create &amp; Select
+    </app-btn>
+  </div>
+</div>

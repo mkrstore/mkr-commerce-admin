@@ -6,9 +6,12 @@ import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { ShopSettingsService, ShopSettings } from '../../services/shop-settings.service';
 import { NotificationService } from '../../services/notification.service';
-import { CustomerService } from '../../services/customer.service';
+import { CustomerService, CustomerType } from '../../services/customer.service';
 import { BILLING_ENDPOINTS, PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
-import { ApiResponse } from '../../core/models/api.models';
+import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
+import { validateName, validateEmail, validateIndianMobile, validatePostalCode } from '../../core/utils/validation.utils';
+import { AppBtnComponent, AppInputComponent, AppSelectComponent } from '../../shared/ui';
+import type { SelectOption } from '../../shared/ui';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -70,7 +73,7 @@ interface ProductPage {
 @Component({
   selector: 'app-billing',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AppBtnComponent, AppInputComponent, AppSelectComponent],
   templateUrl: './billing.component.html',
   styleUrl: './billing.component.scss',
 })
@@ -136,6 +139,30 @@ export class BillingComponent implements OnInit, OnDestroy {
   phoneTouched      = false;
   emailTouched      = false;
   isExistingCustomer = false;  // locked when selected from dropdown
+
+  // ── New customer modal ────────────────────────────────────────────────────
+  showNewCustomer    = false;
+  creatingCustomer   = false;
+  newCustError       = '';
+  newCustTouched     = false;
+  showNewCustAddress = false;
+
+  newCustForm = {
+    firstName: '', lastName: '', phone: '', email: '', type: 'RETAIL' as CustomerType,
+    addressStreet: '', addressCity: '', addressMandal: '', addressDistrict: '', addressState: '', addressPostalCode: '',
+  };
+
+  readonly typeOpts: SelectOption[] = [
+    { value: 'RETAIL',    label: 'Retail' },
+    { value: 'WHOLESALE', label: 'Wholesale' },
+    { value: 'BROKER',    label: 'Broker' },
+  ];
+
+  get newCustFirstNameError(): string | null { return this.newCustTouched ? validateName(this.newCustForm.firstName)         : null; }
+  get newCustLastNameError():  string | null { return this.newCustTouched ? validateName(this.newCustForm.lastName)          : null; }
+  get newCustPhoneError():     string | null { return this.newCustTouched ? validateIndianMobile(this.newCustForm.phone)     : null; }
+  get newCustEmailError():     string | null { return this.newCustTouched ? validateEmail(this.newCustForm.email)            : null; }
+  get newCustPostalError():    string | null { return this.newCustTouched ? validatePostalCode(this.newCustForm.addressPostalCode) : null; }
 
   // ── UPI flow ──────────────────────────────────────────────────────────────
   upiState: 'init' | 'waiting' | 'received' = 'init';
@@ -349,6 +376,22 @@ export class BillingComponent implements OnInit, OnDestroy {
         ...i,
         unitPrice: this.priceFor(i.product)
       }));
+    }
+    // Fetch full detail to populate address
+    if (c.id) {
+      this.customerSvc.getById(c.id).subscribe({
+        next: detail => {
+          const parts = [
+            detail.addressStreet,
+            detail.addressCity,
+            detail.addressMandal,
+            detail.addressDistrict,
+            detail.addressState,
+            detail.addressPostalCode,
+          ].filter(Boolean);
+          if (parts.length > 0) this.customer.address = parts.join(', ');
+        }
+      });
     }
   }
 
@@ -1049,6 +1092,68 @@ table.items tbody td{padding:7px 7px;font-size:8.5px;color:#334155;vertical-alig
     };
   }
 
+
+  // ── New customer modal ────────────────────────────────────────────────────
+
+  openNewCustomer(): void {
+    this.newCustForm = {
+      firstName: '', lastName: '', phone: this.customer.phone, email: '', type: 'RETAIL',
+      addressStreet: '', addressCity: '', addressMandal: '', addressDistrict: '', addressState: '', addressPostalCode: '',
+    };
+    this.newCustError       = '';
+    this.newCustTouched     = false;
+    this.showNewCustAddress = false;
+    this.showNewCustomer    = true;
+    this.showPhoneDropdown  = false;
+    this.phoneSearchDone    = false;
+  }
+
+  closeNewCustomer(): void { this.showNewCustomer = false; this.newCustError = ''; }
+
+  submitNewCustomer(): void {
+    this.newCustTouched = true;
+    const f = this.newCustForm;
+    if (!f.firstName.trim() || !f.lastName.trim() || !f.phone.trim()) return;
+    if (validateName(f.firstName) || validateName(f.lastName)) return;
+    if (validateIndianMobile(f.phone)) return;
+    if (f.email.trim() && validateEmail(f.email)) return;
+    if (f.addressPostalCode.trim() && validatePostalCode(f.addressPostalCode)) return;
+
+    this.creatingCustomer = true;
+    this.newCustError     = '';
+
+    this.customerSvc.create({
+      firstName:         f.firstName.trim(),
+      lastName:          f.lastName.trim(),
+      phone:             f.phone.trim(),
+      email:             f.email.trim() || null,
+      type:              f.type,
+      addressStreet:     f.addressStreet.trim()   || null,
+      addressCity:       f.addressCity.trim()     || null,
+      addressMandal:     f.addressMandal.trim()   || null,
+      addressDistrict:   f.addressDistrict.trim() || null,
+      addressState:      f.addressState.trim()    || null,
+      addressPostalCode: f.addressPostalCode.trim() || null,
+    }).subscribe({
+      next: created => {
+        this.creatingCustomer = false;
+        this.showNewCustomer  = false;
+        this.selectFromDropdown({
+          id:            created.id,
+          phone:         created.phone ?? f.phone.trim(),
+          name:          `${f.firstName.trim()} ${f.lastName.trim()}`,
+          email:         created.email ?? f.email.trim(),
+          address:       '',
+          pendingAmount: 0,
+          type:          f.type,
+        });
+      },
+      error: err => {
+        this.newCustError     = extractErrorMessage(err);
+        this.creatingCustomer = false;
+      }
+    });
+  }
 
   // ── Utilities ─────────────────────────────────────────────────────────────
 
