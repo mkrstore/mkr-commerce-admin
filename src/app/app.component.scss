@@ -70,5 +70,9 @@
 @media (max-width: 768px) {
   .sidebar-overlay { display: block; pointer-events: none; }
   .sidebar-overlay.open { pointer-events: all; }
-  /* bottom-nav clearance handled per-page via .page class in styles.scss */
+
+  /* Push all page content above the bottom nav */
+  .app-main {
+    padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+  }
 }

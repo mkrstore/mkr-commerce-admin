@@ -1,0 +1,165 @@
+<div class="history-tab">
+  <div class="history-top">
+    <input type="text" [(ngModel)]="searchQuery"
+      placeholder="Search by bill ID, customer name or phone..."
+      class="history-search" />
+    <span class="history-meta" *ngIf="!loading">
+      {{ bills.length }} bill{{ bills.length !== 1 ? 's' : '' }}
+    </span>
+    <span class="history-meta" *ngIf="loading">Loading…</span>
+  </div>
+
+  <div class="history-empty" *ngIf="loading">
+    <span class="icon icon-xl" style="color:var(--t3)">sync</span>
+    <p>Loading bill history…</p>
+  </div>
+
+  <div class="history-empty" *ngIf="!loading && bills.length === 0">
+    <span class="icon icon-xl" style="color:var(--t3)">receipt_long</span>
+    <p>No bills yet. Generate your first bill from New Bill tab.</p>
+  </div>
+
+  <div class="history-list">
+    <div class="h-row" *ngFor="let b of filtered" (click)="openDetail(b)">
+      <div class="h-col-id">
+        <span class="h-id">{{ b.id }}</span>
+        <span class="h-date">{{ fmtDate(b.date) }} · {{ fmtTime(b.date) }}</span>
+      </div>
+      <div class="h-col-cust">
+        <span class="h-name">{{ b.customer.name }}</span>
+        <span class="h-phone">{{ b.customer.phone }}</span>
+      </div>
+      <div class="h-col-items">{{ b.items.length }} item{{ b.items.length !== 1 ? 's' : '' }}</div>
+      <div class="h-col-amount">{{ inr(b.grandTotal) }}</div>
+      <span class="h-pay-badge" [ngClass]="b.paymentMethod">
+        <span class="icon icon-xs">{{ payIconName(b.paymentMethod) }}</span> {{ payLabel(b.paymentMethod) }}
+        <ng-container *ngIf="b.khataAmount > 0">
+          + <span class="icon icon-xs">menu_book</span>{{ inr(b.khataAmount) }}
+        </ng-container>
+      </span>
+      <button class="reprint-btn" (click)="$event.stopPropagation(); reprint.emit(b)"
+        [disabled]="printLoading" title="Print">
+        <span class="icon icon-sm">{{ printLoading ? 'hourglass_top' : 'print' }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="no-match" *ngIf="bills.length > 0 && filtered.length === 0">
+    No bills match "{{ searchQuery }}"
+  </div>
+</div>
+
+<!-- ── BILL DETAIL MODAL ──────────────────────────────────────────────── -->
+<div class="bd-overlay" *ngIf="selectedBill" (click)="closeDetail()">
+  <div class="bd-modal" (click)="$event.stopPropagation()">
+    <div class="bd-head">
+      <div>
+        <div class="bd-bill-id">{{ selectedBill.id }}</div>
+        <div class="bd-bill-date">{{ fmtDate(selectedBill.date) }} at {{ fmtTime(selectedBill.date) }}</div>
+      </div>
+      <button class="bd-close" (click)="closeDetail()">
+        <span class="icon icon-sm">close</span>
+      </button>
+    </div>
+
+    <div class="bd-body">
+      <!-- Customer -->
+      <div class="bd-section">
+        <div class="bd-sec-title">Customer</div>
+        <div class="bd-customer">
+          <span class="bd-cust-name">{{ selectedBill.customer.name }}</span>
+          <span class="bd-cust-phone">
+            <span class="icon icon-xs">phone_android</span> {{ selectedBill.customer.phone }}
+          </span>
+          <span class="bd-cust-email" *ngIf="selectedBill.customer.email">
+            <span class="icon icon-xs">mail</span> {{ selectedBill.customer.email }}
+          </span>
+          <span class="bd-cust-addr" *ngIf="selectedBill.customer.address">
+            <span class="icon icon-xs">location_on</span> {{ selectedBill.customer.address }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div class="bd-section">
+        <div class="bd-sec-title">Items Purchased</div>
+        <table class="bd-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Product</th><th class="tc">Qty</th>
+              <th class="tr">Price</th><th class="tr">Disc</th><th class="tr">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of selectedBill.items; let i = index">
+              <td class="td-n">{{ i + 1 }}</td>
+              <td>
+                {{ item.product.name }}<br />
+                <small class="td-sku">{{ item.product.sku }}</small>
+              </td>
+              <td class="tc">{{ item.qty }}</td>
+              <td class="tr">{{ inr(item.unitPrice) }}</td>
+              <td class="tr">{{ item.discount ? inr(item.discount) : '—' }}</td>
+              <td class="tr td-total">{{ inr(lineTotal(item)) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Summary -->
+      <div class="bd-section bd-summary-section">
+        <div class="bd-sum-row">
+          <span>Subtotal</span><span>{{ inr(selectedBill.subtotal) }}</span>
+        </div>
+        <div class="bd-sum-row green" *ngIf="selectedBill.totalDiscount > 0">
+          <span>Discount</span><span>− {{ inr(selectedBill.totalDiscount) }}</span>
+        </div>
+        <div class="bd-sum-row" *ngIf="selectedBill.gstEnabled && selectedBill.gstAmount > 0">
+          <span>GST</span><span>+ {{ inr(selectedBill.gstAmount) }}</span>
+        </div>
+        <div class="bd-sum-total">
+          <span>Total Paid</span><span>{{ inr(selectedBill.grandTotal) }}</span>
+        </div>
+        <div class="bd-pay-method">
+          <span class="icon icon-sm">{{ payIconName(selectedBill.paymentMethod) }}</span>
+          {{ payLabel(selectedBill.paymentMethod) }}
+          <ng-container *ngIf="selectedBill.khataAmount === 0"> — PAID</ng-container>
+          <ng-container *ngIf="selectedBill.khataAmount > 0">
+            — {{ inr(selectedBill.grandTotal - selectedBill.khataAmount) }} paid now
+          </ng-container>
+        </div>
+        <div class="bd-khata-row" *ngIf="selectedBill.khataAmount > 0">
+          <span class="icon icon-sm">menu_book</span> {{ inr(selectedBill.khataAmount) }} added to khata
+        </div>
+      </div>
+    </div>
+
+    <div class="bd-foot">
+      <button class="bd-btn-print" (click)="reprint.emit(selectedBill)" [disabled]="printLoading">
+        <span class="icon icon-sm">{{ printLoading ? 'hourglass_top' : 'print' }}</span> Print
+      </button>
+      <button class="bd-btn-pdf" (click)="download.emit(selectedBill)" [disabled]="pdfLoading">
+        <span class="icon icon-sm">{{ pdfLoading ? 'hourglass_top' : 'picture_as_pdf' }}</span> PDF
+      </button>
+      <button class="bd-btn-email" (click)="onEmailClick()" [disabled]="emailSending">
+        <span class="icon icon-sm">{{ emailSending ? 'hourglass_top' : 'mail' }}</span> Email
+      </button>
+      <button class="bd-btn-whatsapp" (click)="whatsapp.emit(selectedBill)"
+        [disabled]="whatsappSending" *ngIf="selectedBill.customer?.phone">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+        </svg>
+        WhatsApp
+      </button>
+    </div>
+
+    <!-- Email input (shown when customer has no email) -->
+    <div class="bd-email-row" *ngIf="showEmailInput">
+      <input class="bd-email-input" type="email" inputmode="email" autocomplete="email"
+        [(ngModel)]="shareEmailTo" placeholder="Enter email address" />
+      <button class="bd-btn-email" (click)="onEmailSend()" [disabled]="emailSending || !shareEmailTo.trim()">
+        <span class="icon icon-sm">{{ emailSending ? 'hourglass_top' : 'send' }}</span> Send
+      </button>
+    </div>
+  </div>
+</div>

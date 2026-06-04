@@ -1,0 +1,183 @@
+<div class="card pay-card">
+  <div class="pay-card-title"><span class="icon icon-sm">payments</span> Payment</div>
+
+  <!-- ── IDLE: select method ─────────────────────────────────────────── -->
+  <ng-container *ngIf="!paymentMethod && paymentMode === 'full'">
+    <p class="pay-need" *ngIf="!canBill">
+      Fill customer name &amp; 10-digit phone to enable payment
+    </p>
+    <div class="pay-methods" [class.locked]="!canBill">
+      <button class="pay-btn cash" (click)="selectMethod('cash')">
+        <span class="icon icon-sm">currency_rupee</span>Cash
+      </button>
+      <button class="pay-btn upi" (click)="selectMethod('upi')">
+        <span class="icon icon-sm">qr_code_scanner</span>UPI
+      </button>
+      <button class="pay-btn card" (click)="selectMethod('card')">
+        <span class="icon icon-sm">credit_card</span>Card
+      </button>
+    </div>
+
+    <div class="khata-options" *ngIf="canBill">
+      <div class="khata-divider"><span>or add to khata</span></div>
+      <div class="khata-btns">
+        <button class="pay-btn khata-partial" [disabled]="!canUseKhata"
+          [title]="!canUseKhata ? 'Available for known customers only' : ''"
+          (click)="selectKhataMode('partial')">
+          <span class="icon icon-sm">account_balance_wallet</span>Partial + Khata
+        </button>
+        <button class="pay-btn khata-full" [disabled]="!canUseKhata"
+          [title]="!canUseKhata ? 'Available for known customers only' : ''"
+          (click)="selectKhataMode('khata')">
+          <span class="icon icon-sm">menu_book</span>Full Khata
+        </button>
+      </div>
+      <p class="khata-note" *ngIf="!canUseKhata">Khata available for known customers only</p>
+    </div>
+  </ng-container>
+
+  <!-- ── CASH / CARD confirm ────────────────────────────────────────── -->
+  <div class="pay-confirm-box"
+    *ngIf="paymentMode === 'full' && paymentMethod && paymentMethod !== 'upi'">
+    <div class="pc-amount">{{ inr(grandTotal) }}</div>
+    <div class="pc-method">
+      <span class="icon icon-sm">{{ payIconName(paymentMethod!) }}</span>
+      {{ payLabel(paymentMethod!) }} Payment
+    </div>
+    <p class="pc-note">Collect {{ inr(grandTotal) }} from customer, then confirm</p>
+    <button class="btn-confirm" (click)="confirm()" [disabled]="loading">
+      <span *ngIf="!loading">✓ Payment Received — Confirm Bill</span>
+      <span *ngIf="loading">Saving bill…</span>
+    </button>
+    <button class="btn-back" (click)="back()">← Change Method</button>
+  </div>
+
+  <!-- ── UPI flow ───────────────────────────────────────────────────── -->
+  <div class="pay-upi-box"
+    *ngIf="paymentMode === 'full' && paymentMethod === 'upi'">
+
+    <!-- UPI init -->
+    <div class="upi-init" *ngIf="upiState === 'init'">
+      <div class="upi-amount">{{ inr(grandTotal) }}</div>
+      <div class="upi-instruction">
+        <p>Tell the customer the amount <strong>{{ inr(grandTotal) }}</strong></p>
+        <p>Customer scans your <strong>UPI merchant QR stand</strong> and pays</p>
+      </div>
+      <div class="upi-apps">
+        <span class="icon icon-sm" title="PhonePe">phone_android</span>
+        <span class="icon icon-sm" title="Google Pay">g_mobiledata</span>
+        <span class="icon icon-sm" title="Paytm">wallet</span>
+        <span class="icon icon-sm" title="Any UPI App">qr_code_2</span>
+        <span class="upi-apps-label">Any UPI app</span>
+      </div>
+      <button class="btn-upi-wait" (click)="startUpiWaiting()">
+        <span class="icon icon-sm">wifi_tethering</span> Waiting for Payment
+      </button>
+      <div class="upi-divider">— or —</div>
+      <button class="btn-confirm-sm" (click)="confirm()">✓ Already Received — Confirm</button>
+      <button class="btn-back" (click)="back()">← Change Method</button>
+    </div>
+
+    <!-- UPI waiting -->
+    <div class="upi-waiting" *ngIf="upiState === 'waiting'">
+      <div class="upi-pulse-wrap">
+        <div class="upi-pulse"></div>
+        <span class="icon upi-pulse-icon">wifi_tethering</span>
+      </div>
+      <div class="upi-wait-amount">{{ inr(grandTotal) }}</div>
+      <div class="upi-wait-status">Waiting for UPI payment...</div>
+      <div class="upi-countdown">{{ upiTimerLabel() }} remaining</div>
+      <p class="upi-wait-note">
+        Once customer pays, click the button below.<br />
+        <em>Auto-verify will be available after Razorpay backend setup.</em>
+      </p>
+      <button class="btn-upi-received" (click)="upiReceived()">✓ Payment Received on Phone</button>
+      <button class="btn-cancel-upi" (click)="cancelUpiWait()">✕ Cancel</button>
+    </div>
+
+    <!-- UPI received flash -->
+    <div class="upi-received" *ngIf="upiState === 'received'">
+      <div class="upi-received-icon">
+        <span class="icon" style="color:var(--green);font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 48">check_circle</span>
+      </div>
+      <div class="upi-received-text">UPI Payment Received!</div>
+      <div class="upi-received-sub">Saving bill...</div>
+    </div>
+  </div>
+
+  <!-- ── PARTIAL payment ────────────────────────────────────────────── -->
+  <div class="pay-partial-box" *ngIf="paymentMode === 'partial'">
+    <div class="pc-amount">{{ inr(grandTotal) }}</div>
+
+    <div class="partial-input-row">
+      <label class="partial-label">Amount collecting now (₹)</label>
+      <div class="partial-input-wrap">
+        <span class="partial-prefix">₹</span>
+        <input type="number" [(ngModel)]="paidNow" min="1" class="partial-input"
+          placeholder="0" autocomplete="off" />
+      </div>
+      <div class="field-error" *ngIf="paidNowError">{{ paidNowError }}</div>
+    </div>
+
+    <div class="partial-preview" *ngIf="paidNow && paidNow > 0 && !paidNowError">
+      <div class="partial-preview-row">
+        <span>Collecting now</span>
+        <span class="pp-paid">+ {{ inr(paidNow) }}</span>
+      </div>
+      <div class="partial-preview-row">
+        <span>Khata debit (customer owes)</span>
+        <span class="pp-khata">− {{ inr(khataAmount) }}</span>
+      </div>
+      <div class="partial-preview-divider"></div>
+      <div class="partial-preview-row pp-balance-row" *ngIf="customer.pendingAmount !== undefined">
+        <span>Khata balance after this</span>
+        <span class="pp-balance">{{ inr((customer.pendingAmount ?? 0) + khataAmount) }}</span>
+      </div>
+    </div>
+
+    <div class="partial-methods" *ngIf="paidNow && paidNow > 0 && !paidNowError">
+      <label class="partial-label">Pay {{ inr(paidNow) }} via</label>
+      <div class="pay-methods-sm">
+        <button class="pay-btn-sm" [class.selected]="partialMethod === 'cash'" (click)="partialMethod = 'cash'">
+          <span class="icon icon-xs">currency_rupee</span> Cash
+        </button>
+        <button class="pay-btn-sm" [class.selected]="partialMethod === 'upi'" (click)="partialMethod = 'upi'">
+          <span class="icon icon-xs">qr_code_scanner</span> UPI
+        </button>
+        <button class="pay-btn-sm" [class.selected]="partialMethod === 'card'" (click)="partialMethod = 'card'">
+          <span class="icon icon-xs">credit_card</span> Card
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-confirm" [disabled]="!partialReady || loading" (click)="confirm()">
+      <span *ngIf="!loading">✓ Confirm — {{ inr(paidNow ?? 0) }} now + {{ inr(khataAmount) }} to Khata</span>
+      <span *ngIf="loading">Saving bill…</span>
+    </button>
+    <button class="btn-back" (click)="back()">← Change Method</button>
+  </div>
+
+  <!-- ── FULL KHATA ─────────────────────────────────────────────────── -->
+  <div class="pay-khata-box" *ngIf="paymentMode === 'khata'">
+    <div class="khata-confirm-icon"><span class="icon" style="color:var(--blue)">menu_book</span></div>
+    <div class="khata-confirm-text">Full amount to Khata</div>
+
+    <div class="khata-debit-preview">
+      <div class="kdp-row">
+        <span>This bill (debit)</span>
+        <span class="kdp-debit">− {{ inr(grandTotal) }}</span>
+      </div>
+      <div class="kdp-row kdp-balance-row" *ngIf="(customer.pendingAmount ?? 0) >= 0">
+        <span>Khata balance after</span>
+        <span class="kdp-balance">{{ inr((customer.pendingAmount ?? 0) + grandTotal) }}</span>
+      </div>
+    </div>
+
+    <p class="khata-confirm-sub">{{ customer.name }} can pay later</p>
+    <button class="btn-confirm khata-confirm-btn" (click)="confirm()" [disabled]="loading">
+      <span *ngIf="!loading"><span class="icon icon-sm">menu_book</span> Confirm — Add {{ inr(grandTotal) }} to Khata</span>
+      <span *ngIf="loading">Saving bill…</span>
+    </button>
+    <button class="btn-back" (click)="back()">← Change Method</button>
+  </div>
+</div>

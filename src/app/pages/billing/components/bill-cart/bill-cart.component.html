@@ -1,0 +1,68 @@
+<div class="bill-items-card">
+  <div class="bi-header">
+    <h3>
+      Bill Items
+      <span class="bi-count" *ngIf="items.length">({{ items.length }})</span>
+    </h3>
+  </div>
+
+  <div class="bi-empty" *ngIf="items.length === 0">
+    <span>🛒</span>
+    <p>No items yet — click <strong>+ Add</strong> on any product above</p>
+  </div>
+
+  <div class="bill-table-wrap" *ngIf="items.length > 0">
+    <table class="bill-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Product</th>
+          <th class="tc">Qty</th>
+          <th>Unit Price (₹)</th>
+          <th>Discount (₹)</th>
+          <th class="tr" *ngIf="gstEnabled">GST%</th>
+          <th class="tr" *ngIf="gstEnabled">GST (₹)</th>
+          <th class="tr">Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of items; let i = index">
+          <td class="td-n">{{ i + 1 }}</td>
+          <td class="td-prod">
+            <span class="td-ico">
+              <img *ngIf="item.product.primaryImageUrl" [src]="item.product.primaryImageUrl" class="pr-img" alt="" />
+              <span *ngIf="!item.product.primaryImageUrl" class="icon pr-img-fallback">inventory_2</span>
+            </span>
+            <div>
+              <div class="td-name">{{ item.product.name }}</div>
+              <div class="td-sku">{{ item.product.sku }}</div>
+            </div>
+          </td>
+          <td class="tc">
+            <div class="qty-ctrl">
+              <button (click)="decQty(item)">−</button>
+              <input type="number" [(ngModel)]="item.qty" min="1" class="qty-in" />
+              <button (click)="incQty(item)">+</button>
+            </div>
+          </td>
+          <td class="td-price">
+            <input type="number" [(ngModel)]="item.unitPrice" min="0" class="price-in" />
+            <span class="negotiated" *ngIf="item.unitPrice !== item.product.priceRetail">
+              MRP {{ inr(item.product.priceRetail) }}
+            </span>
+          </td>
+          <td class="td-disc">
+            <input type="number" [(ngModel)]="item.discount" min="0" placeholder="0" class="disc-in" />
+          </td>
+          <td class="tr gst-pct" *ngIf="gstEnabled">{{ item.product.gstPercent }}%</td>
+          <td class="tr gst-amt" *ngIf="gstEnabled">{{ inr(lineGst(item)) }}</td>
+          <td class="td-total tr">{{ inr(lineTotal(item)) }}</td>
+          <td>
+            <button class="remove-btn" (click)="removeItem.emit(i)" title="Remove">✕</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

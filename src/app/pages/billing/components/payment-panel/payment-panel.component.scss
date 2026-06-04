@@ -1,0 +1,185 @@
+:host { display: contents; }
+
+.pay-card { padding: .875rem; }
+
+.pay-card-title {
+  font-size: .875rem; font-weight: 600; color: #111827;
+  margin-bottom: .75rem; display: flex; align-items: center; gap: 5px;
+}
+
+// ── Method selection ──────────────────────────────────────────────────
+
+.pay-need {
+  font-size: .76rem; color: #9ca3af; text-align: center;
+  margin-bottom: .65rem; background: #fefce8; border-radius: 6px; padding: .4rem .6rem;
+}
+.pay-methods {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .4rem;
+  &.locked .pay-btn { opacity: .4; cursor: not-allowed; pointer-events: none; }
+}
+.pay-btn {
+  padding: .7rem .4rem; border: 2px solid #e5e7eb; border-radius: 10px;
+  background: #f9fafb; cursor: pointer; display: flex; flex-direction: column;
+  align-items: center; gap: .25rem; font-size: .75rem; font-weight: 600; color: #374151;
+  transition: all .15s; span { font-size: 1.3rem; }
+  &.cash:hover { border-color: #16a34a; color: #16a34a; background: #f0fdf4; }
+  &.upi:hover  { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
+  &.card:hover { border-color: #2874F0; color: #2874F0; background: #eff6ff; }
+}
+
+// ── Khata options ─────────────────────────────────────────────────────
+
+.khata-options { margin-top: .5rem; }
+.khata-divider {
+  display: flex; align-items: center; gap: .5rem; margin: .65rem 0 .5rem;
+  &::before, &::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
+  span { font-size: .68rem; color: #9ca3af; white-space: nowrap; }
+}
+.khata-btns { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.pay-btn.khata-partial {
+  &:hover:not(:disabled) { border-color: #f59e0b; color: #b45309; background: #fffbeb; }
+  &:disabled { opacity: .4; cursor: not-allowed; }
+}
+.pay-btn.khata-full {
+  &:hover:not(:disabled) { border-color: #7c3aed; color: #7c3aed; background: #faf5ff; }
+  &:disabled { opacity: .4; cursor: not-allowed; }
+}
+.khata-note { font-size: .7rem; color: #9ca3af; text-align: center; margin-top: .4rem; }
+
+// ── Cash/Card confirm ─────────────────────────────────────────────────
+
+.pay-confirm-box { text-align: center; }
+.pc-amount { font-size: 2rem; font-weight: 700; color: #111827; margin-bottom: .15rem; }
+.pc-method { font-size: .875rem; color: #4b5563; margin-bottom: .5rem; }
+.pc-note   { font-size: .77rem; color: #9ca3af; margin-bottom: .875rem; }
+
+// ── UPI flow ──────────────────────────────────────────────────────────
+
+.upi-init { text-align: center; }
+.upi-amount { font-size: 2rem; font-weight: 700; color: #7c3aed; margin-bottom: .5rem; }
+.upi-instruction {
+  font-size: .8rem; color: #4b5563; line-height: 1.6;
+  background: #faf5ff; border-radius: 8px; padding: .6rem .75rem;
+  margin-bottom: .65rem; text-align: left;
+  p { margin: 0 0 .2rem; }
+}
+.upi-apps {
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  font-size: 1.4rem; margin-bottom: .75rem;
+  .upi-apps-label { font-size: .72rem; color: #9ca3af; }
+}
+.upi-divider { text-align: center; font-size: .75rem; color: #d1d5db; margin: .5rem 0; }
+
+.upi-waiting { text-align: center; }
+.upi-pulse-wrap {
+  position: relative; width: 60px; height: 60px;
+  margin: 0 auto .75rem; display: flex; align-items: center; justify-content: center;
+}
+.upi-pulse {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(124,58,237,.15); animation: pay-pulse 1.5s ease-in-out infinite;
+}
+@keyframes pay-pulse {
+  0%   { transform: scale(1);   opacity: .8; }
+  50%  { transform: scale(1.3); opacity: .3; }
+  100% { transform: scale(1);   opacity: .8; }
+}
+.upi-pulse-icon   { font-size: 1.75rem; position: relative; z-index: 1; }
+.upi-wait-amount  { font-size: 1.75rem; font-weight: 700; color: #7c3aed; margin-bottom: .15rem; }
+.upi-wait-status  { font-size: .9rem; font-weight: 600; color: #374151; margin-bottom: .25rem; }
+.upi-countdown    { font-size: .78rem; color: #9ca3af; margin-bottom: .5rem; font-variant-numeric: tabular-nums; }
+.upi-wait-note {
+  font-size: .72rem; color: #6b7280; background: #f9fafb; border-radius: 6px;
+  padding: .4rem .6rem; margin-bottom: .65rem; line-height: 1.5;
+  em { color: #9ca3af; }
+}
+
+.upi-received { text-align: center; padding: 1rem 0; }
+.upi-received-icon { font-size: 3rem; animation: pay-pop .4s ease-out; }
+.upi-received-text { font-size: 1.1rem; font-weight: 700; color: #16a34a; margin: .4rem 0 .2rem; }
+.upi-received-sub  { font-size: .8rem; color: #9ca3af; }
+@keyframes pay-pop {
+  0%   { transform: scale(0.5); }
+  70%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+// ── Partial payment ───────────────────────────────────────────────────
+
+.partial-input-row { margin: .75rem 0 .5rem; }
+.partial-label { display: block; font-size: .72rem; color: #6b7280; font-weight: 500; margin-bottom: .25rem; }
+.partial-input-wrap {
+  display: flex; align-items: center;
+  border: 1.5px solid #d1d5db; border-radius: 8px; overflow: hidden;
+  &:focus-within { border-color: #2874F0; }
+}
+.partial-prefix { padding: .45rem .6rem; background: #f9fafb; font-size: .84rem; color: #6b7280; border-right: 1px solid #d1d5db; flex-shrink: 0; }
+.partial-input {
+  flex: 1; border: none; outline: none; padding: .45rem .6rem; font-size: 1rem; font-weight: 700; color: #111827;
+  &::-webkit-inner-spin-button, &::-webkit-outer-spin-button { -webkit-appearance: none; }
+}
+.partial-preview { background: #f9fafb; border-radius: 8px; padding: .55rem .75rem; margin-bottom: .65rem; }
+.partial-preview-row {
+  display: flex; justify-content: space-between; font-size: .82rem; color: #374151; margin-bottom: .3rem;
+  &:last-child { margin-bottom: 0; }
+}
+.partial-preview-divider { border-top: 1px dashed #e5e7eb; margin: .35rem 0; }
+.pp-paid     { font-weight: 700; color: #16a34a; }
+.pp-khata    { font-weight: 700; color: #ef4444; }
+.pp-balance-row span:first-child { color: #6b7280; font-size: .78rem; }
+.pp-balance  { font-weight: 700; color: #7c3aed; }
+.partial-methods { margin-bottom: .75rem; }
+.pay-methods-sm { display: flex; gap: .35rem; margin-top: .3rem; }
+.pay-btn-sm {
+  flex: 1; padding: .45rem .2rem; border: 1.5px solid #e5e7eb; border-radius: 8px;
+  background: #f9fafb; cursor: pointer; font-size: .72rem; font-weight: 600; color: #374151; transition: all .15s;
+  &.selected { border-color: #2874F0; background: #eff6ff; color: #2874F0; }
+  &:hover:not(.selected) { background: #f3f4f6; }
+}
+
+// ── Full Khata ────────────────────────────────────────────────────────
+
+.pay-khata-box { text-align: center; }
+.khata-confirm-icon { font-size: 2.5rem; margin-bottom: .4rem; display: block; }
+.khata-confirm-text { font-size: .9rem; font-weight: 600; color: #7c3aed; margin-bottom: .75rem; }
+.khata-confirm-sub  { font-size: .78rem; color: #9ca3af; margin-bottom: .875rem; }
+.khata-debit-preview { background: #fef2f2; border-radius: 8px; padding: .55rem .75rem; margin-bottom: .75rem; text-align: left; }
+.kdp-row { display: flex; justify-content: space-between; font-size: .82rem; color: #374151; margin-bottom: .25rem; &:last-child { margin-bottom: 0; } }
+.kdp-debit   { font-weight: 700; color: #ef4444; }
+.kdp-balance-row { border-top: 1px dashed #fca5a5; padding-top: .25rem; margin-top: .25rem; span:first-child { color: #6b7280; font-size: .78rem; } }
+.kdp-balance { font-weight: 700; color: #7c3aed; }
+
+// ── Shared action buttons ─────────────────────────────────────────────
+
+.btn-confirm {
+  width: 100%; padding: .65rem; background: #16a34a; color: #fff;
+  border: none; border-radius: 8px; font-size: .875rem; font-weight: 600;
+  cursor: pointer; margin-bottom: .4rem; transition: background .15s;
+  &:hover { background: #15803d; }
+  &:disabled { opacity: .6; cursor: not-allowed; }
+}
+.khata-confirm-btn { background: #7c3aed !important; &:hover { background: #6d28d9 !important; } }
+.btn-confirm-sm {
+  width: 100%; padding: .5rem; background: #f3f4f6; color: #374151;
+  border: none; border-radius: 8px; font-size: .8rem; font-weight: 500;
+  cursor: pointer; margin-bottom: .4rem; &:hover { background: #e5e7eb; }
+}
+.btn-upi-wait {
+  width: 100%; padding: .65rem; background: #7c3aed; color: #fff;
+  border: none; border-radius: 8px; font-size: .875rem; font-weight: 600;
+  cursor: pointer; margin-bottom: .4rem; transition: background .15s;
+  &:hover { background: #6d28d9; }
+}
+.btn-upi-received {
+  width: 100%; padding: .65rem; background: #16a34a; color: #fff;
+  border: none; border-radius: 8px; font-size: .875rem; font-weight: 600;
+  cursor: pointer; margin-bottom: .4rem; &:hover { background: #15803d; }
+}
+.btn-cancel-upi {
+  width: 100%; padding: .4rem; background: none; border: none;
+  color: #ef4444; font-size: .78rem; cursor: pointer; &:hover { color: #dc2626; }
+}
+.btn-back {
+  width: 100%; padding: .35rem; background: none; border: none;
+  color: #6b7280; font-size: .78rem; cursor: pointer; &:hover { color: #111827; }
+}

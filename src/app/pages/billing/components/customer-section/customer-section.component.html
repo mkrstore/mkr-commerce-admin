@@ -1,0 +1,147 @@
+<div class="card cust-card">
+  <div class="cust-card-title">
+    <span><span class="icon icon-sm">person</span> Customer Details</span>
+    <button class="new-cust-btn" type="button" (click)="openModal()" title="Add new customer">
+      <span class="icon icon-xs">person_add</span> New
+    </button>
+  </div>
+
+  <!-- Phone -->
+  <div class="cust-field-wrap">
+    <div class="phone-box">
+      <input type="tel" [ngModel]="customer.phone"
+        (ngModelChange)="onPhoneChange($event)"
+        (blur)="phoneTouched = true; closeDropdown()"
+        placeholder="Phone number *" class="f-input" [disabled]="isExisting" />
+      <span class="phone-digits" *ngIf="customer.phone && !isExisting">{{ customer.phone.length }}/10</span>
+      <button class="cust-change-btn" *ngIf="isExisting" (click)="clearCustomer()" type="button">Change</button>
+    </div>
+
+    <div class="phone-dropdown" *ngIf="showPhoneDropdown">
+      <div class="pd-item" *ngFor="let c of phoneDropdown" (mousedown)="selectFromDropdown(c)">
+        <div class="pd-top">
+          <span class="pd-name">{{ c.name }}</span>
+          <span class="pd-phone">{{ c.phone }}</span>
+        </div>
+        <div class="pd-email" *ngIf="c.email">{{ c.email }}</div>
+      </div>
+    </div>
+
+    <div class="phone-status searching" *ngIf="customerSearching">
+      <span class="pd-spinner"></span> Verifying…
+    </div>
+    <div class="phone-status found" *ngIf="customerStatus === 'found' && !customerSearching">
+      <span class="icon icon-xs">check_circle</span>
+      Existing customer &bull; {{ customer.name }}
+      <span *ngIf="(customer.pendingAmount ?? 0) > 0" class="ps-khata">
+        &middot; Khata: ₹{{ customer.pendingAmount | number:'1.0-0' }}
+      </span>
+    </div>
+    <div class="phone-status new-cust" *ngIf="customerStatus === 'new' && !customerSearching">
+      <span class="icon icon-xs">person_add</span> New customer — fill in details below
+    </div>
+    <div class="field-error" *ngIf="phoneError">{{ phoneError }}</div>
+  </div>
+
+  <!-- Name -->
+  <div class="cust-field-wrap">
+    <input type="text" [ngModel]="customer.name"
+      (ngModelChange)="onNameChange($event)"
+      (blur)="nameTouched = true"
+      placeholder="Full name *" class="f-input" [disabled]="isExisting" />
+    <div class="field-error" *ngIf="nameError">{{ nameError }}</div>
+  </div>
+
+  <!-- Email -->
+  <div class="cust-field-wrap">
+    <input type="email" [ngModel]="customer.email"
+      (ngModelChange)="onEmailChange($event)"
+      (blur)="emailTouched = true"
+      placeholder="Email (optional)" class="f-input" [disabled]="isExisting" />
+    <div class="field-error" *ngIf="emailError">{{ emailError }}</div>
+  </div>
+
+  <!-- Address -->
+  <div class="cust-field-wrap last">
+    <input type="text" [ngModel]="customer.address"
+      (ngModelChange)="onAddressChange($event)"
+      placeholder="Address (optional)" class="f-input" [disabled]="isExisting" />
+  </div>
+</div>
+
+<!-- New customer modal -->
+<div class="overlay" *ngIf="showModal" (click)="closeModal()"></div>
+<div class="modal modal-lg" *ngIf="showModal" (click)="$event.stopPropagation()">
+  <div class="modal-hd">
+    <div>
+      <div class="modal-title">New Customer</div>
+      <div style="font-size:12px;color:var(--t3)">Create and select for this bill</div>
+    </div>
+    <button class="modal-close" (click)="closeModal()"><span class="icon icon-sm">close</span></button>
+  </div>
+
+  <div class="modal-body">
+    <div class="alert alert-error" *ngIf="modalError">
+      <span class="icon icon-sm">warning</span> {{ modalError }}
+    </div>
+
+    <div class="field-row">
+      <app-input label="First Name" [required]="true" [touched]="modalTouched" [autoCapFirst]="true"
+        [value]="form.firstName" (valueChange)="form.firstName = $event"
+        [externalError]="firstNameError" placeholder="e.g. Ravi" />
+      <app-input label="Last Name" [required]="true" [touched]="modalTouched" [autoCapFirst]="true"
+        [value]="form.lastName" (valueChange)="form.lastName = $event"
+        [externalError]="lastNameError" placeholder="e.g. Kumar" />
+    </div>
+
+    <div class="field-row">
+      <app-input label="Phone" type="tel" [required]="true" [touched]="modalTouched"
+        [value]="form.phone" (valueChange)="form.phone = $event"
+        [externalError]="modalPhoneError" placeholder="10-digit mobile" hint="Must start with 6, 7, 8 or 9" />
+      <app-input label="Email" optLabel="optional" type="email" [touched]="modalTouched"
+        [value]="form.email" (valueChange)="form.email = $event"
+        [externalError]="modalEmailError" placeholder="customer@email.com" />
+    </div>
+
+    <app-select label="Customer Type" [required]="true" [options]="typeOpts"
+      [value]="form.type" (valueChange)="form.type = $event" />
+
+    <button class="addr-toggle" type="button" (click)="showAddress = !showAddress">
+      <span class="icon icon-sm">{{ showAddress ? 'expand_less' : 'location_on' }}</span>
+      {{ showAddress ? 'Hide address' : 'Add address' }}
+      <span class="opt">(optional)</span>
+    </button>
+
+    <ng-container *ngIf="showAddress">
+      <app-input label="Street / Door No." optLabel="optional"
+        [value]="form.addressStreet" (valueChange)="form.addressStreet = $event"
+        placeholder="e.g. 12-3, Gandhi Road" />
+      <div class="field-row">
+        <app-input label="Town / Village" optLabel="optional"
+          [value]="form.addressCity" (valueChange)="form.addressCity = $event"
+          placeholder="e.g. Ramachandrapuram" />
+        <app-input label="Mandal" optLabel="optional"
+          [value]="form.addressMandal" (valueChange)="form.addressMandal = $event"
+          placeholder="e.g. Eluru Mandal" />
+      </div>
+      <div class="field-row">
+        <app-input label="District" optLabel="optional"
+          [value]="form.addressDistrict" (valueChange)="form.addressDistrict = $event"
+          placeholder="e.g. West Godavari" />
+        <app-input label="State" optLabel="optional"
+          [value]="form.addressState" (valueChange)="form.addressState = $event"
+          placeholder="e.g. Andhra Pradesh" />
+      </div>
+      <app-input label="Pincode" optLabel="optional" [touched]="modalTouched"
+        [value]="form.addressPostalCode" (valueChange)="form.addressPostalCode = $event"
+        [externalError]="postalError" placeholder="e.g. 534003" />
+    </ng-container>
+  </div>
+
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
+    <app-btn variant="primary" icon="person_add" [loading]="saving" (clicked)="submitModal()">
+      Create &amp; Select
+    </app-btn>
+  </div>
+</div>

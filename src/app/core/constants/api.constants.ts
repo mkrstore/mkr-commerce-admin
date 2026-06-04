@@ -70,8 +70,9 @@ export const BILLING_ENDPOINTS = {
   PREVIEW: `${API}/billing/preview`,
   CONFIRM: `${API}/billing/confirm`,
   BY_ID:   (id: string) => `${API}/billing/${id}`,
-  PDF:     (id: string) => `${API}/billing/${id}/pdf`,
-  EMAIL:   (id: string) => `${API}/billing/${id}/send-email`,
+  PDF:       (id: string) => `${API}/billing/${id}/pdf`,
+  EMAIL:     (id: string) => `${API}/billing/${id}/send-email`,
+  WHATSAPP:  (id: string) => `${API}/billing/${id}/send-whatsapp`,
 } as const;
 
 export const CUSTOMER_ENDPOINTS = {

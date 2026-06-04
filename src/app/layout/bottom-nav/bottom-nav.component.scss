@@ -2,14 +2,16 @@
   display: none;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  height: 62px;
+  /* content zone stays 62 px; safe-area adds extra space below icons on iOS */
+  height: calc(62px + env(safe-area-inset-bottom, 0px));
   background: var(--surface);
   border-top: 1px solid var(--border);
   box-shadow: 0 -2px 16px rgba(0,0,0,.10);
   z-index: 150;
   flex-direction: row;
-  align-items: stretch;
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  align-items: flex-start; /* icons sit in the top 62 px, safe-area is blank below */
+  padding-top: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .bnav-item {
