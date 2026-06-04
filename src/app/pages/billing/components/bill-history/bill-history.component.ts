@@ -39,13 +39,29 @@ export class BillHistoryComponent {
   lineTotal = lineTotal;
 
   readonly cols: TableCol[] = [
-    { key: 'billInfo',  header: 'Bill ID' },
+    { key: 'billInfo',  header: 'Bill ID',  mobileCard: 'title' },
     { key: 'customer',  header: 'Customer' },
-    { key: 'items',     header: 'Items',   align: 'center', width: '70px' },
-    { key: 'total',     header: 'Total',   align: 'right' },
+    { key: 'items',     header: 'Items',    align: 'center', width: '70px', mobileCard: 'hide' },
+    { key: 'total',     header: 'Total',    align: 'right' },
     { key: 'payment',   header: 'Payment' },
-    { key: 'actions',   header: '',        width: '48px' },
+    { key: 'actions',   header: '',         width: '48px',   mobileCard: 'action' },
   ];
+
+  readonly pageSize = 15;
+  currentPage = 0;
+
+  get totalPageCount() {
+    return Math.max(1, Math.ceil(this.filtered.length / this.pageSize));
+  }
+
+  get pagedRows() {
+    const start = this.currentPage * this.pageSize;
+    return this.filtered.slice(start, start + this.pageSize);
+  }
+
+  onPageChange(page: number) {
+    this.currentPage = page;
+  }
 
   constructor(private zone: NgZone, private cdr: ChangeDetectorRef) {}
 
@@ -57,6 +73,10 @@ export class BillHistoryComponent {
       || b.customer.name.toLowerCase().includes(q)
       || b.customer.phone.includes(q)
     );
+  }
+
+  onSearch() {
+    this.currentPage = 0;
   }
 
   openDetail(b: SavedBill) {

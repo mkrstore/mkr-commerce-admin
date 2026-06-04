@@ -2,7 +2,7 @@
 
   <!-- Search + meta bar -->
   <div class="history-top">
-    <input type="text" [(ngModel)]="searchQuery"
+    <input type="text" [(ngModel)]="searchQuery" (ngModelChange)="onSearch()"
       placeholder="Search by bill ID, customer name or phone..."
       class="history-search" />
     <span class="history-meta" *ngIf="!loading">
@@ -14,14 +14,17 @@
   <!-- Table -->
   <app-data-table
     [columns]="cols"
-    [rows]="filtered"
+    [rows]="pagedRows"
     [loading]="loading"
     [loadingRows]="6"
     emptyIcon="receipt_long"
     emptyTitle="No bills yet"
     emptySubtitle="Generate your first bill from the New Bill tab."
     [clickable]="true"
-    (rowClick)="openDetail($event)">
+    [page]="currentPage"
+    [totalPages]="totalPageCount"
+    (rowClick)="openDetail($event)"
+    (pageChange)="onPageChange($event)">
 
     <!-- Bill ID + Date -->
     <ng-template tdCell="billInfo" let-row>
@@ -67,7 +70,7 @@
   </app-data-table>
 
   <!-- No-match hint when search active but filtered is empty and bills exist -->
-  <div class="no-match" *ngIf="!loading && bills.length > 0 && filtered.length === 0">
+  <div class="no-match" *ngIf="!loading && bills.length > 0 && filtered.length === 0 && searchQuery">
     No bills match "{{ searchQuery }}"
   </div>
 </div>

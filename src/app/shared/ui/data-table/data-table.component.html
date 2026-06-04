@@ -1,24 +1,6 @@
-<div class="tbl-card">
+<!-- ── DESKTOP TABLE ───────────────────────────────────────────────────────── -->
+<div class="tbl-card dt-desktop">
 
-  <!-- Loading skeleton -->
-  <div class="tbl-wrap" *ngIf="loading">
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th *ngFor="let col of columns" [ngStyle]="thStyle(col)">{{ col.header }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let _ of skeletonRows">
-          <td *ngFor="let col of columns">
-            <span class="dt-skeleton"></span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Data -->
   <div class="tbl-wrap" *ngIf="!loading && rows.length > 0">
     <table class="tbl">
       <thead>
@@ -32,8 +14,7 @@
           (click)="clickable && rowClick.emit(row)">
           <td *ngFor="let col of columns" [ngStyle]="tdStyle(col)">
             <ng-container *ngIf="getCell(col.key) as tpl; else plain">
-              <ng-container [ngTemplateOutlet]="tpl" [ngTemplateOutletContext]="ctx(row, i)">
-              </ng-container>
+              <ng-container [ngTemplateOutlet]="tpl" [ngTemplateOutletContext]="ctx(row, i)"></ng-container>
             </ng-container>
             <ng-template #plain>{{ row[col.key] ?? '' }}</ng-template>
           </td>
@@ -42,13 +23,112 @@
     </table>
   </div>
 
-  <!-- Empty state -->
+  <!-- Desktop loading skeleton -->
+  <div class="tbl-wrap" *ngIf="loading">
+    <table class="tbl">
+      <thead>
+        <tr><th *ngFor="let col of columns">{{ col.header }}</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let _ of skeletonRows">
+          <td *ngFor="let col of columns"><span class="dt-skeleton"></span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
   <div class="empty" *ngIf="!loading && rows.length === 0">
-    <div class="empty-icon">
-      <span class="icon icon-xl icon-muted">{{ emptyIcon }}</span>
+    <div class="empty-icon"><span class="icon icon-xl icon-muted">{{ emptyIcon }}</span></div>
+    <div class="empty-title">{{ emptyTitle }}</div>
+    <div class="empty-sub" *ngIf="emptySubtitle">{{ emptySubtitle }}</div>
+  </div>
+</div>
+
+<!-- ── MOBILE CARDS ────────────────────────────────────────────────────────── -->
+<div class="dt-mobile">
+
+  <!-- Mobile loading skeleton -->
+  <ng-container *ngIf="loading">
+    <div class="dt-card dt-card-skeleton" *ngFor="let _ of skeletonRows; let i = index"
+      [style.animation-delay]="i * 80 + 'ms'">
+      <div class="dt-skel-line dt-skel-lg"></div>
+      <div class="dt-skel-line dt-skel-sm"></div>
+      <div class="dt-skel-line dt-skel-md"></div>
     </div>
+  </ng-container>
+
+  <div class="empty" *ngIf="!loading && rows.length === 0" style="padding:2.5rem 1rem">
+    <div class="empty-icon"><span class="icon icon-xl icon-muted">{{ emptyIcon }}</span></div>
     <div class="empty-title">{{ emptyTitle }}</div>
     <div class="empty-sub" *ngIf="emptySubtitle">{{ emptySubtitle }}</div>
   </div>
 
+  <div class="dt-card" *ngFor="let row of rows; let i = index"
+    [class.dt-card-clickable]="clickable"
+    (click)="clickable && rowClick.emit(row)">
+
+    <!-- Card header: title column + action column -->
+    <div class="dt-card-hd">
+      <div class="dt-card-title">
+        <ng-container *ngIf="titleCol">
+          <ng-container *ngIf="getCell(titleCol.key) as tpl; else titlePlain">
+            <ng-container [ngTemplateOutlet]="tpl" [ngTemplateOutletContext]="ctx(row, i)"></ng-container>
+          </ng-container>
+          <ng-template #titlePlain>{{ row[titleCol.key] ?? '' }}</ng-template>
+        </ng-container>
+      </div>
+      <div class="dt-card-action" *ngIf="actionCol" (click)="$event.stopPropagation()">
+        <ng-container *ngIf="getCell(actionCol.key) as tpl">
+          <ng-container [ngTemplateOutlet]="tpl" [ngTemplateOutletContext]="ctx(row, i)"></ng-container>
+        </ng-container>
+      </div>
+    </div>
+
+    <!-- Card body: remaining visible columns -->
+    <div class="dt-card-body">
+      <div class="dt-card-row" *ngFor="let col of bodyMobileCols">
+        <span class="dt-card-label">{{ col.header }}</span>
+        <span class="dt-card-val" [ngStyle]="tdStyle(col)">
+          <ng-container *ngIf="getCell(col.key) as tpl; else bodyPlain">
+            <ng-container [ngTemplateOutlet]="tpl" [ngTemplateOutletContext]="ctx(row, i)"></ng-container>
+          </ng-container>
+          <ng-template #bodyPlain>{{ row[col.key] ?? '' }}</ng-template>
+        </span>
+      </div>
+    </div>
+
+  </div>
 </div>
+
+<!-- ── PAGINATION ──────────────────────────────────────────────────────────── -->
+<ng-container *ngIf="totalPages > 1 && !loading">
+
+  <!-- Desktop: numbered -->
+  <div class="pagination dt-pg-desktop">
+    <button class="pg-btn" [disabled]="page === 0" (click)="prev()">
+      <span class="icon icon-sm">chevron_left</span>
+    </button>
+    <ng-container *ngFor="let p of pageNumbers">
+      <span class="pg-dots" *ngIf="p === '...'">…</span>
+      <button class="pg-btn" *ngIf="p !== '...'"
+        [class.active]="p === page + 1"
+        (click)="goToPage(p)">{{ p }}</button>
+    </ng-container>
+    <span class="pg-info">Page {{ page + 1 }} of {{ totalPages }}</span>
+    <button class="pg-btn" [disabled]="page >= totalPages - 1" (click)="next()">
+      <span class="icon icon-sm">chevron_right</span>
+    </button>
+  </div>
+
+  <!-- Mobile: prev / next -->
+  <div class="dt-pg-mobile">
+    <button class="dt-pg-btn" [disabled]="page === 0" (click)="prev()">
+      <span class="icon icon-sm">chevron_left</span> Prev
+    </button>
+    <span class="dt-pg-info">{{ page + 1 }} / {{ totalPages }}</span>
+    <button class="dt-pg-btn" [disabled]="page >= totalPages - 1" (click)="next()">
+      Next <span class="icon icon-sm">chevron_right</span>
+    </button>
+  </div>
+
+</ng-container>
