@@ -1,0 +1,17 @@
+:host { display: block; }
+
+.dt-skeleton {
+  display: block;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--skeleton) 25%, var(--surface3) 50%, var(--skeleton) 75%);
+  background-size: 200% 100%;
+  animation: dt-shimmer 1.4s infinite;
+  min-width: 60px;
+  max-width: 140px;
+}
+
+@keyframes dt-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

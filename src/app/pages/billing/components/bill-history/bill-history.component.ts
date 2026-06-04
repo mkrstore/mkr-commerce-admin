@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { NgZone } from '@angular/core';
 import { SavedBill, BillItem } from '../../billing.types';
 import { inr, fmtDate, fmtTime, payLabel, payIconName, lineTotal } from '../../billing.utils';
+import { DataTableComponent, CellDirective, TableCol } from '../../../../shared/ui';
 
 @Component({
   selector: 'app-bill-history',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DataTableComponent, CellDirective],
   templateUrl: './bill-history.component.html',
   styleUrl: './bill-history.component.scss',
 })
@@ -36,6 +37,15 @@ export class BillHistoryComponent {
   payLabel = payLabel;
   payIconName = payIconName;
   lineTotal = lineTotal;
+
+  readonly cols: TableCol[] = [
+    { key: 'billInfo',  header: 'Bill ID' },
+    { key: 'customer',  header: 'Customer' },
+    { key: 'items',     header: 'Items',   align: 'center', width: '70px' },
+    { key: 'total',     header: 'Total',   align: 'right' },
+    { key: 'payment',   header: 'Payment' },
+    { key: 'actions',   header: '',        width: '48px' },
+  ];
 
   constructor(private zone: NgZone, private cdr: ChangeDetectorRef) {}
 

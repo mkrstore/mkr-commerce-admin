@@ -1,0 +1,54 @@
+<div class="tbl-card">
+
+  <!-- Loading skeleton -->
+  <div class="tbl-wrap" *ngIf="loading">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th *ngFor="let col of columns" [ngStyle]="thStyle(col)">{{ col.header }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let _ of skeletonRows">
+          <td *ngFor="let col of columns">
+            <span class="dt-skeleton"></span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Data -->
+  <div class="tbl-wrap" *ngIf="!loading && rows.length > 0">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th *ngFor="let col of columns" [ngStyle]="thStyle(col)">{{ col.header }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of rows; let i = index"
+          [class.tbl-row]="clickable"
+          (click)="clickable && rowClick.emit(row)">
+          <td *ngFor="let col of columns" [ngStyle]="tdStyle(col)">
+            <ng-container *ngIf="getCell(col.key) as tpl; else plain">
+              <ng-container [ngTemplateOutlet]="tpl" [ngTemplateOutletContext]="ctx(row, i)">
+              </ng-container>
+            </ng-container>
+            <ng-template #plain>{{ row[col.key] ?? '' }}</ng-template>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty" *ngIf="!loading && rows.length === 0">
+    <div class="empty-icon">
+      <span class="icon icon-xl icon-muted">{{ emptyIcon }}</span>
+    </div>
+    <div class="empty-title">{{ emptyTitle }}</div>
+    <div class="empty-sub" *ngIf="emptySubtitle">{{ emptySubtitle }}</div>
+  </div>
+
+</div>

@@ -1,4 +1,6 @@
 <div class="history-tab">
+
+  <!-- Search + meta bar -->
   <div class="history-top">
     <input type="text" [(ngModel)]="searchQuery"
       placeholder="Search by bill ID, customer name or phone..."
@@ -9,42 +11,63 @@
     <span class="history-meta" *ngIf="loading">Loading…</span>
   </div>
 
-  <div class="history-empty" *ngIf="loading">
-    <span class="icon icon-xl" style="color:var(--t3)">sync</span>
-    <p>Loading bill history…</p>
-  </div>
+  <!-- Table -->
+  <app-data-table
+    [columns]="cols"
+    [rows]="filtered"
+    [loading]="loading"
+    [loadingRows]="6"
+    emptyIcon="receipt_long"
+    emptyTitle="No bills yet"
+    emptySubtitle="Generate your first bill from the New Bill tab."
+    [clickable]="true"
+    (rowClick)="openDetail($event)">
 
-  <div class="history-empty" *ngIf="!loading && bills.length === 0">
-    <span class="icon icon-xl" style="color:var(--t3)">receipt_long</span>
-    <p>No bills yet. Generate your first bill from New Bill tab.</p>
-  </div>
+    <!-- Bill ID + Date -->
+    <ng-template tdCell="billInfo" let-row>
+      <span class="h-id">{{ row.id }}</span>
+      <span class="h-date">{{ fmtDate(row.date) }} · {{ fmtTime(row.date) }}</span>
+    </ng-template>
 
-  <div class="history-list">
-    <div class="h-row" *ngFor="let b of filtered" (click)="openDetail(b)">
-      <div class="h-col-id">
-        <span class="h-id">{{ b.id }}</span>
-        <span class="h-date">{{ fmtDate(b.date) }} · {{ fmtTime(b.date) }}</span>
-      </div>
-      <div class="h-col-cust">
-        <span class="h-name">{{ b.customer.name }}</span>
-        <span class="h-phone">{{ b.customer.phone }}</span>
-      </div>
-      <div class="h-col-items">{{ b.items.length }} item{{ b.items.length !== 1 ? 's' : '' }}</div>
-      <div class="h-col-amount">{{ inr(b.grandTotal) }}</div>
-      <span class="h-pay-badge" [ngClass]="b.paymentMethod">
-        <span class="icon icon-xs">{{ payIconName(b.paymentMethod) }}</span> {{ payLabel(b.paymentMethod) }}
-        <ng-container *ngIf="b.khataAmount > 0">
-          + <span class="icon icon-xs">menu_book</span>{{ inr(b.khataAmount) }}
+    <!-- Customer -->
+    <ng-template tdCell="customer" let-row>
+      <span class="h-name">{{ row.customer.name }}</span>
+      <span class="h-phone">{{ row.customer.phone }}</span>
+    </ng-template>
+
+    <!-- Items count -->
+    <ng-template tdCell="items" let-row>
+      {{ row.items.length }}
+    </ng-template>
+
+    <!-- Total -->
+    <ng-template tdCell="total" let-row>
+      <strong>{{ inr(row.grandTotal) }}</strong>
+    </ng-template>
+
+    <!-- Payment badge -->
+    <ng-template tdCell="payment" let-row>
+      <span class="h-pay-badge" [ngClass]="row.paymentMethod">
+        <span class="icon icon-xs">{{ payIconName(row.paymentMethod) }}</span>
+        {{ payLabel(row.paymentMethod) }}
+        <ng-container *ngIf="row.khataAmount > 0">
+          &nbsp;+ <span class="icon icon-xs">menu_book</span>{{ inr(row.khataAmount) }}
         </ng-container>
       </span>
-      <button class="reprint-btn" (click)="$event.stopPropagation(); reprint.emit(b)"
+    </ng-template>
+
+    <!-- Actions -->
+    <ng-template tdCell="actions" let-row>
+      <button class="reprint-btn" (click)="$event.stopPropagation(); reprint.emit(row)"
         [disabled]="printLoading" title="Print">
         <span class="icon icon-sm">{{ printLoading ? 'hourglass_top' : 'print' }}</span>
       </button>
-    </div>
-  </div>
+    </ng-template>
 
-  <div class="no-match" *ngIf="bills.length > 0 && filtered.length === 0">
+  </app-data-table>
+
+  <!-- No-match hint when search active but filtered is empty and bills exist -->
+  <div class="no-match" *ngIf="!loading && bills.length > 0 && filtered.length === 0">
     No bills match "{{ searchQuery }}"
   </div>
 </div>
@@ -153,11 +176,12 @@
       </button>
     </div>
 
-    <!-- Email input (shown when customer has no email) -->
+    <!-- Email input when no email on record -->
     <div class="bd-email-row" *ngIf="showEmailInput">
       <input class="bd-email-input" type="email" inputmode="email" autocomplete="email"
         [(ngModel)]="shareEmailTo" placeholder="Enter email address" />
-      <button class="bd-btn-email" (click)="onEmailSend()" [disabled]="emailSending || !shareEmailTo.trim()">
+      <button class="bd-btn-email" (click)="onEmailSend()"
+        [disabled]="emailSending || !shareEmailTo.trim()">
         <span class="icon icon-sm">{{ emailSending ? 'hourglass_top' : 'send' }}</span> Send
       </button>
     </div>

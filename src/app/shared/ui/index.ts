@@ -5,3 +5,6 @@ export { AppTextareaComponent } from './textarea/textarea.component';
 export { AppCheckboxComponent } from './checkbox/checkbox.component';
 export { AppBtnComponent }      from './button/button.component';
 export { AppPhoneInputComponent } from './phone-input/phone-input.component';
+export { DataTableComponent } from './data-table/data-table.component';
+export { CellDirective }      from './data-table/cell.directive';
+export type { TableCol }      from './data-table/data-table.component';

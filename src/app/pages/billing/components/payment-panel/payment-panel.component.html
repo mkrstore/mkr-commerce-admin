@@ -131,7 +131,7 @@
       <div class="partial-preview-divider"></div>
       <div class="partial-preview-row pp-balance-row" *ngIf="customer.pendingAmount !== undefined">
         <span>Khata balance after this</span>
-        <span class="pp-balance">{{ inr((customer.pendingAmount ?? 0) + khataAmount) }}</span>
+        <span class="pp-balance">{{ inr(customer.pendingAmount + khataAmount) }}</span>
       </div>
     </div>
 
@@ -167,9 +167,9 @@
         <span>This bill (debit)</span>
         <span class="kdp-debit">− {{ inr(grandTotal) }}</span>
       </div>
-      <div class="kdp-row kdp-balance-row" *ngIf="(customer.pendingAmount ?? 0) >= 0">
+      <div class="kdp-row kdp-balance-row" *ngIf="customer.pendingAmount !== undefined">
         <span>Khata balance after</span>
-        <span class="kdp-balance">{{ inr((customer.pendingAmount ?? 0) + grandTotal) }}</span>
+        <span class="kdp-balance">{{ inr(customer.pendingAmount + grandTotal) }}</span>
       </div>
     </div>
 
