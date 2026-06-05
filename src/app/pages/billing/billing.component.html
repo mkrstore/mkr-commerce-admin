@@ -1,14 +1,13 @@
 <div class="billing-page">
 
   <!-- ── TAB BAR ──────────────────────────────────────────────────────── -->
-  <div class="tab-bar">
-    <div class="tabs">
-      <button class="tab" [class.active]="activeTab === 'new'" (click)="activeTab = 'new'">
+  <div class="billing-tab-bar">
+    <div class="tabs-pill">
+      <button class="tab-btn" [class.active]="activeTab === 'new'" (click)="activeTab = 'new'">
         <span class="icon icon-sm">receipt_long</span> New Bill
       </button>
-      <button class="tab" [class.active]="activeTab === 'history'" (click)="activeTab = 'history'">
+      <button class="tab-btn" [class.active]="activeTab === 'history'" (click)="activeTab = 'history'">
         <span class="icon icon-sm">history</span> Bill History
-        <span class="tab-badge" *ngIf="savedBills.length">{{ savedBills.length }}</span>
       </button>
     </div>
     <div class="tab-right">
@@ -209,6 +208,9 @@
     *ngIf="activeTab === 'history'"
     [bills]="savedBills"
     [loading]="historyLoading"
+    [page]="historyPage"
+    [totalPages]="historyTotalPages"
+    [totalCount]="historyTotalCount"
     [printLoading]="printLoading"
     [pdfLoading]="pdfLoading"
     [emailSending]="emailSending"
@@ -216,7 +218,9 @@
     (reprint)="doPrint($event)"
     (download)="doDownload($event)"
     (email)="onHistoryEmail($event)"
-    (whatsapp)="doWhatsApp($event)">
+    (whatsapp)="doWhatsApp($event)"
+    (searchChange)="onHistorySearch($event)"
+    (pageChange)="onHistoryPageChange($event)">
   </app-bill-history>
 
 </div>

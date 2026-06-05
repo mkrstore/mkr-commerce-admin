@@ -80,15 +80,19 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .03em;
-  min-width: 72px;
+  min-width: 64px;
   flex-shrink: 0;
-  padding-top: .05rem;
+  padding-top: .1rem;
 }
 
 .dt-card-val {
   flex: 1;
   color: var(--t1);
   font-size: .82rem;
+  text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 // Skeleton cards

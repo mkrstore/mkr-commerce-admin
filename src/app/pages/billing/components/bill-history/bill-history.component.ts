@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NgZone } from '@angular/core';
 import { SavedBill, BillItem } from '../../billing.types';
-import { inr, fmtDate, fmtTime, payLabel, payIconName, lineTotal } from '../../billing.utils';
+import { inr, fmtDate, fmtTime, fmtDateTime, payLabel, payIconName, lineTotal } from '../../billing.utils';
 import { DataTableComponent, CellDirective, TableCol } from '../../../../shared/ui';
 
 @Component({
@@ -16,15 +16,20 @@ import { DataTableComponent, CellDirective, TableCol } from '../../../../shared/
 export class BillHistoryComponent {
   @Input() bills: SavedBill[] = [];
   @Input() loading = false;
+  @Input() page = 0;
+  @Input() totalPages = 0;
+  @Input() totalCount = 0;
   @Input() printLoading   = false;
   @Input() pdfLoading     = false;
   @Input() emailSending   = false;
   @Input() whatsappSending = false;
 
-  @Output() reprint   = new EventEmitter<SavedBill>();
-  @Output() download  = new EventEmitter<SavedBill>();
-  @Output() email     = new EventEmitter<{ bill: SavedBill; toEmail?: string }>();
-  @Output() whatsapp  = new EventEmitter<SavedBill>();
+  @Output() reprint      = new EventEmitter<SavedBill>();
+  @Output() download     = new EventEmitter<SavedBill>();
+  @Output() email        = new EventEmitter<{ bill: SavedBill; toEmail?: string }>();
+  @Output() whatsapp     = new EventEmitter<SavedBill>();
+  @Output() searchChange = new EventEmitter<string>();
+  @Output() pageChange   = new EventEmitter<number>();
 
   searchQuery = '';
   selectedBill: SavedBill | null = null;
@@ -34,49 +39,26 @@ export class BillHistoryComponent {
   inr = inr;
   fmtDate = fmtDate;
   fmtTime = fmtTime;
+  fmtDateTime = fmtDateTime;
   payLabel = payLabel;
   payIconName = payIconName;
   lineTotal = lineTotal;
 
   readonly cols: TableCol[] = [
-    { key: 'billInfo',  header: 'Bill ID',  mobileCard: 'title' },
-    { key: 'customer',  header: 'Customer' },
-    { key: 'items',     header: 'Items',    align: 'center', width: '70px', mobileCard: 'hide' },
-    { key: 'total',     header: 'Total',    align: 'right' },
-    { key: 'payment',   header: 'Payment' },
-    { key: 'actions',   header: '',         width: '48px',   mobileCard: 'action' },
+    { key: 'billInfo',   header: 'Bill',     mobileCard: 'title' },
+    { key: 'customerDt', header: 'Customer', mobileCard: 'hide' },
+    { key: 'total',      header: 'Amount',   align: 'right' },
+    { key: 'payment',    header: 'Payment' },
   ];
 
-  readonly pageSize = 15;
-  currentPage = 0;
-
-  get totalPageCount() {
-    return Math.max(1, Math.ceil(this.filtered.length / this.pageSize));
-  }
-
-  get pagedRows() {
-    const start = this.currentPage * this.pageSize;
-    return this.filtered.slice(start, start + this.pageSize);
-  }
-
-  onPageChange(page: number) {
-    this.currentPage = page;
+  onPageChange(p: number) {
+    this.pageChange.emit(p);
   }
 
   constructor(private zone: NgZone, private cdr: ChangeDetectorRef) {}
 
-  get filtered(): SavedBill[] {
-    const q = this.searchQuery.toLowerCase();
-    if (!q) return this.bills;
-    return this.bills.filter(b =>
-      b.id.toLowerCase().includes(q)
-      || b.customer.name.toLowerCase().includes(q)
-      || b.customer.phone.includes(q)
-    );
-  }
-
   onSearch() {
-    this.currentPage = 0;
+    this.searchChange.emit(this.searchQuery);
   }
 
   openDetail(b: SavedBill) {

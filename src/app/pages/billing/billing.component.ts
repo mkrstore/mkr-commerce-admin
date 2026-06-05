@@ -62,7 +62,11 @@ export class BillingComponent implements OnInit, OnDestroy {
   savedBills: SavedBill[] = [];
   printBill: SavedBill | null = null;
   private historyLoaded = false;
-  historyLoading = false;
+  historyLoading    = false;
+  historyPage       = 0;
+  historyTotalPages = 0;
+  historyTotalCount = 0;
+  private historySearch = '';
   private counter = 1;
 
   // Bill actions loading state
@@ -209,8 +213,8 @@ export class BillingComponent implements OnInit, OnDestroy {
           grandTotal:    Number(d.grandTotal),
         };
 
-        this.savedBills.unshift(bill);
         this.printBill    = bill;
+        this.historyLoaded = false;
         this.paymentState = 'done';
         this.shareEmailTo = bill.customer.email || '';
 
@@ -365,15 +369,32 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   loadHistory() {
     this.historyLoading = true;
-    this.http.get<ApiResponse<any>>(this.BILLING_EP.LIST, { params: { page: '0', size: '100' } })
-      .subscribe({
-        next: res => {
-          this.savedBills   = (res.data?.content ?? []).map((d: any) => mapApiToBill(d));
-          this.historyLoading = false;
-          this.historyLoaded  = true;
-        },
-        error: () => { this.historyLoading = false; }
-      });
+    const params: Record<string, string> = {
+      page: String(this.historyPage),
+      size: '20',
+    };
+    if (this.historySearch.trim()) params['search'] = this.historySearch.trim();
+    this.http.get<ApiResponse<any>>(this.BILLING_EP.LIST, { params }).subscribe({
+      next: res => {
+        this.savedBills       = (res.data?.content ?? []).map((d: any) => mapApiToBill(d));
+        this.historyTotalPages = res.data?.totalPages   ?? 1;
+        this.historyTotalCount = res.data?.totalElements ?? 0;
+        this.historyLoading   = false;
+        this.historyLoaded    = true;
+      },
+      error: () => { this.historyLoading = false; }
+    });
+  }
+
+  onHistorySearch(q: string) {
+    this.historySearch = q;
+    this.historyPage   = 0;
+    this.loadHistory();
+  }
+
+  onHistoryPageChange(p: number) {
+    this.historyPage = p;
+    this.loadHistory();
   }
 
   // ── Reset ─────────────────────────────────────────────────────────────────
@@ -400,6 +421,10 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.printLoading      = false;
     this.pdfLoading        = false;
     this.historyLoaded     = false;
+    this.historyPage       = 0;
+    this.historyTotalPages = 0;
+    this.historyTotalCount = 0;
+    this.historySearch     = '';
     this._activeTab        = 'new';
     this.paymentPanel?.reset();
   }

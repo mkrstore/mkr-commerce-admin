@@ -2,48 +2,47 @@
 
   <!-- Search + meta bar -->
   <div class="history-top">
-    <input type="text" [(ngModel)]="searchQuery" (ngModelChange)="onSearch()"
-      placeholder="Search by bill ID, customer name or phone..."
-      class="history-search" />
-    <span class="history-meta" *ngIf="!loading">
-      {{ bills.length }} bill{{ bills.length !== 1 ? 's' : '' }}
-    </span>
+    <div class="search-bar">
+      <span class="sb-icon icon icon-sm">search</span>
+      <input type="text" [(ngModel)]="searchQuery" (ngModelChange)="onSearch()"
+        placeholder="Search by bill ID, name or phone…" />
+      <button class="sb-clear" *ngIf="searchQuery" (click)="searchQuery = ''; onSearch()">
+        <span class="icon icon-xs">close</span>
+      </button>
+    </div>
+    <span class="history-meta" *ngIf="!loading">{{ totalCount }} bill{{ totalCount !== 1 ? 's' : '' }}</span>
     <span class="history-meta" *ngIf="loading">Loading…</span>
   </div>
 
   <!-- Table -->
   <app-data-table
     [columns]="cols"
-    [rows]="pagedRows"
+    [rows]="bills"
     [loading]="loading"
     [loadingRows]="6"
     emptyIcon="receipt_long"
     emptyTitle="No bills yet"
     emptySubtitle="Generate your first bill from the New Bill tab."
     [clickable]="true"
-    [page]="currentPage"
-    [totalPages]="totalPageCount"
+    [page]="page"
+    [totalPages]="totalPages"
     (rowClick)="openDetail($event)"
     (pageChange)="onPageChange($event)">
 
-    <!-- Bill ID + Date -->
+    <!-- Bill ID + Date (+ customer name on mobile only) -->
     <ng-template tdCell="billInfo" let-row>
       <span class="h-id">{{ row.id }}</span>
-      <span class="h-date">{{ fmtDate(row.date) }} · {{ fmtTime(row.date) }}</span>
+      <span class="h-date">{{ fmtDateTime(row.date) }}</span>
+      <span class="h-cust-name">{{ row.customer.name }}</span>
     </ng-template>
 
-    <!-- Customer -->
-    <ng-template tdCell="customer" let-row>
+    <!-- Customer — desktop only (name + phone) -->
+    <ng-template tdCell="customerDt" let-row>
       <span class="h-name">{{ row.customer.name }}</span>
       <span class="h-phone">{{ row.customer.phone }}</span>
     </ng-template>
 
-    <!-- Items count -->
-    <ng-template tdCell="items" let-row>
-      {{ row.items.length }}
-    </ng-template>
-
-    <!-- Total -->
+    <!-- Amount -->
     <ng-template tdCell="total" let-row>
       <strong>{{ inr(row.grandTotal) }}</strong>
     </ng-template>
@@ -59,18 +58,10 @@
       </span>
     </ng-template>
 
-    <!-- Actions -->
-    <ng-template tdCell="actions" let-row>
-      <button class="reprint-btn" (click)="$event.stopPropagation(); reprint.emit(row)"
-        [disabled]="printLoading" title="Print">
-        <span class="icon icon-sm">{{ printLoading ? 'hourglass_top' : 'print' }}</span>
-      </button>
-    </ng-template>
-
   </app-data-table>
 
   <!-- No-match hint when search active but filtered is empty and bills exist -->
-  <div class="no-match" *ngIf="!loading && bills.length > 0 && filtered.length === 0 && searchQuery">
+  <div class="no-match" *ngIf="!loading && totalCount > 0 && bills.length === 0 && searchQuery">
     No bills match "{{ searchQuery }}"
   </div>
 </div>
@@ -81,7 +72,7 @@
     <div class="bd-head">
       <div>
         <div class="bd-bill-id">{{ selectedBill.id }}</div>
-        <div class="bd-bill-date">{{ fmtDate(selectedBill.date) }} at {{ fmtTime(selectedBill.date) }}</div>
+        <div class="bd-bill-date">{{ fmtDateTime(selectedBill.date) }}</div>
       </div>
       <button class="bd-close" (click)="closeDetail()">
         <span class="icon icon-sm">close</span>

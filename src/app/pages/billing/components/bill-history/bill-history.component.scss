@@ -28,11 +28,13 @@
   &:hover { border-color: #2874F0; box-shadow: 0 2px 8px rgba(40,116,240,.08); }
 }
 .h-col-id    { display: flex; flex-direction: column; min-width: 130px; }
-.h-id        { font-weight: 600; font-size: .82rem; color: #2874F0; }
-.h-date      { font-size: .7rem; color: #9ca3af; }
+.h-id        { display: block; font-weight: 600; font-size: .82rem; color: #2874F0; }
+.h-date      { display: block; font-size: .7rem; color: #9ca3af; margin-top: .1rem; }
+.h-cust-name { display: none; font-size: .78rem; color: var(--t2); margin-top: .1rem; }
+@media (max-width: 640px) { .h-cust-name { display: block; } }
 .h-col-cust  { display: flex; flex-direction: column; flex: 1; }
-.h-name      { font-size: .84rem; font-weight: 500; color: #111827; }
-.h-phone     { font-size: .72rem; color: #9ca3af; }
+.h-name      { display: block; font-size: .84rem; font-weight: 500; color: #111827; }
+.h-phone     { display: block; font-size: .72rem; color: #9ca3af; margin-top: .1rem; }
 .h-col-items { font-size: .78rem; color: #6b7280; white-space: nowrap; }
 .h-col-amount{ font-weight: 700; font-size: .9rem; color: #111827; white-space: nowrap; }
 

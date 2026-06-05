@@ -15,6 +15,10 @@ export function fmtTime(d: Date): string {
   return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 }
 
+export function fmtDateTime(d: Date): string {
+  return `${fmtDate(d)} at ${fmtTime(d)}`;
+}
+
 export function payLabel(m: string): string {
   const labels: Record<string, string> = {
     cash: 'Cash', upi: 'UPI', card: 'Card', khata: 'Khata',

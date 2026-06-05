@@ -5,14 +5,14 @@
     <table class="tbl">
       <thead>
         <tr>
-          <th *ngFor="let col of columns" [ngStyle]="thStyle(col)">{{ col.header }}</th>
+          <th *ngFor="let col of visibleDesktopCols" [ngStyle]="thStyle(col)">{{ col.header }}</th>
         </tr>
       </thead>
       <tbody>
         <tr *ngFor="let row of rows; let i = index"
           [class.tbl-row]="clickable"
           (click)="clickable && rowClick.emit(row)">
-          <td *ngFor="let col of columns" [ngStyle]="tdStyle(col)">
+          <td *ngFor="let col of visibleDesktopCols" [ngStyle]="tdStyle(col)">
             <ng-container *ngIf="getCell(col.key) as tpl; else plain">
               <ng-container [ngTemplateOutlet]="tpl" [ngTemplateOutletContext]="ctx(row, i)"></ng-container>
             </ng-container>
@@ -27,11 +27,11 @@
   <div class="tbl-wrap" *ngIf="loading">
     <table class="tbl">
       <thead>
-        <tr><th *ngFor="let col of columns">{{ col.header }}</th></tr>
+        <tr><th *ngFor="let col of visibleDesktopCols">{{ col.header }}</th></tr>
       </thead>
       <tbody>
         <tr *ngFor="let _ of skeletonRows">
-          <td *ngFor="let col of columns"><span class="dt-skeleton"></span></td>
+          <td *ngFor="let col of visibleDesktopCols"><span class="dt-skeleton"></span></td>
         </tr>
       </tbody>
     </table>

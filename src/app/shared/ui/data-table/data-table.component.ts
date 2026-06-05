@@ -13,6 +13,7 @@ export interface TableCol {
   align?: 'left' | 'center' | 'right';
   width?: string;
   mobileCard?: MobileCardRole;
+  desktopHide?: boolean;
 }
 
 @Component({
@@ -65,6 +66,7 @@ export class DataTableComponent implements OnChanges {
     return {};
   }
 
+  get visibleDesktopCols(): TableCol[] { return this.columns.filter(c => !c.desktopHide); }
   get titleCol():  TableCol | undefined { return this.columns.find(c => c.mobileCard === 'title'); }
   get actionCol(): TableCol | undefined { return this.columns.find(c => c.mobileCard === 'action'); }
   get bodyMobileCols(): TableCol[] { return this.columns.filter(c => !c.mobileCard || c.mobileCard === 'row' as any); }
