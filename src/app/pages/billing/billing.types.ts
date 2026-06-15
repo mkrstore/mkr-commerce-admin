@@ -19,7 +19,8 @@ export interface BillItem {
   product: BillingProduct;
   qty: number;
   unitPrice: number;
-  discount: number;
+  discount?: number;          // optional — kept for historical bill display only
+  serialNumbers: string[];    // one entry per unit; empty strings = not entered yet
 }
 
 export interface Customer {

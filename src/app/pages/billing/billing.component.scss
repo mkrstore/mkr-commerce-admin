@@ -166,7 +166,7 @@
 
 // ─── LEFT PANEL ───────────────────────────────────────────────────────────────
 
-.pos-left { display: flex; flex-direction: column; gap: .875rem; }
+.pos-left { display: flex; flex-direction: column; gap: .875rem; min-width: 0; }
 
 // Search
 .search-card {
@@ -206,6 +206,14 @@
 }
 
 .cat-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+
+.scan-feedback {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: .72rem; font-weight: 600; margin-top: .35rem;
+  .icon { font-size: .82rem; }
+  &.scan-ok  { color: #059669; }
+  &.scan-err { color: #ef4444; }
+}
 
 .chip {
   padding: .18rem .65rem;
@@ -457,6 +465,7 @@
   gap: .875rem;
   position: sticky;
   top: 1rem;
+  min-width: 0;
 }
 
 .card {
@@ -623,6 +632,28 @@
 }
 
 .gt-label { font-size: .75rem; }
+
+// Bill summary — per-item breakdown
+.sum-item-list { margin-bottom: .1rem; }
+
+.sum-item-row {
+  display: flex; align-items: baseline; gap: .4rem;
+  padding: .25rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  &:last-child { border-bottom: none; }
+}
+.si-name {
+  flex: 1; min-width: 0;
+  font-size: .78rem; color: #374151;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.si-qty {
+  font-size: .7rem; color: #9ca3af; white-space: nowrap; flex-shrink: 0;
+}
+.si-total {
+  font-size: .8rem; font-weight: 600; color: #111827;
+  white-space: nowrap; flex-shrink: 0; min-width: 52px; text-align: right;
+}
 
 // Bill summary
 .sum-row {
@@ -1365,7 +1396,7 @@
 
 // ─── RESPONSIVE ───────────────────────────────────────────────────────────────
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .pos-layout { grid-template-columns: 1fr; }
   .pos-right  { position: static; }
 }

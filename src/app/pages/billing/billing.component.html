@@ -68,9 +68,16 @@
           <div class="search-box">
             <span class="si icon icon-sm">search</span>
             <input type="text" [(ngModel)]="searchQ" (ngModelChange)="prodPage = 0"
-              placeholder="Search product by name, SKU or category..."
+              (keydown.enter)="onSearchEnter()"
+              placeholder="Search or scan barcode + Enter to add..."
               class="si-input" />
-            <button class="si-clear" *ngIf="searchQ" (click)="searchQ = ''; prodPage = 0">✕</button>
+            <button class="si-clear" *ngIf="searchQ" (click)="searchQ = ''; prodPage = 0; scanMsg = ''">✕</button>
+          </div>
+          <div class="scan-feedback scan-ok" *ngIf="scanMsg === 'ok'">
+            <span class="icon icon-xs">check_circle</span> Added: {{ scanMsgProductName }}
+          </div>
+          <div class="scan-feedback scan-err" *ngIf="scanMsg === 'err'">
+            <span class="icon icon-xs">cancel</span> SKU not found
           </div>
           <div class="cat-chips">
             <button class="chip" [class.active]="!selectedCategory"
@@ -153,6 +160,16 @@
               <span class="gt-label">Add GST</span>
             </label>
           </div>
+          <!-- Per-item breakdown -->
+          <div class="sum-item-list">
+            <div class="sum-item-row" *ngFor="let item of billItems">
+              <span class="si-name">{{ item.product.name }}</span>
+              <span class="si-qty">{{ item.qty }} × {{ inr(item.unitPrice) }}</span>
+              <span class="si-total">{{ inr(lineTotal(item)) }}</span>
+            </div>
+          </div>
+          <div class="sum-divider"></div>
+
           <div class="sum-row">
             <span>Subtotal ({{ billItems.length }} item{{ billItems.length !== 1 ? 's' : '' }})</span>
             <span>{{ inr(subtotal) }}</span>

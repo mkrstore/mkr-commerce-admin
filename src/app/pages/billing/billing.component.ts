@@ -50,6 +50,11 @@ export class BillingComponent implements OnInit, OnDestroy {
   prodPage = 0;
   readonly prodPageSize = 20;
 
+  // Barcode scan feedback
+  scanMsg: '' | 'ok' | 'err' = '';
+  scanMsgProductName = '';
+  private scanMsgTimer: any;
+
   // Bill state
   billItems: BillItem[] = [];
   customer: Customer = { phone: '', name: '', email: '', address: '' };
@@ -82,6 +87,7 @@ export class BillingComponent implements OnInit, OnDestroy {
   shopSettings: ShopSettings;
 
   inr = inr;
+  lineTotal = lineTotal;
 
   constructor(
     private http: HttpClient,
@@ -145,8 +151,32 @@ export class BillingComponent implements OnInit, OnDestroy {
   addProduct(p: BillingProduct) {
     if (p.stockQty === 0) return;
     const existing = this.billItems.find(i => i.product.sku === p.sku);
-    if (existing) { existing.qty++; return; }
-    this.billItems.push({ product: p, qty: 1, unitPrice: priceFor(p, this.customer.type), discount: 0 });
+    if (existing) {
+      existing.qty++;
+      (existing.serialNumbers ??= []).push('');
+      return;
+    }
+    this.billItems.push({ product: p, qty: 1, unitPrice: priceFor(p, this.customer.type), serialNumbers: [''] });
+  }
+
+  onSearchEnter() {
+    const code = this.searchQ.trim().toUpperCase();
+    if (!code) return;
+    const product = this.allProducts.find(p => p.sku.toUpperCase() === code);
+    if (!product) {
+      this.scanMsgProductName = '';
+      this.scanMsg = 'err';
+      if (this.scanMsgTimer) clearTimeout(this.scanMsgTimer);
+      this.scanMsgTimer = setTimeout(() => { this.scanMsg = ''; }, 1800);
+      return;
+    }
+    this.addProduct(product);
+    this.scanMsgProductName = product.name;
+    this.scanMsg = 'ok';
+    this.searchQ = '';
+    this.prodPage = 0;
+    if (this.scanMsgTimer) clearTimeout(this.scanMsgTimer);
+    this.scanMsgTimer = setTimeout(() => { this.scanMsg = ''; }, 1800);
   }
 
   // ── Bill totals ───────────────────────────────────────────────────────────
@@ -176,8 +206,10 @@ export class BillingComponent implements OnInit, OnDestroy {
       customerEmail:   this.customer.email || null,
       customerAddress: this.customer.address || null,
       items: this.billItems.map(i => ({
-        productId: i.product.id, qty: i.qty,
-        unitPrice: i.unitPrice, discount: i.discount || 0,
+        productId:     i.product.id,
+        qty:           i.qty,
+        unitPrice:     i.unitPrice,
+        serialNumbers: (i.serialNumbers ?? []).map(sn => sn.trim().toUpperCase()).filter(sn => sn !== ''),
       })),
       gstEnabled:    this.gstEnabled,
       paymentMethod: p.method,
@@ -426,6 +458,9 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.historyTotalCount = 0;
     this.historySearch     = '';
     this._activeTab        = 'new';
+    this.scanMsg           = '';
+    this.scanMsgProductName = '';
+    if (this.scanMsgTimer) clearTimeout(this.scanMsgTimer);
     this.paymentPanel?.reset();
   }
 

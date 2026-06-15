@@ -1,75 +1,77 @@
 <div class="card cust-card">
   <div class="cust-card-title">
-    <span><span class="icon icon-sm">person</span> Customer Details</span>
-    <button class="new-cust-btn" type="button" (click)="openModal()" title="Add new customer">
+    <span><span class="icon icon-sm">person</span> Customer</span>
+    <button class="new-cust-btn" type="button" (click)="openModal()">
       <span class="icon icon-xs">person_add</span> New
     </button>
   </div>
 
-  <!-- Phone -->
-  <div class="cust-field-wrap">
-    <div class="phone-box">
-      <input type="tel" [ngModel]="customer.phone"
-        (ngModelChange)="onPhoneChange($event)"
-        (blur)="phoneTouched = true; closeDropdown()"
-        placeholder="Phone number *" class="f-input" [disabled]="isExisting" />
-      <span class="phone-digits" *ngIf="customer.phone && !isExisting">{{ customer.phone.length }}/10</span>
-      <button class="cust-change-btn" *ngIf="isExisting" (click)="clearCustomer()" type="button">Change</button>
-    </div>
+  <!-- ── SEARCH (no customer selected yet) ──────────────────────────────── -->
+  <ng-container *ngIf="!isExisting">
+    <div class="cust-search-wrap">
+      <input type="tel" class="f-input cust-search-input"
+        [value]="customer.phone"
+        (input)="onPhoneInput($event)"
+        (blur)="closeDropdown()"
+        placeholder="Search by mobile number" />
+      <span class="phone-digits" *ngIf="customer.phone">{{ customer.phone.length }}/10</span>
 
-    <div class="phone-dropdown" *ngIf="showPhoneDropdown">
-      <div class="pd-item" *ngFor="let c of phoneDropdown" (mousedown)="selectFromDropdown(c)">
-        <div class="pd-top">
-          <span class="pd-name">{{ c.name }}</span>
-          <span class="pd-phone">{{ c.phone }}</span>
+      <!-- Results dropdown -->
+      <div class="phone-dropdown" *ngIf="showPhoneDropdown">
+        <div class="pd-item" *ngFor="let c of phoneDropdown" (mousedown)="selectFromDropdown(c)">
+          <div class="pd-top">
+            <span class="pd-name">{{ c.name }}</span>
+            <span class="pd-phone">{{ c.phone }}</span>
+          </div>
+          <div class="pd-email" *ngIf="c.email">{{ c.email }}</div>
         </div>
-        <div class="pd-email" *ngIf="c.email">{{ c.email }}</div>
       </div>
     </div>
 
-    <div class="phone-status searching" *ngIf="customerSearching">
-      <span class="pd-spinner"></span> Verifying…
+    <!-- Searching -->
+    <div class="cs-status" *ngIf="customerSearching">
+      <span class="pd-spinner"></span> Searching…
     </div>
-    <div class="phone-status found" *ngIf="customerStatus === 'found' && !customerSearching">
-      <span class="icon icon-xs">check_circle</span>
-      Existing customer &bull; {{ customer.name }}
-      <span *ngIf="(customer.pendingAmount ?? 0) > 0" class="ps-khata">
-        &middot; Khata: ₹{{ customer.pendingAmount | number:'1.0-0' }}
-      </span>
+
+    <!-- No results -->
+    <div class="cs-notfound" *ngIf="customerStatus === 'new' && !customerSearching">
+      <span class="icon icon-sm">person_off</span>
+      No customer found
     </div>
-    <div class="phone-status new-cust" *ngIf="customerStatus === 'new' && !customerSearching">
-      <span class="icon icon-xs">person_add</span> New customer — fill in details below
+
+    <!-- Idle hint -->
+    <p class="cs-walkin-hint" *ngIf="customerStatus === 'idle' && !customerSearching && !customer.phone">
+      Leave blank to bill as walk-in
+    </p>
+
+  </ng-container>
+
+  <!-- ── PROFILE (customer selected) ────────────────────────────────────── -->
+  <div class="cust-profile" *ngIf="isExisting">
+    <div class="cp-avatar">{{ customer.name.charAt(0).toUpperCase() }}</div>
+    <div class="cp-body">
+      <div class="cp-name">{{ customer.name }}</div>
+      <div class="cp-row">
+        <span class="icon icon-xs">call</span>{{ customer.phone }}
+      </div>
+      <div class="cp-row" *ngIf="customer.email">
+        <span class="icon icon-xs">mail</span>{{ customer.email }}
+      </div>
+      <div class="cp-row cp-type" *ngIf="customer.type && customer.type !== 'RETAIL'">
+        <span class="icon icon-xs">badge</span>{{ typeLabel(customer.type) }}
+      </div>
+      <div class="cp-row cp-khata" *ngIf="(customer.pendingAmount ?? 0) > 0">
+        <span class="icon icon-xs">menu_book</span>
+        Khata: ₹{{ customer.pendingAmount | number:'1.0-0' }}
+      </div>
     </div>
-    <div class="field-error" *ngIf="phoneError">{{ phoneError }}</div>
-  </div>
-
-  <!-- Name -->
-  <div class="cust-field-wrap">
-    <input type="text" [ngModel]="customer.name"
-      (ngModelChange)="onNameChange($event)"
-      (blur)="nameTouched = true"
-      placeholder="Full name *" class="f-input" [disabled]="isExisting" />
-    <div class="field-error" *ngIf="nameError">{{ nameError }}</div>
-  </div>
-
-  <!-- Email -->
-  <div class="cust-field-wrap">
-    <input type="email" [ngModel]="customer.email"
-      (ngModelChange)="onEmailChange($event)"
-      (blur)="emailTouched = true"
-      placeholder="Email (optional)" class="f-input" [disabled]="isExisting" />
-    <div class="field-error" *ngIf="emailError">{{ emailError }}</div>
-  </div>
-
-  <!-- Address -->
-  <div class="cust-field-wrap last">
-    <input type="text" [ngModel]="customer.address"
-      (ngModelChange)="onAddressChange($event)"
-      placeholder="Address (optional)" class="f-input" [disabled]="isExisting" />
+    <button class="cp-change" type="button" (click)="clearCustomer()" title="Change customer">
+      <span class="icon">close</span>
+    </button>
   </div>
 </div>
 
-<!-- New customer modal -->
+<!-- ── New customer modal ──────────────────────────────────────────────── -->
 <div class="overlay" *ngIf="showModal" (click)="closeModal()"></div>
 <div class="modal modal-lg" *ngIf="showModal" (click)="$event.stopPropagation()">
   <div class="modal-hd">

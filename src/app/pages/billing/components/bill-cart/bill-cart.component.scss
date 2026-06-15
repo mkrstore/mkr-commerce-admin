@@ -20,35 +20,71 @@
   p { margin: .4rem 0 0; font-size: .84rem; }
 }
 
-.bill-table-wrap { overflow-x: auto; }
+// ── Item row — mirrors .product-row ──────────────────────────────────────────
 
-.bill-table {
-  width: 100%; border-collapse: collapse; font-size: .82rem;
-  th {
-    background: #f9fafb; padding: .5rem .65rem; text-align: left;
-    font-weight: 600; color: #6b7280; font-size: .72rem;
-    text-transform: uppercase; letter-spacing: .025em;
-    border-bottom: 1px solid #e5e7eb; white-space: nowrap;
-  }
-  td { padding: .55rem .65rem; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
-  tr:last-child td { border-bottom: none; }
-  .tc { text-align: center; }
-  .tr { text-align: right; }
+.bill-row {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+  padding: .6rem .875rem;
+  border-bottom: 1px solid #f3f4f6;
+  &:last-child { border-bottom: none; }
 }
 
-.gst-pct { color: #6b7280; font-size: .75rem; white-space: nowrap; }
-.gst-amt { color: #374151; font-size: .8rem; white-space: nowrap; }
-.td-n    { color: #9ca3af; font-size: .75rem; }
-.td-prod { display: flex; align-items: center; gap: .4rem; min-width: 160px; }
-.td-ico  { font-size: 1rem; flex-shrink: 0; }
-.td-name { font-weight: 500; color: #111827; }
-.td-sku  { font-size: .68rem; color: #9ca3af; }
-.td-total{ font-weight: 600; white-space: nowrap; }
-.pr-img  { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
+// Left icon (matches .pr-icon)
+.br-icon {
+  width: 2rem; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding-top: .1rem;
+}
+.pr-img          { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; }
 .pr-img-fallback { font-size: 1.2rem; color: #9ca3af; }
 
+// Centre info (matches .pr-info)
+.br-info {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: .08rem;
+}
+.br-name {
+  font-size: .84rem; font-weight: 500; color: #111827;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.br-meta { font-size: .72rem; color: #9ca3af; }
+
+// Right controls (matches .pr-right)
+.br-right {
+  display: flex; align-items: center; gap: .4rem; flex-shrink: 0;
+}
+.br-total {
+  font-weight: 600; color: #111827; font-size: .84rem;
+  white-space: nowrap; min-width: 52px; text-align: right;
+}
+
+// ── Serial number inputs ──────────────────────────────────────────────────────
+
+.sn-list { margin-top: .4rem; display: flex; flex-direction: column; gap: .35rem; }
+
+.sn-row { display: flex; }
+
+.sn-field { display: flex; flex-direction: column; gap: .18rem; flex: 1; min-width: 0; max-width: 200px; }
+
+.sn-input-row { position: relative; display: flex; align-items: center; }
+
+.sn-input {
+  flex: 1; font-family: 'Courier New', monospace; text-transform: uppercase;
+  padding-right: 2.8rem !important;
+}
+
+.sn-count {
+  position: absolute; right: .5rem;
+  font-size: .65rem; color: #d1d5db; pointer-events: none; white-space: nowrap;
+  &.sn-count-max { color: #ef4444; font-weight: 700; }
+}
+
+// ── Qty controls ──────────────────────────────────────────────────────────────
+
 .qty-ctrl {
-  display: inline-flex; align-items: center; gap: .15rem;
+  display: inline-flex; align-items: center; gap: .12rem;
   button {
     width: 22px; height: 22px; border: 1px solid #d1d5db; border-radius: 4px;
     background: #f9fafb; cursor: pointer; font-size: .95rem; line-height: 1;
@@ -56,39 +92,34 @@
     &:hover { background: #e5e7eb; }
   }
 }
+
 .qty-in {
-  width: 38px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px;
-  padding: .15rem .2rem; font-size: .82rem;
+  width: 32px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px;
+  padding: .15rem .1rem; font-size: .82rem;
   &:focus { border-color: #2874F0; outline: none; }
-}
-.price-in, .disc-in {
-  width: 85px; border: 1px solid #d1d5db; border-radius: 4px;
-  padding: .22rem .35rem; font-size: .82rem; display: block;
-  &:focus { border-color: #2874F0; outline: none; }
-}
-.negotiated { display: block; font-size: .67rem; color: #f59e0b; margin-top: .1rem; }
-.remove-btn {
-  background: none; border: none; cursor: pointer; font-size: .8rem; color: #d1d5db;
-  transition: color .15s; &:hover { color: #ef4444; }
 }
 
-@media (max-width: 640px) {
-  .bill-table-wrap { overflow-x: visible; }
-  .bill-table {
-    thead { display: none; }
-    tr {
-      display: flex; flex-wrap: wrap; position: relative;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; margin-bottom: .5rem; padding: .6rem .75rem;
-      &:last-child { border-bottom: none; }
-    }
-    td { display: none; border: none; padding: 0; vertical-align: middle; }
-    td.td-prod { display: flex; width: 100%; flex: 0 0 100%; min-width: 0; padding-bottom: .45rem; margin-bottom: .4rem; border-bottom: 1px solid var(--border); }
-    td.tc, td.td-price, td.td-disc, td.td-total { display: inline-flex; align-items: center; margin-right: .5rem; flex: 0 0 auto; }
-    td.td-total { margin-left: auto; margin-right: 0; font-weight: 700; color: var(--t1); flex: 1; justify-content: flex-end; }
-    td:last-child { display: flex; position: absolute; right: .75rem; top: .6rem; }
-    td.gst-pct, td.gst-amt, td.td-n { display: none; }
+.remove-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: .8rem; color: #d1d5db; padding: .1rem .15rem;
+  transition: color .15s; line-height: 1;
+  &:hover { color: #ef4444; }
+}
+
+// ── Mobile: wrap controls below info ─────────────────────────────────────────
+
+@media (max-width: 600px) {
+  .bill-row { flex-wrap: wrap; }
+
+  .br-info { flex: 1; }
+
+  .br-right {
+    flex: 0 0 100%;
+    padding-left: 2.65rem;
+    margin-top: .35rem;
+    gap: .5rem;
+    .br-total { flex: 1; text-align: right; }
   }
-  .qty-in { width: 32px; padding: .1rem .15rem; }
-  .price-in, .disc-in { width: 72px; }
+
+  .sn-field { max-width: none; }
 }

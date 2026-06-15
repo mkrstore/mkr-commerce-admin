@@ -31,6 +31,7 @@ export class CustomerSectionComponent {
   customerSearching = false;
   customerStatus: 'idle' | 'found' | 'new' = 'idle';
   private knownCustomers: Customer[] = [];
+  private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Field touch tracking for validation display
   nameTouched  = false;
@@ -56,6 +57,10 @@ export class CustomerSectionComponent {
     { value: 'WHOLESALE', label: 'Wholesale' },
     { value: 'BROKER',    label: 'Broker' },
   ];
+
+  typeLabel(type?: string): string {
+    return this.typeOpts.find(o => o.value === type)?.label ?? (type ?? '');
+  }
 
   get firstNameError()  { return this.modalTouched ? validateName(this.form.firstName) : null; }
   get lastNameError()   { return this.modalTouched ? validateName(this.form.lastName)  : null; }
@@ -87,18 +92,40 @@ export class CustomerSectionComponent {
 
   constructor(private customerSvc: CustomerService) {}
 
-  onPhoneChange(rawPhone: string) {
-    const normalized = normalizePhone(rawPhone);
-    this.phoneTouched = true;
+  onPhoneInput(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const pos = input.selectionStart ?? input.value.length;
+    // digits only, strip 91 country prefix, max 10
+    let cleaned = normalizePhone(input.value);
+    // block first digit 0-5
+    if (cleaned.length > 0 && /^[012345]/.test(cleaned)) cleaned = cleaned.slice(1);
+    cleaned = cleaned.slice(0, 10);
+    const finalPos = Math.max(0, Math.min(pos, cleaned.length));
+    input.value = cleaned;
+    input.setSelectionRange(finalPos, finalPos);
+    Promise.resolve().then(() => {
+      if (document.activeElement === input) input.setSelectionRange(finalPos, finalPos);
+    });
+    this.onPhoneChange(cleaned);
+  }
+
+  onPhoneChange(normalized: string) {
     this.phoneDropdown = [];
     this.showPhoneDropdown = false;
+    this.customerSearching = false;
     this.emit({ ...this.customer, phone: normalized });
-    if (normalized.length === 10) {
-      this.search(normalized);
-    } else {
+
+    if (this.searchTimer) { clearTimeout(this.searchTimer); this.searchTimer = null; }
+
+    if (!normalized) {
       this.customerStatus = 'idle';
-      this.customerSearching = false;
+      return;
     }
+
+    this.searchTimer = setTimeout(() => {
+      this.customerSearching = true;
+      this.search(normalized);
+    }, 500);
   }
 
   onNameChange(name: string) {
@@ -116,7 +143,6 @@ export class CustomerSectionComponent {
   }
 
   private search(q: string) {
-    this.customerSearching = true;
     this.customerSvc.list({ search: q, size: 6 }).subscribe({
       next: res => {
         const list: Customer[] = res.content.map(c => ({
@@ -124,24 +150,28 @@ export class CustomerSectionComponent {
           email: c.email ?? '', address: '',
           pendingAmount: c.pendingAmount, type: c.type,
         }));
-        const exact = list.find(c => normalizePhone(c.phone) === q);
+        // Exact 10-digit match → auto-select
+        const exact = q.length === 10 ? list.find(c => normalizePhone(c.phone) === q) : null;
         if (exact) {
           this.select(exact);
           this.customerStatus = 'found';
+          this.phoneDropdown = [];
+          this.showPhoneDropdown = false;
         } else if (list.length > 0) {
           this.phoneDropdown = list;
           this.showPhoneDropdown = true;
           this.customerStatus = 'idle';
         } else {
+          this.phoneDropdown = [];
+          this.showPhoneDropdown = false;
           this.customerStatus = 'new';
         }
         this.customerSearching = false;
       },
       error: () => {
-        const offline = this.knownCustomers.filter(c => c.phone.includes(q)).slice(0, 6);
-        this.phoneDropdown = offline;
-        this.showPhoneDropdown = offline.length > 0;
-        this.customerStatus = offline.length > 0 ? 'idle' : 'new';
+        this.phoneDropdown = [];
+        this.showPhoneDropdown = false;
+        this.customerStatus = 'new';
         this.customerSearching = false;
       },
     });
@@ -179,6 +209,7 @@ export class CustomerSectionComponent {
   }
 
   clearCustomer() {
+    if (this.searchTimer) { clearTimeout(this.searchTimer); this.searchTimer = null; }
     this.emit({ phone: '', name: '', email: '', address: '' });
     this.isExistingChange.emit(false);
     this.phoneTouched = false;
@@ -186,6 +217,8 @@ export class CustomerSectionComponent {
     this.emailTouched = false;
     this.customerStatus = 'idle';
     this.customerSearching = false;
+    this.phoneDropdown = [];
+    this.showPhoneDropdown = false;
   }
 
   closeDropdown() { setTimeout(() => { this.showPhoneDropdown = false; }, 150); }
