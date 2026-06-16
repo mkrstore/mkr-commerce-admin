@@ -4,7 +4,7 @@ import { FormsModule }  from '@angular/forms';
 import { RouterLink }   from '@angular/router';
 import { HttpClient }   from '@angular/common/http';
 import { AuthService }  from '../../services/auth.service';
-import { PRODUCT_ENDPOINTS, LOOKUP_ENDPOINTS } from '../../core/constants/api.constants';
+import { PRODUCT_ENDPOINTS, LOOKUP_ENDPOINTS, SPEC_GROUP_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
 import { AppInputComponent, AppTextareaComponent, AppSelectComponent, AppCheckboxComponent, AppBtnComponent } from '../../shared/ui';
 
@@ -34,6 +34,10 @@ interface LookupListSummary {
   id: string; name: string; description: string | null; valueCount: number;
 }
 
+interface AssignedSpecGroup {
+  id: string; name: string; description: string | null; fieldCount: number;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 @Component({
@@ -47,6 +51,7 @@ export class CategoriesComponent implements OnInit {
 
   private readonly EP        = PRODUCT_ENDPOINTS;
   private readonly LOOKUP_EP = LOOKUP_ENDPOINTS;
+  private readonly SG_EP     = SPEC_GROUP_ENDPOINTS;
 
   // ── List state ────────────────────────────────────────────────────────────
   allCategories = signal<CategoryDto[]>([]);
@@ -70,8 +75,15 @@ export class CategoriesComponent implements OnInit {
   attrFormTouched = false;
   editTarget: CategoryDto | null = null;
 
-  form = { name: '', slug: '', description: '', parentId: '', sortOrder: 0, isActive: true };
+  form = { name: '', slug: '', description: '', parentId: '', isActive: true };
+  categoryType: 'parent' | 'child' = 'parent';
   slugEdited = false;
+
+  get isFormValid(): boolean {
+    if (!this.form.name.trim()) return false;
+    if (this.categoryType === 'child' && !this.form.parentId) return false;
+    return true;
+  }
 
   // ── Image upload ──────────────────────────────────────────────────────────
   imageUploading  = false;
@@ -84,7 +96,7 @@ export class CategoriesComponent implements OnInit {
   deleteError = '';
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
-  activeTab: 'details' | 'specs' = 'details';
+  activeTab: 'details' | 'specs' | 'groups' = 'details';
 
   // ── Attribute Definitions (inline in edit modal) ─────────────────────────
   attrTarget: CategoryDto | null = null;
@@ -103,6 +115,29 @@ export class CategoriesComponent implements OnInit {
     options: '', unit: '', defaultValue: '', required: false, sortOrder: 0, groupName: ''
   };
   fieldKeyEdited = false;
+
+  // ── Spec Groups tab ───────────────────────────────────────────────────────
+  assignedGroups: AssignedSpecGroup[] = [];
+  allGroups:      AssignedSpecGroup[] = [];
+  sgLoading    = false;
+  sgLoaded     = false;
+  allSgLoaded  = false;
+  sgError      = '';
+  sgPickerOpen   = false;
+  sgPickerSearch = '';
+  sgAssigning: string | null = null;
+  sgRemoving:  string | null = null;
+
+  get filteredSgPicker(): AssignedSpecGroup[] {
+    const q = this.sgPickerSearch.toLowerCase().trim();
+    const assigned = new Set(this.assignedGroups.map(g => g.id));
+    const available = this.allGroups.filter(g => !assigned.has(g.id));
+    return q
+      ? available.filter(g =>
+          g.name.toLowerCase().includes(q) ||
+          (g.description ?? '').toLowerCase().includes(q))
+      : available;
+  }
 
   // ── Lookup List picker (for SELECT/MULTISELECT import) ────────────────────
   lookupLists: LookupListSummary[] = [];
@@ -239,11 +274,11 @@ export class CategoriesComponent implements OnInit {
     const blocked = this.modalMode === 'edit' && this.editTarget
       ? this.collectDescendantIds(this.tree(), this.editTarget.id)
       : new Set<string>();
-    return this.flatTree(this.tree()).map(n => ({
-      value: n.id,
-      label: n.label,
-      disabled: blocked.has(n.id)
-    }));
+    // Only root categories can be parents (enforce 2-level hierarchy)
+    return this.allCategories()
+      .filter(c => !c.parentId)
+      .filter(c => !(this.modalMode === 'edit' && this.editTarget && blocked.has(c.id)))
+      .map(c => ({ value: c.id, label: c.name, disabled: false }));
   }
 
   private collectDescendantIds(nodes: CategoryNode[], rootId: string): Set<string> {
@@ -268,19 +303,29 @@ export class CategoriesComponent implements OnInit {
   openEdit(cat: CategoryDto) {
     this.form = {
       name: cat.name, slug: cat.slug, description: cat.description ?? '',
-      parentId: cat.parentId ?? '', sortOrder: cat.sortOrder, isActive: cat.isActive
+      parentId: cat.parentId ?? '', isActive: cat.isActive
     };
+    this.categoryType = cat.parentId ? 'child' : 'parent';
     this.modalError = ''; this.formTouched = false; this.editTarget = cat;
     this.activeTab = 'details'; this.attrTarget = cat; this.attrs = []; this.attrsLoaded = false;
     this.attrView = 'list'; this.attrError = ''; this.attrEditTarget = null;
+    this.assignedGroups = []; this.sgLoaded = false; this.allSgLoaded = false;
+    this.sgError = ''; this.sgPickerOpen = false; this.sgPickerSearch = '';
+    this.sgAssigning = null; this.sgRemoving = null;
     this.modalMode = 'edit';
   }
 
   openCreate(parentId?: string) {
-    this.form = { name: '', slug: '', description: '', parentId: parentId ?? '', sortOrder: 0, isActive: true };
+    this.form = { name: '', slug: '', description: '', parentId: parentId ?? '', isActive: true };
+    this.categoryType = parentId ? 'child' : 'parent';
     this.slugEdited = false;
     this.modalError = ''; this.formTouched = false; this.editTarget = null;
     this.activeTab = 'details'; this.modalMode = 'create';
+  }
+
+  setCategoryType(type: 'parent' | 'child') {
+    this.categoryType = type;
+    if (type === 'parent') this.form.parentId = '';
   }
 
   onNameChange(v: string) {
@@ -299,15 +344,15 @@ export class CategoriesComponent implements OnInit {
 
   save() {
     this.formTouched = true;
-    if (!this.form.name.trim()) { return; }
+    if (!this.isFormValid) return;
     this.saving = true; this.modalError = '';
 
     const payload = {
       name:        this.form.name.trim(),
       slug:        this.form.slug.trim() || null,
       description: this.form.description.trim() || null,
-      parentId:    this.form.parentId || null,
-      sortOrder:   this.form.sortOrder,
+      parentId:    this.categoryType === 'child' ? (this.form.parentId || null) : null,
+      sortOrder:   0,
       isActive:    this.form.isActive,
     };
 
@@ -460,6 +505,55 @@ export class CategoriesComponent implements OnInit {
   onFieldKeyChange(v: string) {
     this.attrForm.fieldKey = v;
     this.fieldKeyEdited = v.trim().length > 0;
+  }
+
+  // ── Spec Groups ───────────────────────────────────────────────────────────
+
+  loadSgIfNeeded() {
+    if (this.sgLoaded || !this.attrTarget) return;
+    this.loadAssignedGroups();
+    this.loadAllGroups();
+  }
+
+  private loadAssignedGroups() {
+    if (!this.attrTarget) return;
+    this.sgLoading = true;
+    this.http.get<ApiResponse<AssignedSpecGroup[]>>(
+      this.SG_EP.BY_CATEGORY(this.attrTarget.id)
+    ).subscribe({
+      next: res => { this.assignedGroups = res.data ?? []; this.sgLoading = false; this.sgLoaded = true; },
+      error: ()  => { this.sgLoading = false; }
+    });
+  }
+
+  private loadAllGroups() {
+    if (this.allSgLoaded) return;
+    this.http.get<ApiResponse<AssignedSpecGroup[]>>(this.SG_EP.BASE).subscribe({
+      next: res => { this.allGroups = res.data ?? []; this.allSgLoaded = true; },
+      error: ()  => {}
+    });
+  }
+
+  assignGroup(groupId: string) {
+    if (!this.attrTarget) return;
+    this.sgAssigning = groupId; this.sgError = '';
+    this.http.post<ApiResponse<void>>(
+      this.SG_EP.ASSIGN(this.attrTarget.id, groupId), {}
+    ).subscribe({
+      next: () => { this.sgAssigning = null; this.sgLoaded = false; this.loadAssignedGroups(); },
+      error: e  => { this.sgAssigning = null; this.sgError = extractErrorMessage(e, 'Assign failed.'); }
+    });
+  }
+
+  removeGroup(groupId: string) {
+    if (!this.attrTarget) return;
+    this.sgRemoving = groupId; this.sgError = '';
+    this.http.delete<ApiResponse<void>>(
+      this.SG_EP.ASSIGN(this.attrTarget.id, groupId)
+    ).subscribe({
+      next: () => { this.sgRemoving = null; this.sgLoaded = false; this.loadAssignedGroups(); },
+      error: e  => { this.sgRemoving = null; this.sgError = extractErrorMessage(e, 'Remove failed.'); }
+    });
   }
 
   // ── Image upload ──────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ export const ICONS = {
   categories:     'category',
   brands:         'sell',
   lookupLists:    'list_alt',
+  specGroups:     'workspaces',
   inventory:      'warehouse',
   billing:        'receipt_long',
   orders:         'shopping_cart',

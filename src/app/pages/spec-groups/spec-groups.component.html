@@ -1,0 +1,196 @@
+<div class="page sg-page">
+
+  <!-- ── HEADER ── -->
+  <div class="page-hd">
+    <div class="page-hd-left">
+      <div class="page-hd-title">Spec Groups</div>
+      <div class="page-hd-sub" *ngIf="!loading()">{{ filteredGroups().length }} groups</div>
+    </div>
+    <div class="page-hd-right">
+      <div class="search-bar" style="width:220px">
+        <span class="sb-icon icon icon-sm">search</span>
+        <input type="text" [value]="searchQuery()" (input)="onSearchChange($any($event.target).value)"
+          placeholder="Search…" />
+        <button class="sb-clear" *ngIf="searchQuery()" (click)="clearSearch()">
+          <span class="icon icon-xs">close</span>
+        </button>
+      </div>
+      <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreate()">New Group</app-btn>
+    </div>
+  </div>
+
+  <!-- ── SKELETON ── -->
+  <div class="sg-grid" *ngIf="loading()">
+    <div class="sg-card sg-card-sk" *ngFor="let i of skeletonRows">
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+        <div class="sk" style="height:14px;width:50%"></div>
+        <div class="sk" style="height:11px;width:75%"></div>
+        <div class="sk" style="height:20px;width:80px;border-radius:99px;margin-top:4px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CARD GRID ── -->
+  <div class="sg-grid" *ngIf="!loading() && pagedGroups().length > 0">
+    <div class="sg-card" *ngFor="let g of pagedGroups()" (click)="canManage() && openEdit(g)">
+      <div class="sg-card-body">
+        <div class="sg-card-name">{{ g.name }}</div>
+        <div class="sg-card-desc" *ngIf="g.description">{{ g.description }}</div>
+        <div class="sg-card-foot">
+          <span class="sg-field-count">
+            <span class="icon icon-xs">tune</span>
+            {{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}
+          </span>
+          <button class="btn btn-ghost btn-sm sg-del-btn" *ngIf="canManage()"
+            (click)="$event.stopPropagation(); openDelete(g)">
+            <span class="icon icon-sm icon-red">delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── EMPTY ── -->
+  <div class="empty" *ngIf="!loading() && filteredGroups().length === 0">
+    <div class="empty-icon"><span class="icon icon-xl icon-muted">workspaces</span></div>
+    <div class="empty-title">{{ searchQuery() ? 'No groups match your search' : 'No spec groups yet' }}</div>
+    <div class="empty-sub" *ngIf="!searchQuery() && canManage()">
+      Create groups like "Screen Specs", "Battery", "Connectivity" and map custom fields to them
+    </div>
+    <app-btn variant="primary" size="sm" icon="add" *ngIf="!searchQuery() && canManage()" (clicked)="openCreate()">New Group</app-btn>
+  </div>
+
+  <!-- ── PAGINATION ── -->
+  <div class="sg-pagination" *ngIf="!loading() && totalPages() > 1">
+    <button class="pg-btn" [disabled]="currentPage() === 0" (click)="prevPage()">
+      <span class="icon icon-sm">chevron_left</span>
+    </button>
+    <ng-container *ngFor="let p of pageNumbers()">
+      <span class="pg-dots" *ngIf="p === '...'">…</span>
+      <button class="pg-btn" *ngIf="p !== '...'"
+        [class.active]="p === currentPage() + 1"
+        (click)="goToPage(p)">{{ p }}</button>
+    </ng-container>
+    <span class="pg-info">Page {{ currentPage() + 1 }} of {{ totalPages() }}</span>
+    <button class="pg-btn" [disabled]="currentPage() === totalPages() - 1" (click)="nextPage()">
+      <span class="icon icon-sm">chevron_right</span>
+    </button>
+  </div>
+
+</div>
+
+<!-- ── CREATE / EDIT MODAL ── -->
+<div class="overlay" *ngIf="modalMode !== 'closed'" (click)="closeModal()"></div>
+<div class="modal modal-sg" *ngIf="modalMode !== 'closed'" (click)="$event.stopPropagation()">
+  <div class="modal-hd">
+    <div>
+      <div class="modal-title">{{ modalMode === 'create' ? 'New Spec Group' : 'Edit Spec Group' }}</div>
+      <div style="font-size:12px;color:var(--t3)">
+        {{ modalMode === 'create' ? 'Group related custom fields together' : editTarget?.name }}
+      </div>
+    </div>
+    <button class="modal-close" (click)="closeModal()"><span class="icon icon-sm">close</span></button>
+  </div>
+  <div class="modal-body">
+    <div class="alert alert-error" *ngIf="modalError">
+      <span class="icon icon-sm">warning</span> {{ modalError }}
+    </div>
+
+    <app-input label="Group Name" [required]="true" [touched]="formTouched"
+      placeholder="e.g. Screen Specs, Battery, Connectivity"
+      [value]="form.name" (valueChange)="form.name = $event" />
+
+    <app-textarea label="Description" optLabel="optional" [rows]="2"
+      placeholder="What kind of specs does this group cover?"
+      [value]="form.description" (valueChange)="form.description = $event" />
+
+    <!-- Custom Fields -->
+    <div class="field">
+      <label class="field-label">
+        Custom Fields
+        <span class="fp-sel-count" *ngIf="selectedFieldIds.length > 0">{{ selectedFieldIds.length }}</span>
+      </label>
+
+      <!-- Loading while fetching field definitions or group detail -->
+      <div class="fp-loading" *ngIf="fieldsLoading || saving">
+        <span class="icon icon-sm" style="color:var(--t3)">hourglass_empty</span> Loading fields…
+      </div>
+
+      <ng-container *ngIf="!fieldsLoading && !saving">
+
+        <!-- Selected fields list -->
+        <div class="sgf-list" *ngIf="selectedFieldIds.length > 0">
+          <div class="sgf-item" *ngFor="let fid of selectedFieldIds">
+            <div class="sgf-item-left">
+              <span class="sgf-name">{{ getFieldById(fid)?.name ?? fid }}</span>
+              <span class="cf-type-badge" [attr.data-type]="getFieldById(fid)?.fieldType">
+                {{ fieldTypeLabel(getFieldById(fid)?.fieldType ?? '') }}
+              </span>
+            </div>
+            <button class="btn btn-ghost btn-sm" (click)="removeField(fid)">
+              <span class="icon icon-sm icon-red">remove_circle_outline</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty hint -->
+        <div class="sgf-empty" *ngIf="selectedFieldIds.length === 0 && !fieldPickerOpen">
+          No fields added yet — click below to add custom fields to this group
+        </div>
+
+        <!-- Add Field button -->
+        <button class="opt-add-btn" *ngIf="!fieldPickerOpen" (click)="fieldPickerOpen = true"
+          style="margin-top:8px">
+          <span class="icon icon-sm">add</span> Add Field
+        </button>
+
+        <!-- Picker panel (shows only fields not yet added) -->
+        <div class="fp-wrap" *ngIf="fieldPickerOpen" style="margin-top:8px">
+          <div class="fp-picker-hd">
+            <span style="font-size:13px;font-weight:600;color:var(--t1)">Add Field</span>
+            <button class="fp-close-btn" (click)="fieldPickerOpen = false; fieldSearch = ''">
+              <span class="icon icon-sm">close</span>
+            </button>
+          </div>
+          <div class="fp-search">
+            <span class="icon icon-xs" style="color:var(--t3)">search</span>
+            <input type="text" [(ngModel)]="fieldSearch" placeholder="Search fields…" />
+          </div>
+          <div class="fp-list">
+            <div class="fp-empty" *ngIf="availableFields.length === 0">
+              {{ fieldSearch ? 'No fields match' : 'All custom fields already added' }}
+            </div>
+            <div class="fp-item" *ngFor="let f of availableFields" (click)="addField(f.id)">
+              <span class="icon icon-sm fp-chk" style="color:var(--blue)">add_circle_outline</span>
+              <span class="fp-name">{{ f.name }}</span>
+              <span class="cf-type-badge" [attr.data-type]="f.fieldType">{{ fieldTypeLabel(f.fieldType) }}</span>
+            </div>
+          </div>
+        </div>
+
+      </ng-container>
+    </div>
+
+  </div>
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
+    <app-btn variant="primary" [loading]="saving" (clicked)="save()">
+      {{ modalMode === 'create' ? 'Create Group' : 'Save Changes' }}
+    </app-btn>
+  </div>
+</div>
+
+<!-- ── DELETE CONFIRM ── -->
+<div class="overlay" *ngIf="deleteTarget" (click)="closeDelete()"></div>
+<div class="modal modal-sm" *ngIf="deleteTarget" (click)="$event.stopPropagation()">
+  <div class="confirm-body">
+    <div class="confirm-icon danger"><span class="icon icon-lg">delete</span></div>
+    <h3>Delete "{{ deleteTarget.name }}"?</h3>
+    <p>This spec group will be removed. Custom fields inside it are not deleted.</p>
+    <div class="alert alert-error" *ngIf="deleteError">{{ deleteError }}</div>
+  </div>
+  <div class="modal-ft">
+    <app-btn variant="ghost" (clicked)="closeDelete()">Cancel</app-btn>
+    <app-btn variant="danger" [loading]="deleting" (clicked)="confirmDelete()">Delete</app-btn>
+  </div>
+</div>

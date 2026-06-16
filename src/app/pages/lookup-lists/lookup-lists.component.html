@@ -1,75 +1,143 @@
-<div class="page">
+<div class="page cf-page">
 
   <!-- ── HEADER ── -->
   <div class="page-hd">
     <div class="page-hd-left">
-      <div class="page-hd-title">Lookup Lists</div>
-      <div class="page-hd-sub" *ngIf="!loading()">{{ lists().length }} lists</div>
+      <div class="page-hd-title">Custom Fields</div>
+      <div class="page-hd-sub" *ngIf="!loading()">{{ filteredLists().length }} fields</div>
     </div>
     <div class="page-hd-right">
-      <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreate()">New List</app-btn>
-    </div>
-  </div>
-
-  <!-- ── SEARCH ── -->
-  <div class="filter-bar">
-    <div class="search-bar" style="flex:1;max-width:360px">
-      <span class="sb-icon icon icon-sm">search</span>
-      <input type="text" [(ngModel)]="searchQuery" placeholder="Search lists…" />
-      <button class="sb-clear" *ngIf="searchQuery" (click)="searchQuery = ''">
-        <span class="icon icon-xs">close</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- ── INFO BANNER ── -->
-  <div class="info-banner">
-    <span class="icon icon-sm" style="color:var(--blue);flex-shrink:0">info</span>
-    <span>Lookup Lists are reusable value sets (e.g. <strong>Network Types</strong>, <strong>Energy Star Rating</strong>).
-      Use them to quickly populate SELECT / MULTISELECT options when adding spec fields to a category — values are copied at that point, so editing a list later won't affect existing products.</span>
-  </div>
-
-  <!-- ── SKELETON ── -->
-  <div class="ll-grid" *ngIf="loading()">
-    <div class="ll-card ll-card-sk" *ngFor="let i of skeletonRows">
-      <div class="sk" style="height:14px;width:55%;margin-bottom:8px"></div>
-      <div class="sk" style="height:11px;width:80%;margin-bottom:12px"></div>
-      <div class="ll-sk-chips">
-        <div class="sk" style="height:22px;width:60px;border-radius:99px"></div>
-        <div class="sk" style="height:22px;width:50px;border-radius:99px"></div>
-        <div class="sk" style="height:22px;width:70px;border-radius:99px"></div>
+      <div class="search-bar" style="width:220px">
+        <span class="sb-icon icon icon-sm">search</span>
+        <input type="text" [value]="searchQuery()" (input)="onSearchChange($any($event.target).value)"
+          placeholder="Search…" />
+        <button class="sb-clear" *ngIf="searchQuery()" (click)="clearSearch()">
+          <span class="icon icon-xs">close</span>
+        </button>
       </div>
+      <div class="view-toggle cf-view-toggle">
+        <button class="vt-btn" [class.active]="view() === 'card'" (click)="setView('card')" title="Card view">
+          <span class="icon icon-sm">grid_view</span>
+        </button>
+        <button class="vt-btn" [class.active]="view() === 'table'" (click)="setView('table')" title="Table view">
+          <span class="icon icon-sm">table_rows</span>
+        </button>
+      </div>
+      <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreate()">New Field</app-btn>
     </div>
   </div>
 
-  <!-- ── GRID ── -->
-  <div class="ll-grid" *ngIf="!loading() && filteredLists().length > 0">
-    <div class="ll-card" *ngFor="let l of filteredLists()">
-      <div class="ll-card-hd">
-        <div class="ll-card-name">{{ l.name }}</div>
-        <div class="ll-card-actions" *ngIf="canManage()">
-          <button class="btn btn-ghost btn-sm" (click)="openEdit(l)" title="Edit">
-            <span class="icon icon-sm">edit</span>
-          </button>
-          <button class="btn btn-ghost btn-sm" (click)="openDelete(l)" title="Delete">
-            <span class="icon icon-sm icon-red">delete</span>
-          </button>
+  <!-- ── CONTENT AREA ── -->
+  <div class="cf-layout">
+
+    <div class="cf-list-area">
+
+      <!-- SKELETON -->
+      <div class="cf-grid" *ngIf="loading() && (view() === 'card' || isMobile())">
+        <div class="cf-card cf-card-sk" *ngFor="let i of skeletonRows">
+          <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+            <div class="sk" style="height:14px;width:55%"></div>
+            <div class="sk" style="height:11px;width:80%"></div>
+            <div style="display:flex;gap:6px;margin-top:4px">
+              <div class="sk" style="height:20px;width:60px;border-radius:99px"></div>
+              <div class="sk" style="height:20px;width:48px;border-radius:99px"></div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="ll-card-desc" *ngIf="l.description">{{ l.description }}</div>
-      <div class="ll-count-badge">
-        <span class="icon icon-xs">format_list_numbered</span>
-        {{ l.valueCount }} value{{ l.valueCount !== 1 ? 's' : '' }}
-      </div>
-    </div>
-  </div>
 
-  <!-- ── EMPTY ── -->
-  <div class="empty" *ngIf="!loading() && filteredLists().length === 0">
-    <div class="empty-icon"><span class="icon icon-xl icon-muted">list_alt</span></div>
-    <div class="empty-title">{{ searchQuery ? 'No lists match your search' : 'No lookup lists yet' }}</div>
-    <div class="empty-sub" *ngIf="!searchQuery && canManage()">Create your first list to reuse common values across spec fields</div>
-    <app-btn variant="primary" size="sm" icon="add" *ngIf="!searchQuery && canManage()" (clicked)="openCreate()">New List</app-btn>
+      <!-- ── CARD VIEW (always on mobile) ── -->
+      <div class="cf-grid" *ngIf="!loading() && (view() === 'card' || isMobile()) && pagedLists().length > 0">
+        <div class="cf-card" *ngFor="let f of pagedLists()"
+          [attr.data-type]="f.fieldType"
+          (click)="canManage() && openEdit(f)">
+          <div class="cf-card-body">
+            <div class="cf-card-name">{{ f.name }}</div>
+            <div class="cf-card-desc" *ngIf="f.description">{{ f.description }}</div>
+            <div class="cf-card-foot">
+              <span class="cf-type-badge" [attr.data-type]="f.fieldType">{{ fieldTypeLabel(f.fieldType) }}</span>
+              <span class="cf-req-badge" *ngIf="f.required">Required</span>
+              <span class="cf-count-text" style="margin-left:auto">
+                <span class="icon icon-xs">format_list_numbered</span>
+                {{ f.valueCount }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── TABLE VIEW (desktop only) ── -->
+      <div class="tbl-card" *ngIf="!loading() && view() === 'table' && !isMobile() && pagedLists().length > 0">
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Required</th>
+                <th>Default</th>
+                <th>Values</th>
+                <th *ngIf="canManage()"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="tbl-row" *ngFor="let f of pagedLists()" (click)="canManage() && openEdit(f)">
+                <td>
+                  <div class="cf-tbl-name">{{ f.name }}</div>
+                  <div class="cf-tbl-desc" *ngIf="f.description">{{ f.description }}</div>
+                </td>
+                <td><span class="cf-type-badge" [attr.data-type]="f.fieldType">{{ fieldTypeLabel(f.fieldType) }}</span></td>
+                <td>
+                  <span class="cf-req-badge" *ngIf="f.required">Required</span>
+                  <span *ngIf="!f.required" style="color:var(--t3)">—</span>
+                </td>
+                <td style="font-size:12px;color:var(--t2);font-family:monospace">{{ f.defaultValue || '—' }}</td>
+                <td><span class="cf-count-pill">{{ f.valueCount }}</span></td>
+                <td *ngIf="canManage()" (click)="$event.stopPropagation()">
+                  <div style="display:flex;gap:2px">
+                    <button class="btn btn-ghost btn-sm" (click)="openEdit(f)"><span class="icon icon-sm">edit</span></button>
+                    <button class="btn btn-ghost btn-sm" (click)="openDelete(f)"><span class="icon icon-sm icon-red">delete</span></button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── EMPTY ── -->
+      <div class="empty" *ngIf="!loading() && filteredLists().length === 0">
+        <div class="empty-icon"><span class="icon icon-xl icon-muted">tune</span></div>
+        <div class="empty-title">{{ searchQuery() ? 'No fields match your search' : 'No custom fields yet' }}</div>
+        <div class="empty-sub" *ngIf="!searchQuery() && canManage()">
+          Create reusable fields like Resolution, Rating, Network Type to use across product categories
+        </div>
+        <app-btn variant="primary" size="sm" icon="add" *ngIf="!searchQuery() && canManage()" (clicked)="openCreate()">New Field</app-btn>
+      </div>
+
+    </div>
+    <!-- /cf-list-area -->
+
+  </div>
+  <!-- /cf-layout -->
+
+  <!-- ── PAGINATION ── -->
+  <div class="cf-pagination" *ngIf="!loading() && totalPages() > 1">
+    <button class="pg-btn" [disabled]="currentPage() === 0" (click)="prevPage()">
+      <span class="icon icon-sm">chevron_left</span>
+    </button>
+    <ng-container *ngFor="let p of pageNumbers()">
+      <span class="pg-dots" *ngIf="p === '...'">…</span>
+      <button class="pg-btn" *ngIf="p !== '...'"
+        [class.active]="p === currentPage() + 1"
+        (click)="goToPage(p)">
+        {{ p }}
+      </button>
+    </ng-container>
+    <span class="pg-info">Page {{ currentPage() + 1 }} of {{ totalPages() }}</span>
+    <button class="pg-btn" [disabled]="currentPage() === totalPages() - 1" (click)="nextPage()">
+      <span class="icon icon-sm">chevron_right</span>
+    </button>
   </div>
 
 </div>
@@ -78,36 +146,55 @@
 <div class="overlay" *ngIf="modalMode !== 'closed'" (click)="closeModal()"></div>
 <div class="modal modal-md" *ngIf="modalMode !== 'closed'" (click)="$event.stopPropagation()">
   <div class="modal-hd">
-    <span class="modal-title">{{ modalMode === 'create' ? 'New Lookup List' : 'Edit Lookup List' }}</span>
+    <div>
+      <div class="modal-title">{{ modalMode === 'create' ? 'New Custom Field' : 'Edit Custom Field' }}</div>
+      <div style="font-size:12px;color:var(--t3)">
+        {{ modalMode === 'create' ? 'Define a reusable field with its allowed values' : editTarget?.name }}
+      </div>
+    </div>
     <button class="modal-close" (click)="closeModal()"><span class="icon icon-sm">close</span></button>
   </div>
   <div class="modal-body">
     <div class="alert alert-error" *ngIf="modalError"><span class="icon icon-sm">warning</span> {{ modalError }}</div>
 
-    <app-input label="List Name" [required]="true" [touched]="formTouched"
-      placeholder="e.g. Network Types"
+    <app-input label="Field Name" [required]="true" [touched]="formTouched"
+      placeholder="e.g. Resolution, Rating, Network Type"
       [value]="form.name" (valueChange)="form.name = $event" />
 
     <app-textarea label="Description" optLabel="optional" [rows]="2"
-      placeholder="What is this list used for?"
+      placeholder="What does this field represent?"
       [value]="form.description" (valueChange)="form.description = $event" />
 
-    <!-- Values editor -->
-    <div class="field">
-      <label class="field-label">Values</label>
+    <div class="field-row">
+      <app-select label="Field Type" [required]="true" [options]="fieldTypeOpts"
+        [value]="form.fieldType" (valueChange)="form.fieldType = $event; form.defaultValue = ''" />
+      <app-select *ngIf="showValues" label="Default Value" optLabel="optional"
+        [options]="defaultValueOpts"
+        [value]="form.defaultValue" (valueChange)="form.defaultValue = $event" />
+      <app-input *ngIf="!showValues" label="Default Value" optLabel="optional"
+        placeholder="Leave blank for none"
+        [value]="form.defaultValue" (valueChange)="form.defaultValue = $event" />
+    </div>
+
+    <app-checkbox label="Required — this field must be filled when adding a product"
+      [checked]="form.required" (checkedChange)="form.required = $event" />
+
+    <!-- Values (only for SELECT / MULTISELECT) -->
+    <div class="field" *ngIf="showValues">
+      <label class="field-label">Allowed Values <span class="req">*</span></label>
       <div class="values-list">
         <div class="value-row" *ngFor="let v of valueInputs; let i = index; trackBy: trackByIdx">
           <div class="vr-order">
-            <button class="vr-ord-btn" (click)="moveUp(i)" [disabled]="i === 0" title="Move up">
+            <button class="vr-ord-btn" (click)="moveUp(i)" [disabled]="i === 0">
               <span class="icon" style="font-size:14px">arrow_upward</span>
             </button>
-            <button class="vr-ord-btn" (click)="moveDown(i)" [disabled]="i === valueInputs.length - 1" title="Move down">
+            <button class="vr-ord-btn" (click)="moveDown(i)" [disabled]="i === valueInputs.length - 1">
               <span class="icon" style="font-size:14px">arrow_downward</span>
             </button>
           </div>
           <input class="f-input vr-input" type="text" [(ngModel)]="valueInputs[i]"
-            placeholder="e.g. 5G" />
-          <button class="vr-remove" (click)="removeValue(i)" title="Remove">
+            [placeholder]="'Value ' + (i + 1)" />
+          <button class="vr-remove" (click)="removeValue(i)">
             <span class="icon icon-sm">close</span>
           </button>
         </div>
@@ -120,7 +207,7 @@
   <div class="modal-ft">
     <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
     <app-btn variant="primary" [loading]="saving" (clicked)="save()">
-      {{ modalMode === 'create' ? 'Create List' : 'Save Changes' }}
+      {{ modalMode === 'create' ? 'Create Field' : 'Save Changes' }}
     </app-btn>
   </div>
 </div>
@@ -131,8 +218,7 @@
   <div class="confirm-body">
     <div class="confirm-icon danger"><span class="icon icon-lg">delete</span></div>
     <h3>Delete "{{ deleteTarget.name }}"?</h3>
-    <p>This lookup list and its {{ deleteTarget.valueCount }} value{{ deleteTarget.valueCount !== 1 ? 's' : '' }} will be permanently removed.
-       Spec fields that previously imported from this list are <strong>not affected</strong> — they have their own copy of the values.</p>
+    <p>This custom field and its {{ deleteTarget.valueCount }} value{{ deleteTarget.valueCount !== 1 ? 's' : '' }} will be permanently removed.</p>
     <div class="alert alert-error" *ngIf="deleteError">{{ deleteError }}</div>
   </div>
   <div class="modal-ft">

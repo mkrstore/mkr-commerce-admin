@@ -110,6 +110,13 @@ export const LOOKUP_ENDPOINTS = {
   BY_ID:   (id: string) => `${API}/lookup-lists/${id}`,
 } as const;
 
+export const SPEC_GROUP_ENDPOINTS = {
+  BASE:           `${API}/spec-groups`,
+  BY_ID:          (id: string) => `${API}/spec-groups/${id}`,
+  BY_CATEGORY:    (catId: string) => `${API}/spec-groups/by-category/${catId}`,
+  ASSIGN:         (catId: string, groupId: string) => `${API}/spec-groups/by-category/${catId}/${groupId}`,
+} as const;
+
 export const DASHBOARD_ENDPOINTS = {
   STATS:         `${API}/dashboard/stats`,
   CHART:         `${API}/dashboard/chart`,

@@ -172,13 +172,18 @@
     <button class="modal-close" (click)="closeModal()"><span class="icon icon-sm">close</span></button>
   </div>
 
-  <!-- Tabs (only show spec fields tab when editing existing category) -->
+  <!-- Tabs (only show when editing existing category) -->
   <div class="tabs" style="padding:0 22px" *ngIf="modalMode === 'edit'">
     <button class="tab-btn" [class.active]="activeTab === 'details'" (click)="activeTab = 'details'">Details</button>
     <button class="tab-btn" [class.active]="activeTab === 'specs'" (click)="activeTab = 'specs'; loadAttrsIfNeeded()">
       <span class="icon icon-sm">tune</span>
       Spec Fields
       <span class="tab-count" *ngIf="attrs.length > 0">{{ attrs.length }}</span>
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'groups'" (click)="activeTab = 'groups'; loadSgIfNeeded()">
+      <span class="icon icon-sm">workspaces</span>
+      Spec Groups
+      <span class="tab-count" *ngIf="assignedGroups.length > 0">{{ assignedGroups.length }}</span>
     </button>
   </div>
 
@@ -228,24 +233,52 @@
 
       <app-input label="Name" [required]="true" [touched]="formTouched"
         [value]="form.name" (valueChange)="onNameChange($event)" placeholder="e.g. Smartphones" />
-      <app-input label="Slug" optLabel="auto-generated if blank"
+      <app-input label="Slug" optLabel="auto-generated from name"
         [value]="form.slug" (valueChange)="onSlugChange($event)" placeholder="e.g. smartphones" />
       <app-textarea label="Description" optLabel="optional"
         [value]="form.description" (valueChange)="form.description = $event"
         placeholder="Short description of what products go in this category" [rows]="2" />
-      <div class="field-row">
-        <app-select label="Parent Category" optLabel="optional" placeholder="None (top-level)"
-          [options]="parentCategoryOpts"
-          [value]="form.parentId" (valueChange)="form.parentId = $event" />
-        <app-input label="Sort Order" type="number" style="max-width:110px"
-          [value]="form.sortOrder" (valueChange)="form.sortOrder = $event" />
+
+      <!-- Category type radios -->
+      <div class="field">
+        <label class="field-label">Category Type <span class="req">*</span></label>
+        <div class="cat-type-radios">
+          <label class="cat-type-radio" [class.selected]="categoryType === 'parent'">
+            <input type="radio" name="catType" value="parent"
+              [checked]="categoryType === 'parent'"
+              (change)="setCategoryType('parent')" />
+            <span class="icon icon-sm">folder</span>
+            <div>
+              <div class="ctr-label">Main Category</div>
+              <div class="ctr-sub">Top level — e.g. Electronics, Clothing</div>
+            </div>
+          </label>
+          <label class="cat-type-radio" [class.selected]="categoryType === 'child'">
+            <input type="radio" name="catType" value="child"
+              [checked]="categoryType === 'child'"
+              (change)="setCategoryType('child')" />
+            <span class="icon icon-sm">subdirectory_arrow_right</span>
+            <div>
+              <div class="ctr-label">Sub Category</div>
+              <div class="ctr-sub">Belongs under a main category</div>
+            </div>
+          </label>
+        </div>
       </div>
+
+      <!-- Parent picker — only shown for child -->
+      <app-select *ngIf="categoryType === 'child'"
+        label="Parent Category" [required]="true" [touched]="formTouched"
+        placeholder="Select parent category"
+        [options]="parentCategoryOpts"
+        [value]="form.parentId" (valueChange)="form.parentId = $event" />
+
       <app-checkbox *ngIf="modalMode === 'edit'" label="Active"
         [checked]="form.isActive" (checkedChange)="form.isActive = $event" />
     </div>
     <div class="modal-ft">
       <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
-      <app-btn variant="primary" [loading]="saving" (clicked)="save()">
+      <app-btn variant="primary" [loading]="saving" [disabled]="!isFormValid" (clicked)="save()">
         {{ modalMode === 'create' ? 'Create Category' : 'Save Changes' }}
       </app-btn>
     </div>
@@ -336,7 +369,7 @@
                 <div class="sk" style="height:36px;border-radius:6px"></div>
               </div>
               <div class="lp-empty" *ngIf="!lookupLoading && lookupLists.length === 0">
-                No lookup lists found. <a routerLink="/lookup-lists" (click)="closeModal()">Create one →</a>
+                No custom fields found. <a routerLink="/custom-fields" (click)="closeModal()">Create one →</a>
               </div>
               <button class="lp-item"
                 *ngFor="let ll of lookupLists"
@@ -405,6 +438,111 @@
       <app-btn variant="primary" icon="add" (clicked)="openCreateAttr()">Add Spec Field</app-btn>
     </div>
     <div class="modal-ft" *ngIf="attrLoading || attrView === 'form'">
+      <app-btn variant="ghost" (clicked)="closeModal()">Close</app-btn>
+    </div>
+  </ng-container>
+
+  <!-- ── TAB: Spec Groups ── -->
+  <ng-container *ngIf="activeTab === 'groups'">
+    <div class="modal-body">
+
+      <div class="spec-info-box">
+        <span class="icon icon-sm icon-blue">workspaces</span>
+        <span>Assign pre-built spec groups to <strong>{{ editTarget?.name }}</strong> — e.g. "Performance", "Connectivity". Each group bundles related custom fields and appears as a collapsible section on the product form.</span>
+      </div>
+
+      <div class="alert alert-error" *ngIf="sgError">
+        <span class="icon icon-sm">warning</span> {{ sgError }}
+      </div>
+
+      <!-- Loading skeleton -->
+      <div *ngIf="sgLoading" style="display:flex;flex-direction:column;gap:8px">
+        <div class="sk" style="height:56px;border-radius:8px"></div>
+        <div class="sk" style="height:56px;border-radius:8px"></div>
+        <div class="sk" style="height:56px;border-radius:8px"></div>
+      </div>
+
+      <ng-container *ngIf="!sgLoading">
+
+        <!-- Empty state (no assigned groups, picker closed) -->
+        <div class="sg-assigned-empty" *ngIf="assignedGroups.length === 0 && !sgPickerOpen">
+          <span class="icon icon-xl icon-muted">workspaces</span>
+          <div class="empty-title" style="font-size:13px">No spec groups assigned yet</div>
+          <div class="empty-sub">Assign groups like "Performance" or "Connectivity" to define what specs are collected for this category.</div>
+        </div>
+
+        <!-- Assigned groups list -->
+        <div class="sg-assigned-list" *ngIf="assignedGroups.length > 0">
+          <div class="sg-assigned-item" *ngFor="let g of assignedGroups">
+            <div class="sga-icon">
+              <span class="icon icon-sm">workspaces</span>
+            </div>
+            <div class="sga-info">
+              <div class="sga-name">{{ g.name }}</div>
+              <div class="sga-meta" *ngIf="g.description">{{ g.description }}</div>
+              <div class="sga-fields">
+                <span class="icon icon-xs">tune</span>
+                {{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" *ngIf="canManage()"
+              [disabled]="!!sgRemoving"
+              (click)="removeGroup(g.id)">
+              <span class="icon icon-sm" [class.icon-red]="sgRemoving !== g.id">
+                {{ sgRemoving === g.id ? 'hourglass_empty' : 'remove_circle_outline' }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Assign button -->
+        <div style="margin-top:12px" *ngIf="canManage() && !sgPickerOpen">
+          <button class="opt-add-btn" (click)="sgPickerOpen = true">
+            <span class="icon icon-sm">add</span> Assign Spec Group
+          </button>
+        </div>
+
+        <!-- Picker panel -->
+        <div class="sg-picker" *ngIf="sgPickerOpen">
+          <div class="sg-picker-hd">
+            <span style="font-size:13px;font-weight:700;color:var(--t1)">Assign Spec Group</span>
+            <button class="attr-back-btn" (click)="sgPickerOpen = false; sgPickerSearch = ''">
+              <span class="icon icon-sm">close</span>
+            </button>
+          </div>
+          <div class="sg-picker-search">
+            <span class="icon icon-xs" style="color:var(--t3)">search</span>
+            <input type="text" [(ngModel)]="sgPickerSearch" placeholder="Search groups…" />
+          </div>
+          <div class="sg-picker-list">
+            <div class="sg-picker-empty" *ngIf="filteredSgPicker.length === 0">
+              {{ sgPickerSearch ? 'No groups match' : (allSgLoaded ? 'All groups already assigned' : 'Loading…') }}
+            </div>
+            <button class="sg-picker-item" *ngFor="let g of filteredSgPicker"
+              [disabled]="!!sgAssigning"
+              (click)="assignGroup(g.id)">
+              <span class="icon icon-sm" style="color:#2dd4bf;flex-shrink:0">workspaces</span>
+              <div class="sgp-info">
+                <div class="sgp-name">{{ g.name }}</div>
+                <div class="sgp-meta" *ngIf="g.description">{{ g.description }}</div>
+                <div class="sgp-fields">{{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}</div>
+              </div>
+              <span class="icon icon-sm" style="color:var(--t3)">
+                {{ sgAssigning === g.id ? 'hourglass_empty' : 'add_circle_outline' }}
+              </span>
+            </button>
+          </div>
+          <div class="sg-picker-footer">
+            <a routerLink="/spec-groups" (click)="closeModal()" style="display:flex;align-items:center;gap:4px;text-decoration:none;font-size:12px;color:var(--blue)">
+              <span class="icon icon-xs">open_in_new</span> Manage Spec Groups
+            </a>
+          </div>
+        </div>
+
+      </ng-container>
+    </div>
+
+    <div class="modal-ft">
       <app-btn variant="ghost" (clicked)="closeModal()">Close</app-btn>
     </div>
   </ng-container>

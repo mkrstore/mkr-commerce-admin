@@ -122,7 +122,9 @@ export class AppSelectComponent implements OnDestroy {
   open = signal(false);
   dropdownStyle: Record<string, string> = {};
 
-  private readonly onScroll = () => { if (this.open()) this.close(); };
+  private readonly onScroll = (e: Event) => {
+    if (this.open() && !this.el.nativeElement.contains(e.target as Node)) this.close();
+  };
 
   get selectedLabel(): string {
     return this.options.find(o => o.value == this.value)?.label ?? '';

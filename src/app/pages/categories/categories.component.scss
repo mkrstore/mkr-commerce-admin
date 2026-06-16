@@ -1,3 +1,29 @@
+// ── Category type radios ──────────────────────────────────────────────────────
+
+.cat-type-radios {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;
+}
+
+.cat-type-radio {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-md); cursor: pointer;
+  transition: border-color .15s, background .15s;
+  input[type="radio"] { display: none; }
+
+  .icon { font-size: 1.1rem; color: var(--t3); flex-shrink: 0; margin-top: 1px; }
+
+  &.selected {
+    border-color: var(--blue); background: var(--blue-soft);
+    .icon { color: var(--blue); }
+    .ctr-label { color: var(--blue); }
+  }
+  &:hover:not(.selected) { border-color: var(--border2); }
+}
+
+.ctr-label { font-size: 13px; font-weight: 600; color: var(--t1); }
+.ctr-sub   { font-size: 11px; color: var(--t3); margin-top: 1px; }
+
 /* ── Two-panel layout ── */
 .cat-page { display: flex; flex-direction: column; height: 100%; }
 
@@ -452,6 +478,84 @@
 .lp-empty { padding: 16px; font-size: 13px; color: var(--t3); text-align: center; }
 .lp-loading { display: flex; flex-direction: column; gap: 4px; padding: 8px; }
 .lp-importing { display: flex; align-items: center; gap: 6px; padding: 10px 14px; font-size: 12px; color: var(--blue); }
+
+/* ── Spec Groups tab ── */
+
+.sg-assigned-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 28px 20px; text-align: center;
+}
+
+.sg-assigned-list { display: flex; flex-direction: column; gap: 6px; }
+
+.sg-assigned-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-left: 3px solid #2dd4bf;
+  border-radius: var(--radius-md);
+  transition: border-color .12s;
+  &:hover { border-color: var(--border2); }
+}
+
+.sga-icon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(45,212,191,.12); border-radius: var(--radius);
+  color: #2dd4bf;
+}
+
+.sga-info  { flex: 1; min-width: 0; }
+.sga-name  { font-size: 13px; font-weight: 700; color: var(--t1); }
+.sga-meta  { font-size: 11px; color: var(--t3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sga-fields { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--t3); margin-top: 2px; }
+
+.sg-picker {
+  margin-top: 10px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
+}
+
+.sg-picker-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px; background: var(--surface2); border-bottom: 1px solid var(--border);
+}
+
+.sg-picker-search {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px; border-bottom: 1px solid var(--border); background: var(--surface);
+  input {
+    flex: 1; background: none; border: none; outline: none;
+    font-size: 13px; color: var(--t1); font-family: var(--font);
+    &::placeholder { color: var(--t3); }
+  }
+}
+
+.sg-picker-list { max-height: 240px; overflow-y: auto; }
+
+.sg-picker-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; text-align: left; padding: 10px 14px;
+  border: none; border-bottom: 1px solid var(--border);
+  background: transparent; cursor: pointer; font-family: var(--font);
+  transition: background .1s;
+  &:last-child { border-bottom: none; }
+  &:hover:not(:disabled) { background: var(--hover); }
+  &:disabled { opacity: .5; cursor: not-allowed; }
+}
+
+.sgp-info   { flex: 1; min-width: 0; }
+.sgp-name   { font-size: 13px; font-weight: 600; color: var(--t1); }
+.sgp-meta   { font-size: 11px; color: var(--t3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sgp-fields { font-size: 11px; color: var(--t3); margin-top: 1px; }
+
+.sg-picker-empty {
+  padding: 20px; text-align: center; font-size: 13px; color: var(--t3);
+}
+
+.sg-picker-footer {
+  display: flex; align-items: center;
+  padding: 8px 14px; border-top: 1px solid var(--border); background: var(--surface2);
+}
 
 /* ── Group chip in attr list ── */
 .attr-group-chip {

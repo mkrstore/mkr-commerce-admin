@@ -39,7 +39,8 @@ const ALL_NAV_GROUPS: NavGroup[] = [
         children: [
           { icon: ICONS.brands,      label: 'Brands',       route: '/brands',       roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'] },
           { icon: ICONS.categories,  label: 'Categories',   route: '/categories',   roles: ['SUPER_ADMIN', 'ADMIN', 'INVENTORY'] },
-          { icon: ICONS.lookupLists, label: 'Lookup Lists', route: '/lookup-lists', roles: ['SUPER_ADMIN', 'ADMIN'] },
+          { icon: ICONS.lookupLists, label: 'Custom Fields', route: '/custom-fields', roles: ['SUPER_ADMIN', 'ADMIN'] },
+          { icon: ICONS.specGroups,  label: 'Spec Groups',   route: '/spec-groups',   roles: ['SUPER_ADMIN', 'ADMIN'] },
           { icon: ICONS.promotions,  label: 'Promotions',   route: '/promotions',   roles: ['SUPER_ADMIN', 'ADMIN'] },
           { icon: ICONS.settings,    label: 'Settings',     route: '/settings',     roles: ['SUPER_ADMIN', 'ADMIN'] },
         ]
