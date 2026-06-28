@@ -1,10 +1,23 @@
 // Shared interfaces for the billing module.
 // Import from here instead of redefining in each component.
 
+export interface BillingVariant {
+  id: string;
+  sku: string;
+  attributes: Record<string, string> | null;
+  label: string;
+  priceOverride:  number | null;
+  priceWholesale: number | null;
+  priceBroker:    number | null;
+  stockQty: number;
+  isActive: boolean;
+}
+
 export interface BillingProduct {
   id: string;
   name: string;
   sku: string;
+  barcode: string | null;
   categoryName: string;
   priceRetail: number;
   priceWholesale: number | null;
@@ -13,6 +26,10 @@ export interface BillingProduct {
   stockQty: number;
   primaryImageUrl: string | null;
   status: string;
+  variants: BillingVariant[];   // empty array for products without variants
+  // Set only on flattened variant rows
+  variantId?: string;
+  variantLabel?: string;
 }
 
 export interface BillItem {
@@ -21,6 +38,7 @@ export interface BillItem {
   unitPrice: number;
   discount?: number;          // optional — kept for historical bill display only
   serialNumbers: string[];    // one entry per unit; empty strings = not entered yet
+  variantId?: string;
 }
 
 export interface Customer {

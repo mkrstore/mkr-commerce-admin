@@ -1,10 +1,10 @@
-<div class="page cf-page">
+<div #pageTop class="page cf-page">
 
   <!-- ── HEADER ── -->
   <div class="page-hd">
     <div class="page-hd-left">
-      <div class="page-hd-title">Custom Fields</div>
-      <div class="page-hd-sub" *ngIf="!loading()">{{ filteredLists().length }} fields</div>
+      <div class="page-hd-title">Fields</div>
+      <div class="page-hd-sub" *ngIf="!loading()">{{ totalElements() }} fields</div>
     </div>
     <div class="page-hd-right">
       <div class="search-bar" style="width:220px">
@@ -47,8 +47,8 @@
       </div>
 
       <!-- ── CARD VIEW (always on mobile) ── -->
-      <div class="cf-grid" *ngIf="!loading() && (view() === 'card' || isMobile()) && pagedLists().length > 0">
-        <div class="cf-card" *ngFor="let f of pagedLists()"
+      <div class="cf-grid" *ngIf="!loading() && (view() === 'card' || isMobile()) && lists().length > 0">
+        <div class="cf-card" *ngFor="let f of lists()"
           [attr.data-type]="f.fieldType"
           (click)="canManage() && openEdit(f)">
           <div class="cf-card-body">
@@ -67,12 +67,12 @@
       </div>
 
       <!-- ── TABLE VIEW (desktop only) ── -->
-      <div class="tbl-card" *ngIf="!loading() && view() === 'table' && !isMobile() && pagedLists().length > 0">
+      <div class="tbl-card" *ngIf="!loading() && view() === 'table' && !isMobile() && lists().length > 0">
         <div class="tbl-wrap">
           <table class="tbl">
             <thead>
               <tr>
-                <th>Name</th>
+                <th>Field</th>
                 <th>Type</th>
                 <th>Required</th>
                 <th>Default</th>
@@ -81,7 +81,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr class="tbl-row" *ngFor="let f of pagedLists()" (click)="canManage() && openEdit(f)">
+              <tr class="tbl-row" *ngFor="let f of lists()" (click)="canManage() && openEdit(f)">
                 <td>
                   <div class="cf-tbl-name">{{ f.name }}</div>
                   <div class="cf-tbl-desc" *ngIf="f.description">{{ f.description }}</div>
@@ -106,7 +106,7 @@
       </div>
 
       <!-- ── EMPTY ── -->
-      <div class="empty" *ngIf="!loading() && filteredLists().length === 0">
+      <div class="empty" *ngIf="!loading() && lists().length === 0">
         <div class="empty-icon"><span class="icon icon-xl icon-muted">tune</span></div>
         <div class="empty-title">{{ searchQuery() ? 'No fields match your search' : 'No custom fields yet' }}</div>
         <div class="empty-sub" *ngIf="!searchQuery() && canManage()">
@@ -147,7 +147,7 @@
 <div class="modal modal-md" *ngIf="modalMode !== 'closed'" (click)="$event.stopPropagation()">
   <div class="modal-hd">
     <div>
-      <div class="modal-title">{{ modalMode === 'create' ? 'New Custom Field' : 'Edit Custom Field' }}</div>
+      <div class="modal-title">{{ modalMode === 'create' ? 'New Field' : 'Edit Field' }}</div>
       <div style="font-size:12px;color:var(--t3)">
         {{ modalMode === 'create' ? 'Define a reusable field with its allowed values' : editTarget?.name }}
       </div>
@@ -206,7 +206,7 @@
   </div>
   <div class="modal-ft">
     <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
-    <app-btn variant="primary" [loading]="saving" (clicked)="save()">
+    <app-btn variant="primary" [loading]="saving" [disabled]="saveDisabled" (clicked)="save()">
       {{ modalMode === 'create' ? 'Create Field' : 'Save Changes' }}
     </app-btn>
   </div>

@@ -87,6 +87,14 @@ export const CUSTOMER_ENDPOINTS = {
   BILLS:         (id: string) => `${API}/customers/${id}/bills`,
 } as const;
 
+export const VENDOR_ENDPOINTS = {
+  BASE:         `${API}/vendors`,
+  SUMMARY:      `${API}/vendors/summary`,
+  BY_ID:        (id: string) => `${API}/vendors/${id}`,
+  PRODUCTS:     (id: string) => `${API}/vendors/${id}/products`,
+  TRANSACTIONS: (id: string) => `${API}/vendors/${id}/transactions`,
+} as const;
+
 export const INVENTORY_ENDPOINTS = {
   BASE:         `${API}/inventory`,
   RESTOCK:      (productId: string) => `${API}/inventory/${productId}/restock`,
@@ -107,6 +115,7 @@ export const PROMOTION_ENDPOINTS = {
 
 export const LOOKUP_ENDPOINTS = {
   BASE:    `${API}/lookup-lists`,
+  ALL:     `${API}/lookup-lists/all`,
   BY_ID:   (id: string) => `${API}/lookup-lists/${id}`,
 } as const;
 

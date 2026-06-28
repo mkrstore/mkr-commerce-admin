@@ -172,18 +172,22 @@
     <button class="modal-close" (click)="closeModal()"><span class="icon icon-sm">close</span></button>
   </div>
 
-  <!-- Tabs (only show when editing existing category) -->
-  <div class="tabs" style="padding:0 22px" *ngIf="modalMode === 'edit'">
+  <!-- Tabs -->
+  <div class="tabs" style="padding:0 22px">
     <button class="tab-btn" [class.active]="activeTab === 'details'" (click)="activeTab = 'details'">Details</button>
-    <button class="tab-btn" [class.active]="activeTab === 'specs'" (click)="activeTab = 'specs'; loadAttrsIfNeeded()">
-      <span class="icon icon-sm">tune</span>
-      Spec Fields
-      <span class="tab-count" *ngIf="attrs.length > 0">{{ attrs.length }}</span>
-    </button>
-    <button class="tab-btn" [class.active]="activeTab === 'groups'" (click)="activeTab = 'groups'; loadSgIfNeeded()">
+    <button class="tab-btn" [class.active]="activeTab === 'groups'" (click)="onGroupsTabClick()">
       <span class="icon icon-sm">workspaces</span>
       Spec Groups
-      <span class="tab-count" *ngIf="assignedGroups.length > 0">{{ assignedGroups.length }}</span>
+      <span class="tab-count" *ngIf="(modalMode === 'edit' ? assignedGroups.length : pendingGroups.length) > 0">
+        {{ modalMode === 'edit' ? assignedGroups.length : pendingGroups.length }}
+      </span>
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'specs'" (click)="onSpecsTabClick()">
+      <span class="icon icon-sm">tune</span>
+      Spec Fields
+      <span class="tab-count" *ngIf="(modalMode === 'edit' ? attrs.length : pendingAttrs.length) > 0">
+        {{ modalMode === 'edit' ? attrs.length : pendingAttrs.length }}
+      </span>
     </button>
   </div>
 
@@ -271,14 +275,40 @@
         label="Parent Category" [required]="true" [touched]="formTouched"
         placeholder="Select parent category"
         [options]="parentCategoryOpts"
-        [value]="form.parentId" (valueChange)="form.parentId = $event" />
+        [value]="form.parentId" (valueChange)="onParentChange($event)" />
 
       <app-checkbox *ngIf="modalMode === 'edit'" label="Active"
         [checked]="form.isActive" (checkedChange)="form.isActive = $event" />
+
+      <!-- ── Inherited spec groups from parent (subcategory create/edit) ── -->
+      <div class="field" *ngIf="categoryType === 'child' && form.parentId && (parentInheritedLoading || parentInheritedGroups.length > 0)">
+        <label class="field-label">
+          <span class="icon icon-xs" style="color:var(--t3);vertical-align:middle">subdirectory_arrow_right</span>
+          Inherited from {{ getParentName(form.parentId) }}
+        </label>
+        <div *ngIf="parentInheritedLoading" style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--t3)">
+          <span class="icon icon-sm">hourglass_empty</span> Loading parent spec groups…
+        </div>
+        <div class="sg-assigned-list" *ngIf="!parentInheritedLoading && parentInheritedGroups.length > 0">
+          <div class="sg-assigned-item" *ngFor="let g of parentInheritedGroups" style="opacity:.75">
+            <div class="sga-icon"><span class="icon icon-sm" style="color:var(--t3)">workspaces</span></div>
+            <div class="sga-info">
+              <div class="sga-name">{{ g.name }}</div>
+              <div class="sga-fields"><span class="icon icon-xs">tune</span> {{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}</div>
+            </div>
+            <span class="badge badge-gray" style="font-size:10px;flex-shrink:0">inherited</span>
+          </div>
+        </div>
+        <div *ngIf="!parentInheritedLoading && parentInheritedGroups.length === 0" style="font-size:12px;color:var(--t3);padding:4px 0">
+          Parent category has no spec groups assigned yet.
+        </div>
+      </div>
+
+
     </div>
     <div class="modal-ft">
       <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
-      <app-btn variant="primary" [loading]="saving" [disabled]="!isFormValid" (clicked)="save()">
+      <app-btn variant="primary" [loading]="saving" [disabled]="saveDisabled" (clicked)="save()">
         {{ modalMode === 'create' ? 'Create Category' : 'Save Changes' }}
       </app-btn>
     </div>
@@ -288,27 +318,14 @@
   <ng-container *ngIf="activeTab === 'specs'">
     <div class="modal-body">
 
-      <div class="spec-info-box">
-        <span class="icon icon-sm icon-blue">info</span>
-        <span>Spec fields define what product info is collected for <strong>{{ editTarget?.name }}</strong> — e.g. for Smartphones: RAM, Storage, Battery, OS. These appear as a form when adding products in this category.</span>
-      </div>
-
-      <div class="alert alert-error" *ngIf="attrError">
-        <span class="icon icon-sm">warning</span> {{ attrError }}
-      </div>
-
-      <div *ngIf="attrLoading" style="display:flex;flex-direction:column;gap:8px">
-        <div class="sk" style="height:48px;border-radius:8px"></div>
-        <div class="sk" style="height:48px;border-radius:8px"></div>
-      </div>
-
-      <div class="attr-form-panel" *ngIf="!attrLoading && attrView === 'form'">
+      <!-- Shared form panel (create and edit modes) -->
+      <div class="attr-form-panel" *ngIf="activeAttrView === 'form'">
         <div class="attr-form-hd">
           <button class="attr-back-btn" (click)="backToAttrList()">
             <span class="icon icon-sm">arrow_back</span>
           </button>
           <span style="font-size:14px;font-weight:700;color:var(--t1)">
-            {{ attrEditTarget ? 'Edit Field' : 'New Spec Field' }}
+            {{ isEditingAttr ? 'Edit Field' : 'New Spec Field' }}
           </span>
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;padding:14px 16px">
@@ -316,11 +333,10 @@
             [value]="attrForm.label" (valueChange)="onAttrLabelChange($event)"
             placeholder="e.g. RAM, Screen Size, Battery" />
           <app-input *ngIf="!attrEditTarget" label="Field Key" [required]="true" [touched]="attrFormTouched"
-            hint="Unique key in snake_case — cannot be changed after saving"
+            [hint]="modalMode === 'create' ? 'Unique key in snake_case' : 'Unique key in snake_case — cannot be changed after saving'"
             [value]="attrForm.fieldKey" (valueChange)="onFieldKeyChange($event)"
             placeholder="e.g. ram, screen_size, battery_mah" />
 
-          <!-- Group name with datalist autocomplete -->
           <div class="field">
             <label class="field-label">Group <span class="opt">(optional)</span></label>
             <input class="f-input" type="text" list="attr-groups-list"
@@ -361,8 +377,6 @@
                 <span class="icon icon-xs" style="margin-left:2px">{{ lookupPickerOpen ? 'expand_less' : 'expand_more' }}</span>
               </button>
             </div>
-
-            <!-- Lookup List picker -->
             <div class="lookup-picker" *ngIf="lookupPickerOpen">
               <div class="lp-loading" *ngIf="lookupLoading">
                 <div class="sk" style="height:36px;border-radius:6px"></div>
@@ -371,10 +385,8 @@
               <div class="lp-empty" *ngIf="!lookupLoading && lookupLists.length === 0">
                 No custom fields found. <a routerLink="/custom-fields" (click)="closeModal()">Create one →</a>
               </div>
-              <button class="lp-item"
-                *ngFor="let ll of lookupLists"
-                (click)="importFromLookup(ll)"
-                [disabled]="lookupImporting">
+              <button class="lp-item" *ngFor="let ll of lookupLists"
+                (click)="importFromLookup(ll)" [disabled]="lookupImporting">
                 <span class="icon icon-sm" style="color:var(--blue);flex-shrink:0">list_alt</span>
                 <span class="lp-name">{{ ll.name }}</span>
                 <span class="lp-count">{{ ll.valueCount }} value{{ ll.valueCount !== 1 ? 's' : '' }}</span>
@@ -396,49 +408,111 @@
           <div style="display:flex;gap:8px;justify-content:flex-end">
             <app-btn variant="ghost" size="sm" (clicked)="backToAttrList()">Cancel</app-btn>
             <app-btn variant="primary" size="sm" [loading]="attrSaving" (clicked)="saveAttr()">
-              {{ attrEditTarget ? 'Update Field' : 'Add Field' }}
+              {{ isEditingAttr ? 'Update Field' : 'Add Field' }}
             </app-btn>
           </div>
         </div>
       </div>
 
-      <ng-container *ngIf="!attrLoading && attrView === 'list'">
-        <div class="empty" style="padding:28px" *ngIf="attrs.length === 0">
-          <div class="empty-icon"><span class="icon icon-lg icon-muted">tune</span></div>
-          <div class="empty-title" style="font-size:14px">No spec fields yet</div>
-          <div class="empty-sub">Add fields like RAM, Screen Size, Battery etc. to collect product specs for this category.</div>
-          <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreateAttr()">Add First Field</app-btn>
-        </div>
+      <ng-container *ngIf="activeAttrView === 'list'">
 
-        <div *ngIf="attrs.length > 0" style="display:flex;flex-direction:column;gap:6px">
-          <div *ngFor="let a of attrs" class="attr-item">
-            <div class="attr-item-left">
-              <div style="display:flex;align-items:center;gap:6px">
-                <span style="font-size:13px;font-weight:600;color:var(--t1)">{{ a.label }}</span>
-                <span class="badge badge-red" *ngIf="a.required" style="font-size:10px">required</span>
-              </div>
-              <div style="font-size:11px;color:var(--t3);margin-top:2px">
-                <span class="attr-type-chip">{{ fieldTypeLabel(a.fieldType) }}</span>
-                <span *ngIf="a.unit"> · {{ a.unit }}</span>
-                <span style="font-family:monospace;margin-left:6px;opacity:.6">{{ a.fieldKey }}</span>
-                <span class="attr-group-chip" *ngIf="a.groupName">{{ a.groupName }}</span>
-              </div>
-            </div>
-            <div style="display:flex;gap:4px" *ngIf="canManage()">
-              <button class="btn btn-ghost btn-sm" (click)="openEditAttr(a)"><span class="icon icon-sm">edit</span></button>
-              <button class="btn btn-ghost btn-sm" (click)="openDeleteAttr(a)"><span class="icon icon-sm icon-red">delete</span></button>
-            </div>
+        <!-- CREATE MODE: pending fields list -->
+        <ng-container *ngIf="modalMode === 'create'">
+          <div class="spec-info-box">
+            <span class="icon icon-sm icon-blue">info</span>
+            <span>Add spec fields like RAM, Screen Size, or Battery to collect product details for this category. <span style="color:var(--t3)">(optional)</span></span>
           </div>
-        </div>
+
+          <div class="empty" style="padding:28px" *ngIf="pendingAttrs.length === 0">
+            <div class="empty-icon"><span class="icon icon-lg icon-muted">tune</span></div>
+            <div class="empty-title" style="font-size:14px">No spec fields yet</div>
+            <div class="empty-sub">Fields added here will be created together with the category.</div>
+            <app-btn variant="primary" size="sm" icon="add" (clicked)="openCreateAttr()">Add First Field</app-btn>
+          </div>
+
+          <div *ngIf="pendingAttrs.length > 0" style="display:flex;flex-direction:column;gap:6px">
+            <div *ngFor="let a of pendingAttrs; let i = index" class="attr-item">
+              <div class="attr-item-left">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:13px;font-weight:600;color:var(--t1)">{{ a.label }}</span>
+                  <span class="badge badge-red" *ngIf="a.required" style="font-size:10px">required</span>
+                </div>
+                <div style="font-size:11px;color:var(--t3);margin-top:2px">
+                  <span class="attr-type-chip">{{ fieldTypeLabel(a.fieldType) }}</span>
+                  <span *ngIf="a.unit"> · {{ a.unit }}</span>
+                  <span style="font-family:monospace;margin-left:6px;opacity:.6">{{ a.fieldKey }}</span>
+                  <span class="attr-group-chip" *ngIf="a.groupName">{{ a.groupName }}</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:4px">
+                <button class="btn btn-ghost btn-sm" (click)="openEditPendingAttr(i)"><span class="icon icon-sm">edit</span></button>
+                <button class="btn btn-ghost btn-sm" (click)="removePendingAttr(i)"><span class="icon icon-sm icon-red">delete</span></button>
+              </div>
+            </div>
+            <button class="opt-add-btn" style="margin-top:4px" (click)="openCreateAttr()">
+              <span class="icon icon-sm">add</span> Add Another Field
+            </button>
+          </div>
+        </ng-container>
+
+        <!-- EDIT MODE: real fields list -->
+        <ng-container *ngIf="modalMode === 'edit'">
+          <div class="spec-info-box">
+            <span class="icon icon-sm icon-blue">info</span>
+            <span>Spec fields define what product info is collected for <strong>{{ editTarget?.name }}</strong> — e.g. for Smartphones: RAM, Storage, Battery, OS.</span>
+          </div>
+
+          <div class="alert alert-error" *ngIf="attrError">
+            <span class="icon icon-sm">warning</span> {{ attrError }}
+          </div>
+
+          <div *ngIf="attrLoading" style="display:flex;flex-direction:column;gap:8px">
+            <div class="sk" style="height:48px;border-radius:8px"></div>
+            <div class="sk" style="height:48px;border-radius:8px"></div>
+          </div>
+
+          <ng-container *ngIf="!attrLoading">
+            <div class="empty" style="padding:28px" *ngIf="attrs.length === 0">
+              <div class="empty-icon"><span class="icon icon-lg icon-muted">tune</span></div>
+              <div class="empty-title" style="font-size:14px">No spec fields yet</div>
+              <div class="empty-sub">Add fields like RAM, Screen Size, Battery etc. to collect product specs for this category.</div>
+              <app-btn variant="primary" size="sm" icon="add" *ngIf="canManage()" (clicked)="openCreateAttr()">Add First Field</app-btn>
+            </div>
+
+            <div *ngIf="attrs.length > 0" style="display:flex;flex-direction:column;gap:6px">
+              <div *ngFor="let a of attrs" class="attr-item">
+                <div class="attr-item-left">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="font-size:13px;font-weight:600;color:var(--t1)">{{ a.label }}</span>
+                    <span class="badge badge-red" *ngIf="a.required" style="font-size:10px">required</span>
+                  </div>
+                  <div style="font-size:11px;color:var(--t3);margin-top:2px">
+                    <span class="attr-type-chip">{{ fieldTypeLabel(a.fieldType) }}</span>
+                    <span *ngIf="a.unit"> · {{ a.unit }}</span>
+                    <span style="font-family:monospace;margin-left:6px;opacity:.6">{{ a.fieldKey }}</span>
+                    <span class="attr-group-chip" *ngIf="a.groupName">{{ a.groupName }}</span>
+                  </div>
+                </div>
+                <div style="display:flex;gap:4px" *ngIf="canManage()">
+                  <button class="btn btn-ghost btn-sm" (click)="openEditAttr(a)"><span class="icon icon-sm">edit</span></button>
+                  <button class="btn btn-ghost btn-sm" (click)="openDeleteAttr(a)"><span class="icon icon-sm icon-red">delete</span></button>
+                </div>
+              </div>
+              <button class="opt-add-btn" style="margin-top:4px" *ngIf="canManage()" (click)="openCreateAttr()">
+                <span class="icon icon-sm">add</span> Add Another Field
+              </button>
+            </div>
+          </ng-container>
+        </ng-container>
+
       </ng-container>
     </div>
 
-    <div class="modal-ft" *ngIf="!attrLoading && attrView === 'list' && canManage()">
-      <app-btn variant="ghost" (clicked)="closeModal()">Close</app-btn>
-      <app-btn variant="primary" icon="add" (clicked)="openCreateAttr()">Add Spec Field</app-btn>
-    </div>
-    <div class="modal-ft" *ngIf="attrLoading || attrView === 'form'">
-      <app-btn variant="ghost" (clicked)="closeModal()">Close</app-btn>
+    <div class="modal-ft">
+      <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
+      <app-btn variant="primary" [loading]="saving" [disabled]="saveDisabled" (clicked)="save()">
+        {{ modalMode === 'create' ? 'Create Category' : 'Save Changes' }}
+      </app-btn>
     </div>
   </ng-container>
 
@@ -446,104 +520,181 @@
   <ng-container *ngIf="activeTab === 'groups'">
     <div class="modal-body">
 
-      <div class="spec-info-box">
-        <span class="icon icon-sm icon-blue">workspaces</span>
-        <span>Assign pre-built spec groups to <strong>{{ editTarget?.name }}</strong> — e.g. "Performance", "Connectivity". Each group bundles related custom fields and appears as a collapsible section on the product form.</span>
-      </div>
-
-      <div class="alert alert-error" *ngIf="sgError">
-        <span class="icon icon-sm">warning</span> {{ sgError }}
-      </div>
-
-      <!-- Loading skeleton -->
-      <div *ngIf="sgLoading" style="display:flex;flex-direction:column;gap:8px">
-        <div class="sk" style="height:56px;border-radius:8px"></div>
-        <div class="sk" style="height:56px;border-radius:8px"></div>
-        <div class="sk" style="height:56px;border-radius:8px"></div>
-      </div>
-
-      <ng-container *ngIf="!sgLoading">
-
-        <!-- Empty state (no assigned groups, picker closed) -->
-        <div class="sg-assigned-empty" *ngIf="assignedGroups.length === 0 && !sgPickerOpen">
-          <span class="icon icon-xl icon-muted">workspaces</span>
-          <div class="empty-title" style="font-size:13px">No spec groups assigned yet</div>
-          <div class="empty-sub">Assign groups like "Performance" or "Connectivity" to define what specs are collected for this category.</div>
+      <!-- CREATE MODE -->
+      <ng-container *ngIf="modalMode === 'create'">
+        <div class="spec-info-box">
+          <span class="icon icon-sm icon-blue">workspaces</span>
+          <span>Add pre-built spec groups to bundle related custom fields together. <span style="color:var(--t3)">(optional)</span></span>
         </div>
 
-        <!-- Assigned groups list -->
-        <div class="sg-assigned-list" *ngIf="assignedGroups.length > 0">
-          <div class="sg-assigned-item" *ngFor="let g of assignedGroups">
-            <div class="sga-icon">
-              <span class="icon icon-sm">workspaces</span>
-            </div>
+        <div class="sg-assigned-list" *ngIf="pendingGroups.length > 0" style="margin-bottom:8px">
+          <div class="sg-assigned-item" *ngFor="let g of pendingGroups">
+            <div class="sga-icon"><span class="icon icon-sm">workspaces</span></div>
             <div class="sga-info">
               <div class="sga-name">{{ g.name }}</div>
-              <div class="sga-meta" *ngIf="g.description">{{ g.description }}</div>
-              <div class="sga-fields">
-                <span class="icon icon-xs">tune</span>
-                {{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}
-              </div>
+              <div class="sga-fields"><span class="icon icon-xs">tune</span> {{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}</div>
             </div>
-            <button class="btn btn-ghost btn-sm" *ngIf="canManage()"
-              [disabled]="!!sgRemoving"
-              (click)="removeGroup(g.id)">
-              <span class="icon icon-sm" [class.icon-red]="sgRemoving !== g.id">
-                {{ sgRemoving === g.id ? 'hourglass_empty' : 'remove_circle_outline' }}
-              </span>
+            <button class="btn btn-ghost btn-sm" (click)="removePendingGroup(g.id)">
+              <span class="icon icon-sm icon-red">remove_circle_outline</span>
             </button>
           </div>
         </div>
 
-        <!-- Assign button -->
-        <div style="margin-top:12px" *ngIf="canManage() && !sgPickerOpen">
-          <button class="opt-add-btn" (click)="sgPickerOpen = true">
-            <span class="icon icon-sm">add</span> Assign Spec Group
-          </button>
-        </div>
+        <button class="opt-add-btn" *ngIf="!sgCreatePickerOpen" (click)="sgCreatePickerOpen = true; sgCreateSearch = ''; sgCreateResults = []; sgCreateSearched = false">
+          <span class="icon icon-sm">add</span> Add Spec Group
+        </button>
 
-        <!-- Picker panel -->
-        <div class="sg-picker" *ngIf="sgPickerOpen">
+        <div class="sg-picker" *ngIf="sgCreatePickerOpen">
           <div class="sg-picker-hd">
-            <span style="font-size:13px;font-weight:700;color:var(--t1)">Assign Spec Group</span>
-            <button class="attr-back-btn" (click)="sgPickerOpen = false; sgPickerSearch = ''">
+            <span style="font-size:13px;font-weight:700;color:var(--t1)">Search Spec Groups</span>
+            <button class="attr-back-btn" (click)="sgCreatePickerOpen = false">
               <span class="icon icon-sm">close</span>
             </button>
           </div>
-          <div class="sg-picker-search">
-            <span class="icon icon-xs" style="color:var(--t3)">search</span>
-            <input type="text" [(ngModel)]="sgPickerSearch" placeholder="Search groups…" />
+          <div class="fp-search-area">
+            <input class="f-input" type="text" [(ngModel)]="sgCreateSearch"
+              placeholder="Type group name…" (keydown)="onSgCreateKeydown($event)" />
+            <app-btn variant="primary" size="sm" [loading]="sgCreateSearching"
+              [disabled]="!sgCreateSearch.trim() || sgCreateSearching"
+              (clicked)="searchSgCreate()">Search</app-btn>
           </div>
           <div class="sg-picker-list">
-            <div class="sg-picker-empty" *ngIf="filteredSgPicker.length === 0">
-              {{ sgPickerSearch ? 'No groups match' : (allSgLoaded ? 'All groups already assigned' : 'Loading…') }}
+            <div class="fp-hint" *ngIf="!sgCreateSearched" style="padding:14px 12px;font-size:12px;color:var(--t3);text-align:center">
+              Type a group name and click Search
             </div>
-            <button class="sg-picker-item" *ngFor="let g of filteredSgPicker"
-              [disabled]="!!sgAssigning"
-              (click)="assignGroup(g.id)">
-              <span class="icon icon-sm" style="color:#2dd4bf;flex-shrink:0">workspaces</span>
-              <div class="sgp-info">
-                <div class="sgp-name">{{ g.name }}</div>
-                <div class="sgp-meta" *ngIf="g.description">{{ g.description }}</div>
-                <div class="sgp-fields">{{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}</div>
+            <div *ngIf="sgCreateSearched">
+              <div class="sg-picker-empty" *ngIf="!sgCreateSearching && sgCreateResults.length === 0">
+                {{ sgCreateSearch.trim() ? 'No groups match "' + sgCreateSearch.trim() + '"' : 'No groups found' }}
               </div>
-              <span class="icon icon-sm" style="color:var(--t3)">
-                {{ sgAssigning === g.id ? 'hourglass_empty' : 'add_circle_outline' }}
-              </span>
-            </button>
-          </div>
-          <div class="sg-picker-footer">
-            <a routerLink="/spec-groups" (click)="closeModal()" style="display:flex;align-items:center;gap:4px;text-decoration:none;font-size:12px;color:var(--blue)">
-              <span class="icon icon-xs">open_in_new</span> Manage Spec Groups
-            </a>
+              <button class="sg-picker-item" *ngFor="let g of sgCreateResults" (click)="addPendingGroup(g)">
+                <span class="icon icon-sm" style="color:#2dd4bf;flex-shrink:0">workspaces</span>
+                <div class="sgp-info">
+                  <div class="sgp-name">{{ g.name }}</div>
+                  <div class="sgp-meta" *ngIf="g.description">{{ g.description }}</div>
+                  <div class="sgp-fields">{{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}</div>
+                </div>
+                <span class="icon icon-sm" style="color:var(--t3)">add_circle_outline</span>
+              </button>
+            </div>
           </div>
         </div>
-
       </ng-container>
+
+      <!-- EDIT MODE -->
+      <ng-container *ngIf="modalMode === 'edit'">
+        <div class="spec-info-box">
+          <span class="icon icon-sm icon-blue">workspaces</span>
+          <span>Assign pre-built spec groups to <strong>{{ editTarget?.name }}</strong> — e.g. "Performance", "Connectivity". Each group bundles related custom fields and appears as a collapsible section on the product form.</span>
+        </div>
+
+        <div class="alert alert-error" *ngIf="sgError">
+          <span class="icon icon-sm">warning</span> {{ sgError }}
+        </div>
+
+        <div *ngIf="sgLoading" style="display:flex;flex-direction:column;gap:8px">
+          <div class="sk" style="height:56px;border-radius:8px"></div>
+          <div class="sk" style="height:56px;border-radius:8px"></div>
+          <div class="sk" style="height:56px;border-radius:8px"></div>
+        </div>
+
+        <ng-container *ngIf="editTarget?.parentId && (parentInheritedLoading || parentInheritedGroups.length > 0)">
+          <div class="sg-inherit-hd">
+            <span class="icon icon-xs">subdirectory_arrow_right</span>
+            Inherited from {{ getParentName(editTarget!.parentId!) }}
+          </div>
+          <div *ngIf="parentInheritedLoading" style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--t3);padding:4px 0">
+            <span class="icon icon-sm">hourglass_empty</span> Loading…
+          </div>
+          <div class="sg-assigned-list" *ngIf="!parentInheritedLoading" style="margin-bottom:12px">
+            <div class="sg-assigned-item" *ngFor="let g of parentInheritedGroups" style="opacity:.75">
+              <div class="sga-icon"><span class="icon icon-sm" style="color:var(--t3)">workspaces</span></div>
+              <div class="sga-info">
+                <div class="sga-name">{{ g.name }}</div>
+                <div class="sga-fields"><span class="icon icon-xs">tune</span> {{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}</div>
+              </div>
+              <span class="badge badge-gray" style="font-size:10px;flex-shrink:0">inherited</span>
+            </div>
+          </div>
+          <div class="sg-own-hd" *ngIf="!parentInheritedLoading">Extra groups for this subcategory</div>
+        </ng-container>
+
+        <ng-container *ngIf="!sgLoading">
+          <div class="sg-assigned-empty" *ngIf="assignedGroups.length === 0 && !sgPickerOpen">
+            <span class="icon icon-xl icon-muted">workspaces</span>
+            <div class="empty-title" style="font-size:13px">No spec groups assigned yet</div>
+            <div class="empty-sub">Assign groups like "Performance" or "Connectivity" to define what specs are collected for this category.</div>
+          </div>
+
+          <div class="sg-assigned-list" *ngIf="assignedGroups.length > 0">
+            <div class="sg-assigned-item" *ngFor="let g of assignedGroups">
+              <div class="sga-icon"><span class="icon icon-sm">workspaces</span></div>
+              <div class="sga-info">
+                <div class="sga-name">{{ g.name }}</div>
+                <div class="sga-meta" *ngIf="g.description">{{ g.description }}</div>
+                <div class="sga-fields">
+                  <span class="icon icon-xs">tune</span>
+                  {{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-sm" *ngIf="canManage()"
+                [disabled]="!!sgRemoving" (click)="removeGroup(g.id)">
+                <span class="icon icon-sm" [class.icon-red]="sgRemoving !== g.id">
+                  {{ sgRemoving === g.id ? 'hourglass_empty' : 'remove_circle_outline' }}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px" *ngIf="canManage() && !sgPickerOpen">
+            <button class="opt-add-btn" (click)="sgPickerOpen = true">
+              <span class="icon icon-sm">add</span> Assign Spec Group
+            </button>
+          </div>
+
+          <div class="sg-picker" *ngIf="sgPickerOpen">
+            <div class="sg-picker-hd">
+              <span style="font-size:13px;font-weight:700;color:var(--t1)">Assign Spec Group</span>
+              <button class="attr-back-btn" (click)="sgPickerOpen = false; sgPickerSearch = ''">
+                <span class="icon icon-sm">close</span>
+              </button>
+            </div>
+            <div class="sg-picker-search">
+              <span class="icon icon-xs" style="color:var(--t3)">search</span>
+              <input type="text" [(ngModel)]="sgPickerSearch" placeholder="Search groups…" />
+            </div>
+            <div class="sg-picker-list">
+              <div class="sg-picker-empty" *ngIf="filteredSgPicker.length === 0">
+                {{ sgPickerSearch ? 'No groups match' : (allSgLoaded ? 'All groups already assigned' : 'Loading…') }}
+              </div>
+              <button class="sg-picker-item" *ngFor="let g of filteredSgPicker"
+                [disabled]="!!sgAssigning" (click)="assignGroup(g.id)">
+                <span class="icon icon-sm" style="color:#2dd4bf;flex-shrink:0">workspaces</span>
+                <div class="sgp-info">
+                  <div class="sgp-name">{{ g.name }}</div>
+                  <div class="sgp-meta" *ngIf="g.description">{{ g.description }}</div>
+                  <div class="sgp-fields">{{ g.fieldCount }} field{{ g.fieldCount !== 1 ? 's' : '' }}</div>
+                </div>
+                <span class="icon icon-sm" style="color:var(--t3)">
+                  {{ sgAssigning === g.id ? 'hourglass_empty' : 'add_circle_outline' }}
+                </span>
+              </button>
+            </div>
+            <div class="sg-picker-footer">
+              <a routerLink="/spec-groups" (click)="closeModal()" style="display:flex;align-items:center;gap:4px;text-decoration:none;font-size:12px;color:var(--blue)">
+                <span class="icon icon-xs">open_in_new</span> Manage Spec Groups
+              </a>
+            </div>
+          </div>
+        </ng-container>
+      </ng-container>
+
     </div>
 
     <div class="modal-ft">
-      <app-btn variant="ghost" (clicked)="closeModal()">Close</app-btn>
+      <app-btn variant="ghost" (clicked)="closeModal()">Cancel</app-btn>
+      <app-btn variant="primary" [loading]="saving" [disabled]="saveDisabled" (clicked)="save()">
+        {{ modalMode === 'create' ? 'Create Category' : 'Save Changes' }}
+      </app-btn>
     </div>
   </ng-container>
 </div>

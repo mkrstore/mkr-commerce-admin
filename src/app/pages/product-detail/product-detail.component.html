@@ -24,7 +24,8 @@
     <div class="dt-actions" *ngIf="canEdit()">
       <app-btn variant="ghost" size="sm" icon="content_copy" (clicked)="clone()">Clone</app-btn>
       <app-btn variant="primary" size="sm" *ngIf="p.status !== 'ACTIVE'" (clicked)="setStatus('ACTIVE')">Activate</app-btn>
-      <app-btn variant="danger" size="sm" *ngIf="p.status === 'ACTIVE'" (clicked)="setStatus('INACTIVE')">Deactivate</app-btn>
+      <app-btn variant="ghost" size="sm" *ngIf="p.status === 'ACTIVE'" (clicked)="setStatus('INACTIVE')">Deactivate</app-btn>
+      <app-btn variant="danger" size="sm" icon="delete" (clicked)="deleteProduct()">Delete</app-btn>
     </div>
   </div>
 
@@ -66,6 +67,8 @@
         [value]="infoForm.categoryId" (valueChange)="infoForm.categoryId = $event" />
       <app-select label="Brand" placeholder="No brand" [options]="brandOpts"
         [value]="infoForm.brandId" (valueChange)="infoForm.brandId = $event" />
+      <app-select label="Preferred Vendor" optLabel="optional" placeholder="No preferred vendor" [options]="vendorOpts"
+        [value]="infoForm.preferredVendorId" (valueChange)="infoForm.preferredVendorId = $event" />
       <app-input class="span-2" label="Short Description"
         [value]="infoForm.shortDescription" (valueChange)="infoForm.shortDescription = $event"
         placeholder="One-liner shown in listing" />
@@ -86,48 +89,89 @@
     <div class="alert alert-error"   *ngIf="pricingError"><span class="icon icon-sm">warning</span> {{ pricingError }}</div>
     <div class="alert alert-success" *ngIf="pricingSaved"><span class="icon icon-sm">check_circle</span> Saved successfully</div>
 
-    <div class="form-grid">
-      <app-input label="Retail Price (₹)" type="number" [required]="true"
-        [value]="pricingForm.priceRetail" (valueChange)="pricingForm.priceRetail = $event" />
-      <app-input label="Wholesale Price" optLabel="₹" type="number"
-        [value]="pricingForm.priceWholesale" (valueChange)="pricingForm.priceWholesale = $event" />
-      <app-input label="Broker Price" optLabel="₹" type="number"
-        [value]="pricingForm.priceBroker" (valueChange)="pricingForm.priceBroker = $event" />
-      <app-input label="Min Qty (Wholesale)" type="number"
-        [value]="pricingForm.minQtyWholesale" (valueChange)="pricingForm.minQtyWholesale = $event" />
-      <app-input label="GST %" type="number"
-        [value]="pricingForm.gstPercent" (valueChange)="pricingForm.gstPercent = $event" />
-      <app-input label="Stock Qty" type="number"
-        [value]="pricingForm.stockQty" (valueChange)="pricingForm.stockQty = $event" />
+    <!-- ── No variants: 3 price cards ── -->
+    <ng-container *ngIf="!p.variants?.length">
+      <div class="price-grid">
+        <div class="price-card required">
+          <div class="price-card-label">Retail Price ₹ <span class="req">*</span></div>
+          <div class="price-card-hint">Walk-in customer price</div>
+          <app-input type="number" [minVal]="1" [required]="true"
+            [value]="pricingForm.priceRetail" (valueChange)="pricingForm.priceRetail = $event" placeholder="0" />
+        </div>
+        <div class="price-card">
+          <div class="price-card-label">Wholesale Price ₹</div>
+          <div class="price-card-hint">For bulk buyers</div>
+          <app-input type="number" [minVal]="1"
+            [value]="pricingForm.priceWholesale" (valueChange)="pricingForm.priceWholesale = $event" placeholder="0" />
+        </div>
+        <div class="price-card">
+          <div class="price-card-label">Broker Price ₹</div>
+          <div class="price-card-hint">For brokers / dealers</div>
+          <app-input type="number" [minVal]="1"
+            [value]="pricingForm.priceBroker" (valueChange)="pricingForm.priceBroker = $event" placeholder="0" />
+        </div>
+      </div>
+      <div class="field-row">
+        <app-select label="GST Rate" [options]="gstOpts"
+          [value]="pricingForm.gstPercent" (valueChange)="pricingForm.gstPercent = +$event" />
+        <app-input label="Min Qty (Wholesale)" type="number" [minVal]="0"
+          [value]="pricingForm.minQtyWholesale" (valueChange)="pricingForm.minQtyWholesale = $event" placeholder="0" />
+      </div>
+      <app-checkbox label="GST included in the above prices"
+        [checked]="pricingForm.gstIncluded" (checkedChange)="pricingForm.gstIncluded = $event" />
+    </ng-container>
+
+    <!-- ── Has variants: wholesale/broker + vp-table ── -->
+    <ng-container *ngIf="p.variants?.length">
+      <div class="field-row">
+        <app-select label="GST Rate" [options]="gstOpts"
+          [value]="pricingForm.gstPercent" (valueChange)="pricingForm.gstPercent = +$event" />
+        <app-checkbox label="GST included in variant prices"
+          [checked]="pricingForm.gstIncluded" (checkedChange)="pricingForm.gstIncluded = $event" />
+      </div>
+      <div class="field-row">
+        <app-input label="Wholesale Price ₹" optLabel="optional" type="number" [minVal]="1"
+          [value]="pricingForm.priceWholesale" (valueChange)="pricingForm.priceWholesale = $event" placeholder="0" />
+        <app-input label="Broker Price ₹" optLabel="optional" type="number" [minVal]="1"
+          [value]="pricingForm.priceBroker" (valueChange)="pricingForm.priceBroker = $event" placeholder="0" />
+      </div>
+
+      <!-- Variant pricing table -->
+      <div class="vp-table">
+        <div class="vp-header vp-header-full">
+          <span>Variant</span>
+          <span>Retail ₹ <span class="req">*</span></span>
+          <span>Wholesale ₹</span>
+          <span>Broker ₹</span>
+          <span>Stock</span>
+        </div>
+        <div class="vp-row vp-row-full" *ngFor="let row of variantPricingRows">
+          <div class="vp-name">{{ row.label }}</div>
+          <app-input type="number" [minVal]="1" [required]="true"
+            [value]="row.priceOverride" (valueChange)="row.priceOverride = $event" placeholder="0" />
+          <app-input type="number" [minVal]="1"
+            [value]="row.priceWholesale" (valueChange)="row.priceWholesale = $event" placeholder="—" />
+          <app-input type="number" [minVal]="1"
+            [value]="row.priceBroker" (valueChange)="row.priceBroker = $event" placeholder="—" />
+          <app-input type="number" [minVal]="0"
+            [value]="row.stockQty" (valueChange)="row.stockQty = $event" placeholder="0" />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <app-input label="Min Qty (Wholesale)" type="number" [minVal]="0"
+          [value]="pricingForm.minQtyWholesale" (valueChange)="pricingForm.minQtyWholesale = $event" placeholder="0" />
+      </div>
+    </ng-container>
+
+    <!-- Physical & Shipping (shared) -->
+    <div class="pricing-section-label">Physical &amp; Shipping</div>
+    <div class="field-row">
       <app-input label="Weight" optLabel="grams" type="number"
         [value]="pricingForm.weight" (valueChange)="pricingForm.weight = $event" />
       <app-input label="Dimensions"
         [value]="pricingForm.dimensions" (valueChange)="pricingForm.dimensions = $event"
         placeholder="10×5×3 cm" />
-      <div class="fg span-2">
-        <app-checkbox label="GST included in price"
-          [checked]="pricingForm.gstIncluded" (checkedChange)="pricingForm.gstIncluded = $event" />
-      </div>
-    </div>
-
-    <!-- Price summary -->
-    <div class="price-summary">
-      <div class="ps-row">
-        <span>Retail</span>
-        <strong>{{ inr(pricingForm.priceRetail) }}</strong>
-      </div>
-      <div class="ps-row" *ngIf="pricingForm.priceWholesale">
-        <span>Wholesale</span>
-        <strong>{{ inr(pricingForm.priceWholesale) }}</strong>
-      </div>
-      <div class="ps-row" *ngIf="pricingForm.priceBroker">
-        <span>Broker</span>
-        <strong>{{ inr(pricingForm.priceBroker) }}</strong>
-      </div>
-      <div class="ps-row">
-        <span>GST</span>
-        <strong>{{ pricingForm.gstPercent }}% {{ pricingForm.gstIncluded ? '(incl.)' : '(excl.)' }}</strong>
-      </div>
     </div>
 
     <div class="save-bar" *ngIf="canEdit()">
@@ -268,12 +312,20 @@
 
         <!-- View mode -->
         <ng-container *ngIf="variantEditId !== v.id">
-          <div class="vr-color">
-            <span class="vr-swatch" [style.background]="v.colorHex || '#ccc'"></span>
-            <span>{{ v.colorName || '—' }}</span>
+          <div class="vr-label">
+            <span class="vr-label-text">{{ v.label || v.sku }}</span>
+            <span class="vr-inactive-badge" *ngIf="!v.isActive">inactive</span>
           </div>
-          <div class="vr-size">{{ v.size || '—' }}</div>
-          <div class="vr-price">{{ v.priceOverride ? inr(v.priceOverride) : 'Base price' }}</div>
+          <div class="vr-attrs" *ngIf="v.attributes">
+            <span class="vr-attr-chip" *ngFor="let a of v.attributes | keyvalue">
+              <span class="vr-attr-key">{{ a.key }}</span>{{ a.value }}
+            </span>
+          </div>
+          <div class="vr-prices">
+            <span class="vr-price-tag">R: {{ v.priceOverride ? inr(v.priceOverride) : '—' }}</span>
+            <span class="vr-price-tag" *ngIf="v.priceWholesale">W: {{ inr(v.priceWholesale) }}</span>
+            <span class="vr-price-tag" *ngIf="v.priceBroker">B: {{ inr(v.priceBroker) }}</span>
+          </div>
           <div class="vr-stock"><span class="icon icon-xs icon-muted">inventory_2</span> {{ v.stockQty }}</div>
           <div class="vr-sku">{{ v.sku }}</div>
           <div class="vr-actions" *ngIf="canEdit()">
@@ -288,25 +340,34 @@
         <ng-container *ngIf="variantEditId === v.id">
           <div class="variant-edit-form">
             <div class="alert alert-error" *ngIf="variantEditError"><span class="icon icon-sm">warning</span> {{ variantEditError }}</div>
-            <div class="form-grid">
-              <app-input label="Colour Name" [required]="true"
-                [value]="variantEditForm.colorName" (valueChange)="variantEditForm.colorName = $event"
-                placeholder="e.g. Midnight Black" />
-              <div class="fg vr-color-field">
-                <label class="field-label">Colour Hex</label>
-                <div class="vr-color-input">
-                  <input type="color" [(ngModel)]="variantEditForm.colorHex" />
-                  <span>{{ variantEditForm.colorHex }}</span>
-                </div>
+
+            <div class="vef-section-label">Attributes</div>
+            <div class="attr-pair-list">
+              <div class="attr-pair" *ngFor="let a of variantEditForm.attrs; let i = index">
+                <input class="attr-key-input" [(ngModel)]="a.key" placeholder="e.g. Color, RAM, Storage" />
+                <input class="attr-val-input" [(ngModel)]="a.value" placeholder="e.g. Black, 8GB, 256GB" />
+                <button class="attr-remove-btn" (click)="removeAttrRow('edit', i)" [disabled]="variantEditForm.attrs.length === 1">
+                  <span class="icon icon-xs">close</span>
+                </button>
               </div>
-              <app-input label="Size / Storage" optLabel="optional"
-                [value]="variantEditForm.size" (valueChange)="variantEditForm.size = $event"
-                placeholder="e.g. 128 GB, XL" />
-              <app-input label="Price Override" optLabel="₹ optional" type="number"
-                [value]="variantEditForm.priceOverride" (valueChange)="variantEditForm.priceOverride = $event"
-                placeholder="Leave blank to use base price" />
+              <button class="attr-add-btn" (click)="addAttrRow('edit')">
+                <span class="icon icon-xs">add</span> Add attribute
+              </button>
+            </div>
+
+            <div class="form-grid" style="margin-top:12px">
+              <app-input label="SKU" [required]="true"
+                [value]="variantEditForm.sku" (valueChange)="variantEditForm.sku = $event" />
               <app-input label="Stock Qty" type="number"
                 [value]="variantEditForm.stockQty" (valueChange)="variantEditForm.stockQty = $event" />
+              <app-input label="Retail Price ₹" type="number" [required]="true"
+                [value]="variantEditForm.priceOverride" (valueChange)="variantEditForm.priceOverride = $event" placeholder="0" />
+              <app-input label="Wholesale Price ₹" optLabel="optional" type="number"
+                [value]="variantEditForm.priceWholesale" (valueChange)="variantEditForm.priceWholesale = $event" placeholder="—" />
+              <app-input label="Broker Price ₹" optLabel="optional" type="number"
+                [value]="variantEditForm.priceBroker" (valueChange)="variantEditForm.priceBroker = $event" placeholder="—" />
+              <app-checkbox label="Active"
+                [checked]="variantEditForm.isActive" (checkedChange)="variantEditForm.isActive = $event" />
             </div>
             <div class="vef-actions">
               <app-btn variant="ghost" size="sm" (clicked)="cancelEditVariant()">Cancel</app-btn>
@@ -319,7 +380,7 @@
     </div>
 
     <div class="variant-empty" *ngIf="!p.variants?.length && !showAddVariant">
-      No variants yet. Add a variant for different colours, sizes or storage options.
+      No variants yet. Add a variant for different colours, sizes, RAM, storage, or any combination.
     </div>
 
     <!-- Add variant form -->
@@ -331,25 +392,33 @@
       <div class="variant-add-form" *ngIf="showAddVariant">
         <div class="vaf-title">New Variant</div>
         <div class="alert alert-error" *ngIf="variantAddError"><span class="icon icon-sm">warning</span> {{ variantAddError }}</div>
-        <div class="form-grid">
-          <app-input label="Colour Name" [required]="true"
-            [value]="variantAddForm.colorName" (valueChange)="variantAddForm.colorName = $event"
-            placeholder="e.g. Midnight Black" />
-          <div class="fg vr-color-field">
-            <label class="field-label">Colour Hex</label>
-            <div class="vr-color-input">
-              <input type="color" [(ngModel)]="variantAddForm.colorHex" />
-              <span>{{ variantAddForm.colorHex }}</span>
-            </div>
+
+        <div class="vef-section-label">Attributes</div>
+        <div class="attr-pair-list">
+          <div class="attr-pair" *ngFor="let a of variantAddForm.attrs; let i = index">
+            <input class="attr-key-input" [(ngModel)]="a.key" placeholder="e.g. Color, RAM, Storage" />
+            <input class="attr-val-input" [(ngModel)]="a.value" placeholder="e.g. Black, 8GB, 256GB" />
+            <button class="attr-remove-btn" (click)="removeAttrRow('add', i)" [disabled]="variantAddForm.attrs.length === 1">
+              <span class="icon icon-xs">close</span>
+            </button>
           </div>
-          <app-input label="Size / Storage" optLabel="optional"
-            [value]="variantAddForm.size" (valueChange)="variantAddForm.size = $event"
-            placeholder="e.g. 128 GB, XL" />
-          <app-input label="Price Override" optLabel="₹ optional" type="number"
-            [value]="variantAddForm.priceOverride" (valueChange)="variantAddForm.priceOverride = $event"
-            placeholder="Leave blank to use base price" />
+          <button class="attr-add-btn" (click)="addAttrRow('add')">
+            <span class="icon icon-xs">add</span> Add attribute
+          </button>
+        </div>
+
+        <div class="form-grid" style="margin-top:12px">
+          <app-input label="SKU" optLabel="auto-generated if blank"
+            [value]="variantAddForm.sku" (valueChange)="variantAddForm.sku = $event"
+            placeholder="Leave blank to auto-generate" />
           <app-input label="Stock Qty" type="number"
             [value]="variantAddForm.stockQty" (valueChange)="variantAddForm.stockQty = $event" />
+          <app-input label="Retail Price ₹" [required]="true" type="number"
+            [value]="variantAddForm.priceOverride" (valueChange)="variantAddForm.priceOverride = $event" placeholder="0" />
+          <app-input label="Wholesale Price ₹" optLabel="optional" type="number"
+            [value]="variantAddForm.priceWholesale" (valueChange)="variantAddForm.priceWholesale = $event" placeholder="—" />
+          <app-input label="Broker Price ₹" optLabel="optional" type="number"
+            [value]="variantAddForm.priceBroker" (valueChange)="variantAddForm.priceBroker = $event" placeholder="—" />
         </div>
         <div class="vef-actions">
           <app-btn variant="ghost" size="sm" (clicked)="cancelAddVariant()">Cancel</app-btn>

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule }  from '@angular/forms';
 import { RouterLink }   from '@angular/router';
 import { HttpClient }   from '@angular/common/http';
+import { forkJoin }     from 'rxjs';
 import { AuthService }  from '../../services/auth.service';
 import { PRODUCT_ENDPOINTS, LOOKUP_ENDPOINTS, SPEC_GROUP_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
@@ -36,6 +37,12 @@ interface LookupListSummary {
 
 interface AssignedSpecGroup {
   id: string; name: string; description: string | null; fieldCount: number;
+}
+
+interface PendingAttr {
+  label: string; fieldKey: string; fieldType: FieldType;
+  options: string; unit: string; defaultValue: string;
+  required: boolean; sortOrder: number; groupName: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -79,10 +86,30 @@ export class CategoriesComponent implements OnInit {
   categoryType: 'parent' | 'child' = 'parent';
   slugEdited = false;
 
+  private originalCatForm: { name: string; slug: string; description: string; parentId: string; isActive: boolean; categoryType: 'parent' | 'child' } | null = null;
+
   get isFormValid(): boolean {
     if (!this.form.name.trim()) return false;
     if (this.categoryType === 'child' && !this.form.parentId) return false;
     return true;
+  }
+
+  get formChanged(): boolean {
+    if (!this.originalCatForm) return true;
+    return (
+      this.form.name        !== this.originalCatForm.name        ||
+      this.form.slug        !== this.originalCatForm.slug        ||
+      this.form.description !== this.originalCatForm.description ||
+      this.form.parentId    !== this.originalCatForm.parentId    ||
+      this.form.isActive    !== this.originalCatForm.isActive    ||
+      this.categoryType     !== this.originalCatForm.categoryType
+    );
+  }
+
+  get saveDisabled(): boolean {
+    if (!this.isFormValid) return true;
+    if (this.modalMode === 'edit') return !this.formChanged;
+    return false;
   }
 
   // ── Image upload ──────────────────────────────────────────────────────────
@@ -116,7 +143,7 @@ export class CategoriesComponent implements OnInit {
   };
   fieldKeyEdited = false;
 
-  // ── Spec Groups tab ───────────────────────────────────────────────────────
+  // ── Spec Groups tab (edit mode) ───────────────────────────────────────────
   assignedGroups: AssignedSpecGroup[] = [];
   allGroups:      AssignedSpecGroup[] = [];
   sgLoading    = false;
@@ -127,6 +154,31 @@ export class CategoriesComponent implements OnInit {
   sgPickerSearch = '';
   sgAssigning: string | null = null;
   sgRemoving:  string | null = null;
+
+  // ── Spec Groups (create mode inline picker) ───────────────────────────────
+  pendingGroups:     AssignedSpecGroup[] = [];
+  sgCreatePickerOpen  = false;
+  sgCreateSearch      = '';
+  sgCreateResults: AssignedSpecGroup[] = [];
+  sgCreateSearching   = false;
+  sgCreateSearched    = false;
+
+  // ── Pending spec fields (create mode) ────────────────────────────────────
+  pendingAttrs: PendingAttr[] = [];
+  createAttrView: 'list' | 'form' = 'list';
+  pendingAttrEditIndex: number | null = null;
+
+  get activeAttrView(): 'list' | 'form' {
+    return this.modalMode === 'create' ? this.createAttrView : this.attrView;
+  }
+
+  get isEditingAttr(): boolean {
+    return this.modalMode === 'edit' ? !!this.attrEditTarget : this.pendingAttrEditIndex !== null;
+  }
+
+  // ── Inherited spec groups from parent category ────────────────────────────
+  parentInheritedGroups:  AssignedSpecGroup[] = [];
+  parentInheritedLoading  = false;
 
   get filteredSgPicker(): AssignedSpecGroup[] {
     const q = this.sgPickerSearch.toLowerCase().trim();
@@ -156,7 +208,7 @@ export class CategoriesComponent implements OnInit {
   get existingGroups(): string[] {
     const seen = new Set<string>();
     const result: string[] = [];
-    for (const a of this.attrs) {
+    for (const a of [...this.attrs, ...this.pendingAttrs]) {
       const g = a.groupName?.trim() ?? '';
       if (g && !seen.has(g)) { seen.add(g); result.push(g); }
     }
@@ -229,6 +281,16 @@ export class CategoriesComponent implements OnInit {
   selectRoot(cat: CategoryDto) {
     this.selectedRoot = this.selectedRoot?.id === cat.id ? null : cat;
     this.subSearch = '';
+  }
+
+  onGroupsTabClick() {
+    this.activeTab = 'groups';
+    if (this.modalMode === 'edit') this.loadSgIfNeeded();
+  }
+
+  onSpecsTabClick() {
+    this.activeTab = 'specs';
+    if (this.modalMode === 'edit') this.loadAttrsIfNeeded();
   }
 
   constructor(private http: HttpClient, public auth: AuthService) {}
@@ -306,12 +368,21 @@ export class CategoriesComponent implements OnInit {
       parentId: cat.parentId ?? '', isActive: cat.isActive
     };
     this.categoryType = cat.parentId ? 'child' : 'parent';
+    this.originalCatForm = { ...this.form, categoryType: this.categoryType };
     this.modalError = ''; this.formTouched = false; this.editTarget = cat;
     this.activeTab = 'details'; this.attrTarget = cat; this.attrs = []; this.attrsLoaded = false;
     this.attrView = 'list'; this.attrError = ''; this.attrEditTarget = null;
     this.assignedGroups = []; this.sgLoaded = false; this.allSgLoaded = false;
     this.sgError = ''; this.sgPickerOpen = false; this.sgPickerSearch = '';
     this.sgAssigning = null; this.sgRemoving = null;
+    this.parentInheritedGroups = [];
+    if (cat.parentId) {
+      this.parentInheritedLoading = true;
+      this.http.get<ApiResponse<AssignedSpecGroup[]>>(this.SG_EP.BY_CATEGORY(cat.parentId)).subscribe({
+        next: res => { this.parentInheritedGroups = res.data ?? []; this.parentInheritedLoading = false; },
+        error: () => { this.parentInheritedLoading = false; }
+      });
+    }
     this.modalMode = 'edit';
   }
 
@@ -319,13 +390,33 @@ export class CategoriesComponent implements OnInit {
     this.form = { name: '', slug: '', description: '', parentId: parentId ?? '', isActive: true };
     this.categoryType = parentId ? 'child' : 'parent';
     this.slugEdited = false;
+    this.originalCatForm = null;
     this.modalError = ''; this.formTouched = false; this.editTarget = null;
     this.activeTab = 'details'; this.modalMode = 'create';
+    this.pendingGroups        = [];
+    this.sgCreatePickerOpen   = false;
+    this.sgCreateSearch       = '';
+    this.sgCreateResults      = [];
+    this.sgCreateSearched     = false;
+    this.pendingAttrs         = [];
+    this.createAttrView       = 'list';
+    this.pendingAttrEditIndex = null;
   }
 
   setCategoryType(type: 'parent' | 'child') {
     this.categoryType = type;
-    if (type === 'parent') this.form.parentId = '';
+    if (type === 'parent') { this.form.parentId = ''; this.parentInheritedGroups = []; }
+  }
+
+  onParentChange(parentId: string) {
+    this.form.parentId = parentId;
+    this.parentInheritedGroups = [];
+    if (!parentId) return;
+    this.parentInheritedLoading = true;
+    this.http.get<ApiResponse<AssignedSpecGroup[]>>(this.SG_EP.BY_CATEGORY(parentId)).subscribe({
+      next: res => { this.parentInheritedGroups = res.data ?? []; this.parentInheritedLoading = false; },
+      error: () => { this.parentInheritedLoading = false; }
+    });
   }
 
   onNameChange(v: string) {
@@ -356,17 +447,33 @@ export class CategoriesComponent implements OnInit {
       isActive:    this.form.isActive,
     };
 
-    const req$ = this.modalMode === 'create'
-      ? this.http.post<ApiResponse<CategoryDto>>(this.EP.CATEGORIES, payload)
-      : this.http.put<ApiResponse<CategoryDto>>(`${this.EP.CATEGORIES}/${this.editTarget!.id}`, payload);
-
-    req$.subscribe({
-      next: () => {
-        this.saving = false; this.modalMode = 'closed';
-        this.loadAll(); this.loadTree();
-      },
-      error: e => { this.saving = false; this.modalError = extractErrorMessage(e, 'Save failed.'); }
-    });
+    if (this.modalMode === 'create') {
+      this.http.post<ApiResponse<CategoryDto>>(this.EP.CATEGORIES, payload).subscribe({
+        next: res => {
+          const newId = res.data!.id;
+          const done = () => { this.saving = false; this.modalMode = 'closed'; this.loadAll(); this.loadTree(); };
+          const requests$ = [
+            ...this.pendingGroups.map(g =>
+              this.http.post<ApiResponse<void>>(this.SG_EP.ASSIGN(newId, g.id), {})),
+            ...this.pendingAttrs.map((a, idx) =>
+              this.http.post<ApiResponse<any>>(this.EP.CATEGORY_ATTRS(newId), {
+                label: a.label, fieldKey: a.fieldKey, fieldType: a.fieldType,
+                options: a.options || null, unit: a.unit || null,
+                defaultValue: a.defaultValue || null,
+                required: a.required, sortOrder: idx, groupName: a.groupName || null
+              }))
+          ];
+          if (!requests$.length) { done(); return; }
+          forkJoin(requests$).subscribe({ next: done, error: done });
+        },
+        error: e => { this.saving = false; this.modalError = extractErrorMessage(e, 'Save failed.'); }
+      });
+    } else {
+      this.http.put<ApiResponse<CategoryDto>>(`${this.EP.CATEGORIES}/${this.editTarget!.id}`, payload).subscribe({
+        next: () => { this.saving = false; this.modalMode = 'closed'; this.loadAll(); this.loadTree(); },
+        error: e => { this.saving = false; this.modalError = extractErrorMessage(e, 'Save failed.'); }
+      });
+    }
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
@@ -404,13 +511,38 @@ export class CategoriesComponent implements OnInit {
   openCreateAttr() {
     this.attrForm = {
       label: '', fieldKey: '', fieldType: 'TEXT',
-      options: '', unit: '', defaultValue: '', required: false, sortOrder: this.attrs.length, groupName: ''
+      options: '', unit: '', defaultValue: '', required: false,
+      sortOrder: this.modalMode === 'create' ? this.pendingAttrs.length : this.attrs.length,
+      groupName: ''
     };
     this.fieldKeyEdited = false;
     this.optionInputs = [''];
     this.lookupPickerOpen = false;
-    this.attrEditTarget = null; this.attrError = ''; this.attrFormTouched = false; this.attrView = 'form';
+    this.attrEditTarget = null;
+    this.pendingAttrEditIndex = null;
+    this.attrError = ''; this.attrFormTouched = false;
+    if (this.modalMode === 'create') { this.createAttrView = 'form'; }
+    else { this.attrView = 'form'; }
   }
+
+  openEditPendingAttr(i: number) {
+    const a = this.pendingAttrs[i];
+    this.attrForm = {
+      label: a.label, fieldKey: a.fieldKey, fieldType: a.fieldType,
+      options: a.options, unit: a.unit, defaultValue: a.defaultValue,
+      required: a.required, sortOrder: a.sortOrder, groupName: a.groupName
+    };
+    try {
+      const parsed = a.options ? JSON.parse(a.options) : [];
+      this.optionInputs = parsed.length ? parsed : [''];
+    } catch { this.optionInputs = ['']; }
+    this.lookupPickerOpen = false;
+    this.pendingAttrEditIndex = i; this.attrEditTarget = null;
+    this.attrError = ''; this.attrFormTouched = false; this.fieldKeyEdited = true;
+    this.createAttrView = 'form';
+  }
+
+  removePendingAttr(i: number) { this.pendingAttrs.splice(i, 1); }
 
   openEditAttr(attr: AttributeDefinitionDto) {
     this.attrForm = {
@@ -432,13 +564,40 @@ export class CategoriesComponent implements OnInit {
     this.attrEditTarget = attr; this.attrError = ''; this.attrView = 'form';
   }
 
-  backToAttrList() { this.attrView = 'list'; this.attrError = ''; }
+  backToAttrList() {
+    if (this.modalMode === 'create') { this.createAttrView = 'list'; }
+    else { this.attrView = 'list'; }
+    this.attrError = '';
+  }
 
   saveAttr() {
-    if (!this.attrTarget) return;
     this.attrFormTouched = true;
-    if (!this.attrForm.label.trim()) { return; }
-    if (!this.attrEditTarget && !this.attrForm.fieldKey.trim()) { return; }
+    if (!this.attrForm.label.trim()) return;
+
+    if (this.modalMode === 'create') {
+      if (!this.attrForm.fieldKey.trim()) return;
+      const pa: PendingAttr = {
+        label: this.attrForm.label.trim(), fieldKey: this.attrForm.fieldKey.trim(),
+        fieldType: this.attrForm.fieldType, options: this.attrForm.options.trim(),
+        unit: this.attrForm.unit.trim(), defaultValue: this.attrForm.defaultValue.trim(),
+        required: this.attrForm.required,
+        sortOrder: this.pendingAttrEditIndex !== null
+          ? this.pendingAttrs[this.pendingAttrEditIndex].sortOrder
+          : this.pendingAttrs.length,
+        groupName: this.attrForm.groupName.trim()
+      };
+      if (this.pendingAttrEditIndex !== null) {
+        this.pendingAttrs[this.pendingAttrEditIndex] = pa;
+        this.pendingAttrEditIndex = null;
+      } else {
+        this.pendingAttrs.push(pa);
+      }
+      this.createAttrView = 'list';
+      return;
+    }
+
+    if (!this.attrTarget) return;
+    if (!this.attrEditTarget && !this.attrForm.fieldKey.trim()) return;
     this.attrSaving = true; this.attrError = '';
 
     let payload: any;
@@ -528,10 +687,38 @@ export class CategoriesComponent implements OnInit {
 
   private loadAllGroups() {
     if (this.allSgLoaded) return;
-    this.http.get<ApiResponse<AssignedSpecGroup[]>>(this.SG_EP.BASE).subscribe({
-      next: res => { this.allGroups = res.data ?? []; this.allSgLoaded = true; },
+    this.http.get<ApiResponse<any>>(this.SG_EP.BASE, { params: { page: 0, size: 200 } }).subscribe({
+      next: res => { this.allGroups = res.data?.content ?? []; this.allSgLoaded = true; },
       error: ()  => {}
     });
+  }
+
+  searchSgCreate() {
+    const q = this.sgCreateSearch.trim();
+    if (!q) return;
+    this.sgCreateSearching = true;
+    this.sgCreateSearched  = true;
+    const pendingIds = new Set(this.pendingGroups.map(g => g.id));
+    this.http.get<ApiResponse<any>>(this.SG_EP.BASE, { params: { search: q, page: 0, size: 20 } }).subscribe({
+      next: res => {
+        this.sgCreateResults = (res.data?.content ?? []).filter((g: AssignedSpecGroup) => !pendingIds.has(g.id));
+        this.sgCreateSearching = false;
+      },
+      error: () => { this.sgCreateSearching = false; }
+    });
+  }
+
+  onSgCreateKeydown(e: KeyboardEvent) { if (e.key === 'Enter') this.searchSgCreate(); }
+
+  addPendingGroup(g: AssignedSpecGroup) {
+    if (!this.pendingGroups.some(p => p.id === g.id)) {
+      this.pendingGroups.push(g);
+      this.sgCreateResults = this.sgCreateResults.filter(r => r.id !== g.id);
+    }
+  }
+
+  removePendingGroup(id: string) {
+    this.pendingGroups = this.pendingGroups.filter(g => g.id !== id);
   }
 
   assignGroup(groupId: string) {
@@ -609,6 +796,10 @@ export class CategoriesComponent implements OnInit {
       if (n.children?.length) result.push(...this.flatTree(n.children, prefix + '— '));
     }
     return result;
+  }
+
+  getParentName(parentId: string): string {
+    return this.allCategories().find(c => c.id === parentId)?.name ?? 'Parent';
   }
 
   fieldTypeLabel(ft: FieldType): string {

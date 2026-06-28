@@ -1,201 +1,321 @@
-<!-- ── ADD PRODUCT WIZARD ── -->
-<div class="overlay" *ngIf="wizardOpen" (click)="closeWizard()"></div>
-<div class="modal modal-lg" *ngIf="wizardOpen" (click)="$event.stopPropagation()">
-
-  <ng-container *ngIf="wizardStep === 1">
-    <div class="modal-hd">
-      <div><div class="modal-title">Add Product</div><div style="font-size:12px;color:var(--t3)">Step 1 of 2 — Basic Info</div></div>
-      <button class="modal-close" (click)="closeWizard()"><span class="icon icon-sm">close</span></button>
-    </div>
-    <div class="modal-body">
-      <div class="alert-err" *ngIf="wizardError"><span class="icon icon-sm">error</span> {{ wizardError }}</div>
-      <app-input label="Product Name" [required]="true" [touched]="wizardTouched"
-        [value]="step1.name" (valueChange)="step1.name = $event" (blur)="autoSku()"
-        placeholder="e.g. Samsung 32 Smart TV" />
-      <app-input label="SKU" [required]="true" [touched]="wizardTouched"
-        [value]="step1.sku" (valueChange)="step1.sku = $event"
-        placeholder="e.g. SAM-TV-32" hint="Auto-filled from name — must be unique" />
-      <div class="field-row">
-        <app-select label="Category" [required]="true" [touched]="wizardTouched"
-          placeholder="Select category…" [options]="categoryWizardOpts"
-          [value]="step1.categoryId" (valueChange)="step1.categoryId = $event" />
-        <app-select label="Brand" optLabel="optional"
-          [options]="brandWizardOpts"
-          [value]="step1.brandId" (valueChange)="step1.brandId = $event" />
-      </div>
-      <app-textarea label="Short Description" optLabel="optional" [rows]="2"
-        [value]="step1.shortDescription" (valueChange)="step1.shortDescription = $event"
-        placeholder="Brief product description" />
-    </div>
-    <div class="modal-ft">
-      <app-btn variant="ghost" (clicked)="closeWizard()">Cancel</app-btn>
-      <app-btn variant="primary" icon="arrow_forward" [loading]="wizardLoading" (clicked)="submitStep1()">Next: Pricing</app-btn>
-    </div>
-  </ng-container>
-
-  <ng-container *ngIf="wizardStep === 2">
-    <div class="modal-hd">
-      <div><div class="modal-title">Add Product</div><div style="font-size:12px;color:var(--t3)">Step 2 of 2 — Pricing &amp; Stock</div></div>
-      <button class="modal-close" (click)="closeWizard()"><span class="icon icon-sm">close</span></button>
-    </div>
-    <div class="modal-body">
-      <div class="alert-err" *ngIf="wizardError"><span class="icon icon-sm">error</span> {{ wizardError }}</div>
-      <div class="field-row">
-        <app-input label="Retail Price ₹" type="number" [required]="true" [touched]="wizardTouched"
-          [minVal]="1" [value]="step2.priceRetail" (valueChange)="step2.priceRetail = $event"
-          hint="Walk-in customer price" placeholder="0.00" />
-        <app-input label="Wholesale Price ₹" type="number" optLabel="optional"
-          [minVal]="1" [value]="step2.priceWholesale" (valueChange)="step2.priceWholesale = $event"
-          hint="Bulk buyers" placeholder="0.00" />
-      </div>
-      <div class="field-row">
-        <app-input label="Broker Price ₹" type="number" optLabel="optional"
-          [minVal]="1" [value]="step2.priceBroker" (valueChange)="step2.priceBroker = $event"
-          placeholder="0.00" />
-        <app-select label="GST Rate" [options]="gstOpts"
-          [value]="step2.gstPercent" (valueChange)="step2.gstPercent = +$event" />
-      </div>
-      <div class="field-row">
-        <app-input label="Opening Stock (units)" type="number" [minVal]="0"
-          [value]="step2.stockQty" (valueChange)="step2.stockQty = $event" placeholder="0" />
-        <div class="field" style="padding-top:28px">
-          <app-checkbox label="GST included in price"
-            [checked]="step2.gstIncluded" (checkedChange)="step2.gstIncluded = $event" />
-        </div>
-      </div>
-    </div>
-    <div class="modal-ft">
-      <app-btn variant="ghost" [disabled]="wizardLoading" (clicked)="wizardStep = 1">Back</app-btn>
-      <app-btn variant="primary" icon="check" [loading]="wizardLoading" (clicked)="submitStep2()">Publish Product</app-btn>
-    </div>
-  </ng-container>
-</div>
-
-<!-- ── STOCK MODAL ── -->
-<div class="overlay" *ngIf="showStockPanel" (click)="closeStock()"></div>
-<div class="modal" *ngIf="showStockPanel && selectedProduct" (click)="$event.stopPropagation()">
+<!-- ── RESTOCK MODAL ── -->
+<div class="overlay" *ngIf="showRestock" (click)="closeRestock()"></div>
+<div class="modal" *ngIf="showRestock && restockProduct" (click)="$event.stopPropagation()">
   <div class="modal-hd">
     <div>
-      <div class="modal-title">Add Stock</div>
-      <div style="font-size:12px;color:var(--t3)">{{ selectedProduct.name }} · <span style="font-family:monospace">{{ selectedProduct.sku }}</span></div>
+      <div class="modal-title">Restock</div>
+      <div class="restock-sub">
+        <strong>{{ restockProduct.name }}</strong>
+        <span class="restock-sku">{{ restockProduct.sku }}</span>
+      </div>
     </div>
-    <button class="modal-close" (click)="closeStock()"><span class="icon icon-sm">close</span></button>
+    <button class="modal-close" (click)="closeRestock()"><span class="icon icon-sm">close</span></button>
   </div>
   <div class="modal-body">
-    <div style="display:flex;gap:12px;margin-bottom:4px">
-      <div class="stock-stat">
-        <div class="stock-stat-val">{{ selectedProduct.stockQty }}</div>
-        <div class="stock-stat-label">Current Stock</div>
+
+    <!-- Stock stat -->
+    <div class="restock-stats">
+      <div class="rst-stat">
+        <div class="rst-val">{{ restockProduct.stockQty }}</div>
+        <div class="rst-lbl">Current Stock</div>
       </div>
-      <div class="stock-stat">
-        <div class="stock-stat-val"
-          [style.color]="(selectedProduct.stockQty + addQty) === 0 ? 'var(--red)' : (selectedProduct.stockQty + addQty) <= 5 ? 'var(--amber)' : 'var(--green)'">
-          {{ selectedProduct.stockQty + addQty }}
-        </div>
-        <div class="stock-stat-label">After Update</div>
+      <div class="rst-arrow"><span class="icon icon-lg">arrow_forward</span></div>
+      <div class="rst-stat" [class.rst-positive]="restockQty > 0">
+        <div class="rst-val">{{ restockProduct.stockQty + restockQty }}</div>
+        <div class="rst-lbl">After Restock</div>
       </div>
     </div>
-    <app-input label="Units to Add" type="number" [minVal]="0"
-      [value]="addQty" (valueChange)="addQty = $event" placeholder="0" />
-    <div class="stock-info-row">
-      <div class="stock-info-cell"><div class="stock-info-label">Retail Price</div><div class="stock-info-val">{{ formatPrice(selectedProduct.priceRetail) }}</div></div>
-      <div class="stock-info-cell"><div class="stock-info-label">GST</div><div class="stock-info-val">{{ selectedProduct.gstPercent }}%</div></div>
+
+    <div class="alert alert-error" *ngIf="restockError">
+      <span class="icon icon-sm">error</span> {{ restockError }}
     </div>
+
+    <app-input label="Quantity to Add" type="number" [minVal]="1" [required]="true"
+      [value]="restockQty" (valueChange)="restockQty = $event" placeholder="1" />
+
+    <div class="field-row">
+      <app-select label="Vendor / Supplier" optLabel="optional"
+        [options]="vendorOpts"
+        [value]="restockVendorId" (valueChange)="restockVendorId = $event" />
+      <app-input label="Purchase Price / Unit ₹" type="number" [minVal]="0" optLabel="optional"
+        [value]="restockPrice" (valueChange)="restockPrice = $event"
+        placeholder="0.00" />
+    </div>
+    <app-input *ngIf="restockVendorId === 'custom'"
+      label="Custom Vendor Name"
+      [value]="restockVendorName" (valueChange)="restockVendorName = $event"
+      placeholder="e.g. XYZ Distributors" />
+
+    <app-input label="Notes" optLabel="optional"
+      [value]="restockNotes" (valueChange)="restockNotes = $event"
+      placeholder="e.g. Invoice #1234, batch B" />
+
   </div>
   <div class="modal-ft">
-    <app-btn variant="ghost" (clicked)="closeStock()">Cancel</app-btn>
-    <app-btn variant="primary" icon="add" [loading]="stockSaving" [disabled]="addQty <= 0" (clicked)="applyStock()">Add Stock</app-btn>
+    <app-btn variant="ghost" (clicked)="closeRestock()">Cancel</app-btn>
+    <app-btn variant="primary" icon="inventory_2" [loading]="restockSaving"
+      [disabled]="restockQty < 1" (clicked)="submitRestock()">Add Stock</app-btn>
   </div>
 </div>
 
 <!-- ── PAGE ── -->
 <div class="page">
 
+  <!-- Page header -->
   <div class="page-hd">
     <div class="page-hd-left">
       <div class="page-hd-title">Inventory</div>
-      <div class="page-hd-sub" *ngIf="!loading">{{ filtered.length }} of {{ products.length }} products</div>
+      <div class="page-hd-sub" *ngIf="!loading">
+        {{ products.length }} products
+        <span class="low-badge" *ngIf="lowCount > 0">{{ lowCount }} low/out</span>
+      </div>
     </div>
     <div class="page-hd-right">
-      <app-btn variant="primary" icon="add" (clicked)="openWizard()">Add Product</app-btn>
+      <app-btn variant="primary" icon="add" (clicked)="goToNewProduct()">Add Product</app-btn>
     </div>
   </div>
 
-  <!-- Search + Filters + Sort -->
-  <div class="inv-toolbar">
-    <div class="search-bar" style="flex:1;min-width:200px">
-      <span class="sb-icon icon icon-sm">search</span>
-      <input type="text" [(ngModel)]="searchQ" placeholder="Search by name or SKU…" />
-    </div>
-    <div class="inv-filters">
-      <app-select placeholder="All categories" [options]="categoryOpts"
-        [value]="filterCategory" (valueChange)="filterCategory = $event" />
-      <app-select placeholder="All brands" [options]="brandOpts"
-        [value]="filterBrand" (valueChange)="filterBrand = $event" />
-      <app-select placeholder="All status" [options]="statusOpts"
-        [value]="filterStatus" (valueChange)="filterStatus = $event" />
-      <app-select placeholder="Sort: Newest" [options]="sortOpts"
-        [value]="sortKey" (valueChange)="sortKey = $event" />
-    </div>
-    <button class="btn btn-ghost btn-sm" *ngIf="hasFilters" (click)="clearFilters()">
-      <span class="icon icon-sm">close</span> Clear
+  <!-- ── Tabs ── -->
+  <div class="inv-tabs">
+    <button class="inv-tab" [class.active]="activeTab === 'stock'" (click)="switchTab('stock')">
+      <span class="icon icon-sm">inventory_2</span>
+      Stock Overview
+    </button>
+    <button class="inv-tab" [class.active]="activeTab === 'history'" (click)="switchTab('history')">
+      <span class="icon icon-sm">history</span>
+      Transaction History
+    </button>
+    <button class="inv-tab" [class.active]="activeTab === 'low-stock'" (click)="switchTab('low-stock')">
+      <span class="icon icon-sm">warning_amber</span>
+      Low Stock
+      <span class="tab-count" *ngIf="lowCount > 0">{{ lowCount }}</span>
     </button>
   </div>
 
-  <!-- Loading -->
-  <div class="prod-grid" *ngIf="loading">
-    <div class="prod-card sk-card" *ngFor="let i of [1,2,3,4,5,6]">
-      <div class="sk sk-img"></div>
-      <div style="padding:12px;display:flex;flex-direction:column;gap:8px">
-        <div class="sk sk-text" style="width:70%;height:13px"></div>
-        <div class="sk sk-text" style="width:40%;height:11px"></div>
-        <div class="sk sk-text" style="width:55%;height:11px"></div>
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 1: Stock Overview                                                  -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeTab === 'stock'">
+
+    <!-- Toolbar -->
+    <div class="inv-toolbar">
+      <div class="search-bar" style="flex:1;min-width:200px">
+        <span class="sb-icon icon icon-sm">search</span>
+        <input type="text" [(ngModel)]="searchQ" placeholder="Search by name or SKU…" />
       </div>
+      <div class="inv-filters">
+        <app-select placeholder="All categories" [options]="categoryOpts"
+          [value]="filterCategory" (valueChange)="filterCategory = $event" />
+        <app-select placeholder="All brands" [options]="brandOpts"
+          [value]="filterBrand" (valueChange)="filterBrand = $event" />
+        <app-select placeholder="All status" [options]="statusOpts"
+          [value]="filterStatus" (valueChange)="filterStatus = $event" />
+        <app-select placeholder="Sort: Newest" [options]="sortOpts"
+          [value]="sortKey" (valueChange)="sortKey = $event" />
+      </div>
+      <button class="btn btn-ghost btn-sm" *ngIf="hasFilters" (click)="clearFilters()">
+        <span class="icon icon-sm">close</span> Clear
+      </button>
     </div>
-  </div>
 
-  <!-- Error -->
-  <div class="alert alert-warn" *ngIf="!loading && error">
-    <span class="icon icon-sm">error</span> {{ error }}
-    <app-btn variant="ghost" size="sm" icon="refresh" (clicked)="load()" style="margin-left:auto">Retry</app-btn>
-  </div>
+    <div class="inv-count" *ngIf="!loading">{{ filtered.length }} of {{ products.length }} products</div>
 
-  <!-- Product Cards -->
-  <div class="prod-grid" *ngIf="!loading && !error">
-    <div class="prod-card" *ngFor="let p of filtered" (click)="navigateToProduct(p)">
-
-      <!-- Image -->
-      <div class="prod-img">
-        <img *ngIf="p.primaryImageUrl" [src]="p.primaryImageUrl" [alt]="p.name" />
-        <span *ngIf="!p.primaryImageUrl" class="icon icon-xl icon-muted">inventory_2</span>
-        <span [class]="statusClass(p)" style="position:absolute;top:8px;left:8px">{{ p.status }}</span>
-      </div>
-
-      <!-- Info -->
-      <div class="prod-body">
-        <div class="prod-cat">{{ p.categoryName }}<span *ngIf="p.brandName"> · {{ p.brandName }}</span></div>
-        <div class="prod-name" [title]="p.name">{{ p.name }}</div>
-        <div class="prod-sku">{{ p.sku }}</div>
-
-        <div class="prod-price">{{ formatPrice(p.priceRetail) }}</div>
-        <div class="prod-gst">GST {{ p.gstPercent }}%</div>
-
-        <div class="prod-foot">
-          <span [class]="stockBadgeClass(p)">{{ stockLabel(p) }}</span>
-          <button class="btn btn-ghost btn-sm" (click)="openStock(p, $event)">
-            <span class="icon icon-sm">add</span> Stock
-          </button>
+    <!-- Skeleton -->
+    <div class="prod-grid" *ngIf="loading">
+      <div class="prod-card sk-card" *ngFor="let i of [1,2,3,4,5,6]">
+        <div class="sk sk-img"></div>
+        <div style="padding:12px;display:flex;flex-direction:column;gap:8px">
+          <div class="sk sk-text" style="width:70%;height:13px"></div>
+          <div class="sk sk-text" style="width:40%;height:11px"></div>
+          <div class="sk sk-text" style="width:55%;height:11px"></div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Empty -->
-  <div class="empty" *ngIf="!loading && !error && filtered.length === 0" style="padding:60px">
-    <div class="empty-icon"><span class="icon icon-xl icon-muted">inventory_2</span></div>
-    <div class="empty-title">{{ products.length === 0 ? 'No products yet' : 'No products match' }}</div>
-    <app-btn *ngIf="products.length === 0" variant="primary" icon="add" (clicked)="openWizard()">Add First Product</app-btn>
-    <app-btn *ngIf="hasFilters" variant="ghost" (clicked)="clearFilters()">Clear Filters</app-btn>
-  </div>
+    <!-- Error -->
+    <div class="alert alert-warn" *ngIf="!loading && error">
+      <span class="icon icon-sm">error</span> {{ error }}
+      <app-btn variant="ghost" size="sm" icon="refresh" (clicked)="loadProducts()" style="margin-left:auto">Retry</app-btn>
+    </div>
+
+    <!-- Product Cards -->
+    <div class="prod-grid" *ngIf="!loading && !error">
+      <div class="prod-card" *ngFor="let p of filtered" (click)="navigateToProduct(p)">
+        <div class="prod-img">
+          <img *ngIf="p.primaryImageUrl" [src]="p.primaryImageUrl" [alt]="p.name" />
+          <span *ngIf="!p.primaryImageUrl" class="icon icon-xl icon-muted">inventory_2</span>
+          <span [class]="statusClass(p.status)" style="position:absolute;top:8px;left:8px">{{ p.status }}</span>
+        </div>
+        <div class="prod-body">
+          <div class="prod-cat">{{ p.categoryName }}<span *ngIf="p.brandName"> · {{ p.brandName }}</span></div>
+          <div class="prod-name" [title]="p.name">{{ p.name }}</div>
+          <div class="prod-sku">{{ p.sku }}</div>
+          <div class="prod-price">{{ formatPrice(p.priceRetail) }}</div>
+          <div class="prod-gst">GST {{ p.gstPercent }}%</div>
+          <div class="prod-foot">
+            <span [class]="stockBadgeClass(p.stockQty)">{{ stockLabel(p.stockQty) }}</span>
+            <button class="btn btn-ghost btn-sm" (click)="openRestock(p, $event)">
+              <span class="icon icon-sm">add</span> Restock
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty -->
+    <div class="empty" *ngIf="!loading && !error && filtered.length === 0" style="padding:60px">
+      <div class="empty-icon"><span class="icon icon-xl icon-muted">inventory_2</span></div>
+      <div class="empty-title">{{ products.length === 0 ? 'No products yet' : 'No products match' }}</div>
+      <app-btn *ngIf="products.length === 0" variant="primary" icon="add"
+        (clicked)="goToNewProduct()">Add First Product</app-btn>
+      <app-btn *ngIf="hasFilters" variant="ghost" (clicked)="clearFilters()">Clear Filters</app-btn>
+    </div>
+
+  </ng-container>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 2: Transaction History                                             -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeTab === 'history'">
+
+    <!-- Loading -->
+    <div class="tx-loading" *ngIf="txLoading">
+      <div class="sk sk-text" style="height:40px;border-radius:8px" *ngFor="let i of [1,2,3,4,5]"></div>
+    </div>
+
+    <!-- Error -->
+    <div class="alert alert-warn" *ngIf="!txLoading && txError">
+      <span class="icon icon-sm">error</span> {{ txError }}
+      <app-btn variant="ghost" size="sm" icon="refresh" (clicked)="loadTransactions(0)" style="margin-left:auto">Retry</app-btn>
+    </div>
+
+    <!-- Empty -->
+    <div class="empty" *ngIf="!txLoading && !txError && txList.length === 0" style="padding:60px">
+      <div class="empty-icon"><span class="icon icon-xl icon-muted">history</span></div>
+      <div class="empty-title">No transactions yet</div>
+      <div class="empty-sub">Transactions are recorded when you restock products.</div>
+    </div>
+
+    <!-- Table -->
+    <div class="tx-table-wrap" *ngIf="!txLoading && !txError && txList.length > 0">
+      <div class="tx-summary">
+        {{ txTotal }} transaction{{ txTotal !== 1 ? 's' : '' }}
+        <span *ngIf="txTotalPages > 1">· Page {{ txPage + 1 }} of {{ txTotalPages }}</span>
+      </div>
+
+      <div class="tx-table">
+        <div class="tx-head">
+          <span>Date &amp; Time</span>
+          <span>Product</span>
+          <span>Type</span>
+          <span>Qty</span>
+          <span>Vendor</span>
+          <span>₹/Unit</span>
+          <span>By</span>
+        </div>
+
+        <div class="tx-row" *ngFor="let tx of txList">
+          <div class="tx-cell tx-date">{{ formatDate(tx.createdAt) }}</div>
+          <div class="tx-cell tx-product">
+            <div class="tx-pname">{{ tx.productName }}</div>
+            <div class="tx-psku">{{ tx.variantLabel ? tx.productSku + ' · ' + tx.variantLabel : tx.productSku }}</div>
+          </div>
+          <div class="tx-cell">
+            <span class="badge" [class.badge-green]="tx.type === 'IN'" [class.badge-red]="tx.type === 'OUT'" [class.badge-amber]="tx.type === 'ADJUSTMENT'">
+              {{ tx.type }}
+            </span>
+          </div>
+          <div class="tx-cell tx-qty" [class.qty-in]="tx.type === 'IN'" [class.qty-out]="tx.type === 'OUT'">
+            {{ tx.type === 'IN' ? '+' : tx.type === 'OUT' ? '-' : '' }}{{ tx.qty }}
+          </div>
+          <div class="tx-cell tx-vendor">{{ tx.vendorName || '—' }}</div>
+          <div class="tx-cell">{{ tx.purchasePricePerUnit != null ? formatPrice(tx.purchasePricePerUnit) : '—' }}</div>
+          <div class="tx-cell tx-by">{{ tx.createdByEmail }}</div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="tx-pager" *ngIf="txTotalPages > 1">
+        <app-btn variant="ghost" size="sm" icon="chevron_left" [disabled]="txPage === 0" (clicked)="txPrev()">Prev</app-btn>
+        <span class="tx-pager-info">{{ txPage + 1 }} / {{ txTotalPages }}</span>
+        <app-btn variant="ghost" size="sm" [disabled]="txPage >= txTotalPages - 1" (clicked)="txNext()">
+          Next <span class="icon icon-sm">chevron_right</span>
+        </app-btn>
+      </div>
+    </div>
+
+  </ng-container>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- TAB 3: Low Stock                                                        -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeTab === 'low-stock'">
+
+    <div class="ls-toolbar">
+      <div class="ls-threshold-row">
+        <span class="icon icon-sm icon-muted">warning_amber</span>
+        <span class="ls-threshold-label">Show products with stock ≤</span>
+        <input type="number" class="threshold-input" [(ngModel)]="lowStockThreshold" min="1" max="100"
+          (change)="onThresholdChange()" />
+        <span class="ls-threshold-label">units</span>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="tx-loading" *ngIf="lowStockLoading">
+      <div class="sk sk-text" style="height:54px;border-radius:8px" *ngFor="let i of [1,2,3,4]"></div>
+    </div>
+
+    <!-- Error -->
+    <div class="alert alert-warn" *ngIf="!lowStockLoading && lowStockError">
+      <span class="icon icon-sm">error</span> {{ lowStockError }}
+      <app-btn variant="ghost" size="sm" icon="refresh" (clicked)="loadLowStock()" style="margin-left:auto">Retry</app-btn>
+    </div>
+
+    <!-- Empty (all good) -->
+    <div class="empty" *ngIf="!lowStockLoading && !lowStockError && lowStockList.length === 0" style="padding:48px">
+      <div class="empty-icon"><span class="icon icon-xl" style="color:var(--green)">check_circle</span></div>
+      <div class="empty-title">All good!</div>
+      <div class="empty-sub">No products with stock ≤ {{ lowStockThreshold }} units.</div>
+    </div>
+
+    <!-- Low stock list -->
+    <div class="ls-list" *ngIf="!lowStockLoading && !lowStockError && lowStockList.length > 0">
+      <div class="ls-info">{{ lowStockList.length }} product{{ lowStockList.length !== 1 ? 's' : '' }} need restocking</div>
+
+      <div class="ls-table">
+        <div class="ls-head">
+          <span>Product</span>
+          <span>Category</span>
+          <span>Current Stock</span>
+          <span>Price</span>
+          <span></span>
+        </div>
+        <div class="ls-row" *ngFor="let p of lowStockList" (click)="navigateToProduct(p)">
+          <div class="ls-cell ls-product">
+            <div class="ls-img">
+              <img *ngIf="p.primaryImageUrl" [src]="p.primaryImageUrl" [alt]="p.name" />
+              <span *ngIf="!p.primaryImageUrl" class="icon icon-md icon-muted">inventory_2</span>
+            </div>
+            <div>
+              <div class="ls-pname">{{ p.name }}</div>
+              <div class="ls-psku">{{ p.sku }}</div>
+            </div>
+          </div>
+          <div class="ls-cell ls-cat">{{ p.categoryName }}</div>
+          <div class="ls-cell">
+            <span [class]="stockBadgeClass(p.stockQty)" style="font-size:13px;padding:4px 10px">
+              {{ p.stockQty === 0 ? 'Out of stock' : p.stockQty + ' left' }}
+            </span>
+          </div>
+          <div class="ls-cell">{{ formatPrice(p.priceRetail) }}</div>
+          <div class="ls-cell" (click)="$event.stopPropagation()">
+            <app-btn variant="secondary" size="sm" icon="add" (clicked)="openRestock(p, $event)">Restock</app-btn>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </ng-container>
 
 </div>

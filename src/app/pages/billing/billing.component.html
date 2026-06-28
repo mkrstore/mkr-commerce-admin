@@ -63,21 +63,28 @@
       <!-- ── LEFT: Product search + Bill items ──────────────────────── -->
       <div class="pos-left">
 
+        <!-- Barcode Status Strip -->
+        <div class="barcode-strip"
+             [class.bs-ok]="scanMsg === 'ok'"
+             [class.bs-err]="scanMsg === 'err'">
+          <span class="icon bs-icon">qr_code_scanner</span>
+          <span class="bs-ready" *ngIf="scanMsg === ''">Scanner ready — scan any item anytime</span>
+          <span class="bs-ok-msg" *ngIf="scanMsg === 'ok'">
+            <span class="icon icon-xs">check_circle</span> {{ scanMsgProductName }} added to bill
+          </span>
+          <span class="bs-err-msg" *ngIf="scanMsg === 'err'">
+            <span class="icon icon-xs">cancel</span> "{{ barcodeErrCode }}" — product not found
+          </span>
+        </div>
+
         <!-- Product Search -->
         <div class="search-card">
           <div class="search-box">
             <span class="si icon icon-sm">search</span>
             <input type="text" [(ngModel)]="searchQ" (ngModelChange)="prodPage = 0"
-              (keydown.enter)="onSearchEnter()"
-              placeholder="Search or scan barcode + Enter to add..."
+              placeholder="Search products by name or SKU…"
               class="si-input" />
-            <button class="si-clear" *ngIf="searchQ" (click)="searchQ = ''; prodPage = 0; scanMsg = ''">✕</button>
-          </div>
-          <div class="scan-feedback scan-ok" *ngIf="scanMsg === 'ok'">
-            <span class="icon icon-xs">check_circle</span> Added: {{ scanMsgProductName }}
-          </div>
-          <div class="scan-feedback scan-err" *ngIf="scanMsg === 'err'">
-            <span class="icon icon-xs">cancel</span> SKU not found
+            <button class="si-clear" *ngIf="searchQ" (click)="searchQ = ''; prodPage = 0">✕</button>
           </div>
           <div class="cat-chips">
             <button class="chip" [class.active]="!selectedCategory"

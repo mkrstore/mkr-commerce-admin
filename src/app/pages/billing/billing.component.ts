@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -50,10 +50,14 @@ export class BillingComponent implements OnInit, OnDestroy {
   prodPage = 0;
   readonly prodPageSize = 20;
 
-  // Barcode scan feedback
+  // Barcode
+  barcodeErrCode = '';
   scanMsg: '' | 'ok' | 'err' = '';
   scanMsgProductName = '';
   private scanMsgTimer: any;
+  private barcodeBuffer = '';
+  private lastKeyTime = 0;
+  private barcodeBufferTimer: any;
 
   // Bill state
   billItems: BillItem[] = [];
@@ -102,7 +106,66 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.fetchNextBillNumber();
   }
 
-  ngOnDestroy() {}
+  ngOnDestroy() {
+    if (this.scanMsgTimer) clearTimeout(this.scanMsgTimer);
+    if (this.barcodeBufferTimer) clearTimeout(this.barcodeBufferTimer);
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onGlobalKeydown(e: KeyboardEvent) {
+    // Skip if typing inside customer / payment inputs (avoid false triggers)
+    const target = e.target as HTMLElement;
+    if (target.closest('app-customer-section, app-payment-panel')) return;
+
+    if (e.key === 'Enter') {
+      const code = this.barcodeBuffer.trim().toUpperCase();
+      this.barcodeBuffer = '';
+      this.lastKeyTime = 0;
+      if (this.barcodeBufferTimer) clearTimeout(this.barcodeBufferTimer);
+      if (code.length >= 4) this.processBarcode(code);
+      return;
+    }
+
+    if (e.key.length !== 1) return;
+
+    const now = Date.now();
+    const gap = this.lastKeyTime ? now - this.lastKeyTime : 0;
+    this.lastKeyTime = now;
+
+    // Gap > 50ms means human typing speed — reset buffer
+    if (gap > 50 && this.barcodeBuffer.length > 0) {
+      this.barcodeBuffer = '';
+    }
+
+    this.barcodeBuffer += e.key;
+
+    if (this.barcodeBufferTimer) clearTimeout(this.barcodeBufferTimer);
+    this.barcodeBufferTimer = setTimeout(() => {
+      this.barcodeBuffer = '';
+      this.lastKeyTime = 0;
+    }, 100);
+  }
+
+  private processBarcode(code: string) {
+    if (this.searchQ.trim().toUpperCase() === code) {
+      this.searchQ = '';
+      this.prodPage = 0;
+    }
+    if (this.scanMsgTimer) clearTimeout(this.scanMsgTimer);
+    const product = this.allProducts.find(p =>
+      (p.barcode && p.barcode.toUpperCase() === code) || p.sku.toUpperCase() === code
+    );
+    if (!product) {
+      this.barcodeErrCode = code;
+      this.scanMsg = 'err';
+      this.scanMsgTimer = setTimeout(() => { this.scanMsg = ''; }, 2000);
+      return;
+    }
+    this.addProduct(product);
+    this.scanMsgProductName = product.name;
+    this.scanMsg = 'ok';
+    this.scanMsgTimer = setTimeout(() => { this.scanMsg = ''; }, 2000);
+  }
 
   // ── Products ──────────────────────────────────────────────────────────────
 
@@ -119,11 +182,36 @@ export class BillingComponent implements OnInit, OnDestroy {
         const data  = res.data;
         const items = [...acc, ...(data?.content ?? [])];
         const last  = !data || data.number >= data.totalPages - 1;
-        if (last) { this.allProducts = items; this.productsLoading = false; }
+        if (last) { this.allProducts = this.flattenVariants(items); this.productsLoading = false; }
         else       { this.fetchPage(page + 1, items); }
       },
       error: () => { this.allProducts = acc; this.productsLoading = false; }
     });
+  }
+
+  private flattenVariants(products: BillingProduct[]): BillingProduct[] {
+    const result: BillingProduct[] = [];
+    for (const p of products) {
+      const activeVariants = (p.variants ?? []).filter(v => v.isActive);
+      if (activeVariants.length > 0) {
+        for (const v of activeVariants) {
+          const label = v.label || v.sku;
+          result.push({
+            ...p,
+            variantId:    v.id,
+            variantLabel: label,
+            name:         label ? `${p.name} · ${label}` : p.name,
+            sku:          v.sku,
+            stockQty:     v.stockQty,
+            priceRetail:  v.priceOverride ?? p.priceRetail,
+            variants:     [],
+          });
+        }
+      } else {
+        result.push({ ...p, variants: [] });
+      }
+    }
+    return result;
   }
 
   get categories(): string[] {
@@ -150,13 +238,21 @@ export class BillingComponent implements OnInit, OnDestroy {
 
   addProduct(p: BillingProduct) {
     if (p.stockQty === 0) return;
-    const existing = this.billItems.find(i => i.product.sku === p.sku);
+    const existing = this.billItems.find(i =>
+      p.variantId ? i.variantId === p.variantId : i.product.sku === p.sku
+    );
     if (existing) {
       existing.qty++;
       (existing.serialNumbers ??= []).push('');
       return;
     }
-    this.billItems.push({ product: p, qty: 1, unitPrice: priceFor(p, this.customer.type), serialNumbers: [''] });
+    this.billItems.push({
+      product:      p,
+      qty:          1,
+      unitPrice:    priceFor(p, this.customer.type),
+      serialNumbers: [''],
+      variantId:    p.variantId,
+    });
   }
 
   onSearchEnter() {
@@ -207,6 +303,7 @@ export class BillingComponent implements OnInit, OnDestroy {
       customerAddress: this.customer.address || null,
       items: this.billItems.map(i => ({
         productId:     i.product.id,
+        variantId:     i.variantId ?? null,
         qty:           i.qty,
         unitPrice:     i.unitPrice,
         serialNumbers: (i.serialNumbers ?? []).map(sn => sn.trim().toUpperCase()).filter(sn => sn !== ''),
@@ -458,9 +555,13 @@ export class BillingComponent implements OnInit, OnDestroy {
     this.historyTotalCount = 0;
     this.historySearch     = '';
     this._activeTab        = 'new';
-    this.scanMsg           = '';
+    this.scanMsg            = '';
     this.scanMsgProductName = '';
+    this.barcodeErrCode     = '';
+    this.barcodeBuffer      = '';
+    this.lastKeyTime        = 0;
     if (this.scanMsgTimer) clearTimeout(this.scanMsgTimer);
+    if (this.barcodeBufferTimer) clearTimeout(this.barcodeBufferTimer);
     this.paymentPanel?.reset();
   }
 

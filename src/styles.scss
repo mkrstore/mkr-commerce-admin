@@ -850,6 +850,7 @@ input:-webkit-autofill:focus {
   justify-content: space-between;
   padding: 18px 22px 14px;
   border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(59,130,246,.07) 0%, var(--surface) 55%);
   flex-shrink: 0;
   .modal-title {
     font-size: 16px;
@@ -857,6 +858,7 @@ input:-webkit-autofill:focus {
     color: var(--t1);
   }
 }
+.modal { border-top: 3px solid var(--blue); }
 .modal-close {
   width: 30px;
   height: 30px;

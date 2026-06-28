@@ -1,0 +1,192 @@
+<div class="page" *ngIf="!loading && !notFound && vendor">
+
+  <!-- Header -->
+  <div class="vd-hd">
+    <div class="vd-hd-left">
+      <a class="vd-back" routerLink="/vendors">
+        <span class="icon icon-sm">arrow_back</span> Vendors
+      </a>
+      <div class="vd-title-row">
+        <div class="vd-avatar-lg">{{ vendor.name[0].toUpperCase() }}</div>
+        <div>
+          <div class="vd-title">{{ vendor.name }}</div>
+          <span class="badge" [class.badge-green]="vendor.isActive" [class.badge-gray]="!vendor.isActive">
+            {{ vendor.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="vd-hd-right">
+      <app-btn *ngIf="!editing" variant="secondary" icon="edit" (clicked)="startEdit()">Edit</app-btn>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="vd-tabs">
+    <button class="vd-tab" [class.active]="activeTab === 'info'"     (click)="switchTab('info')">
+      <span class="icon icon-sm">info</span> Info
+    </button>
+    <button class="vd-tab" [class.active]="activeTab === 'products'" (click)="switchTab('products')">
+      <span class="icon icon-sm">inventory_2</span> Products
+    </button>
+    <button class="vd-tab" [class.active]="activeTab === 'history'"  (click)="switchTab('history')">
+      <span class="icon icon-sm">history</span> Purchase History
+    </button>
+  </div>
+
+  <!-- ── INFO TAB ── -->
+  <ng-container *ngIf="activeTab === 'info'">
+    <ng-container *ngIf="!editing">
+      <div class="vd-info-grid">
+        <div class="vd-info-card">
+          <div class="vd-info-label">Phone</div>
+          <div class="vd-info-val">{{ vendor.phone || '—' }}</div>
+        </div>
+        <div class="vd-info-card">
+          <div class="vd-info-label">Email</div>
+          <div class="vd-info-val">{{ vendor.email || '—' }}</div>
+        </div>
+        <div class="vd-info-card">
+          <div class="vd-info-label">GSTIN</div>
+          <div class="vd-info-val" style="font-family:monospace">{{ vendor.gstin || '—' }}</div>
+        </div>
+        <div class="vd-info-card vd-info-wide" *ngIf="vendor.address">
+          <div class="vd-info-label">Address</div>
+          <div class="vd-info-val" style="white-space:pre-line">{{ vendor.address }}</div>
+        </div>
+        <div class="vd-info-card vd-info-wide" *ngIf="vendor.notes">
+          <div class="vd-info-label">Notes</div>
+          <div class="vd-info-val" style="color:var(--t2)">{{ vendor.notes }}</div>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="editing">
+      <div class="vd-edit-form">
+        <div class="alert alert-error" *ngIf="saveError">
+          <span class="icon icon-sm">error</span> {{ saveError }}
+        </div>
+        <app-input label="Vendor Name" [required]="true"
+          [value]="form.name" (valueChange)="form.name = $event" />
+        <div class="field-row">
+          <app-input label="Phone" optLabel="optional"
+            [value]="form.phone" (valueChange)="form.phone = $event" placeholder="+91 98765 43210" />
+          <app-input label="Email" optLabel="optional"
+            [value]="form.email" (valueChange)="form.email = $event" placeholder="orders@vendor.com" />
+        </div>
+        <app-input label="GSTIN" optLabel="optional"
+          [value]="form.gstin" (valueChange)="form.gstin = $event" placeholder="22AAAAA0000A1Z5" />
+        <app-textarea label="Address" optLabel="optional" [rows]="2"
+          [value]="form.address" (valueChange)="form.address = $event" />
+        <app-textarea label="Notes" optLabel="optional" [rows]="2"
+          [value]="form.notes" (valueChange)="form.notes = $event" />
+        <div class="vd-edit-actions">
+          <app-btn variant="ghost" (clicked)="cancelEdit()">Cancel</app-btn>
+          <app-btn variant="primary" icon="save" [loading]="saving" (clicked)="saveEdit()">Save Changes</app-btn>
+        </div>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <!-- ── PRODUCTS TAB ── -->
+  <ng-container *ngIf="activeTab === 'products'">
+    <div class="tx-loading" *ngIf="productsLoading">
+      <div class="sk sk-text" style="height:52px;border-radius:8px" *ngFor="let i of [1,2,3]"></div>
+    </div>
+    <div class="alert alert-warn" *ngIf="!productsLoading && productsError">
+      <span class="icon icon-sm">error</span> {{ productsError }}
+    </div>
+    <div class="empty" *ngIf="!productsLoading && !productsError && products.length === 0" style="padding:48px">
+      <div class="empty-icon"><span class="icon icon-xl icon-muted">inventory_2</span></div>
+      <div class="empty-title">No products linked</div>
+      <div class="empty-sub">Set this as the preferred vendor on a product to see it here.</div>
+    </div>
+    <div class="vd-products" *ngIf="!productsLoading && !productsError && products.length > 0">
+      <div class="vd-prod-count">{{ products.length }} product{{ products.length !== 1 ? 's' : '' }} linked</div>
+      <div class="vd-prod-table">
+        <div class="vd-prod-head">
+          <span>Product</span>
+          <span>Category</span>
+          <span>Stock</span>
+          <span>Price</span>
+        </div>
+        <div class="vd-prod-row" *ngFor="let p of products" (click)="goToProduct(p)">
+          <div class="vd-prod-cell vd-prod-name-cell">
+            <div class="vd-prod-thumb">
+              <img *ngIf="p.primaryImageUrl" [src]="p.primaryImageUrl" [alt]="p.name" />
+              <span *ngIf="!p.primaryImageUrl" class="icon icon-sm icon-muted">inventory_2</span>
+            </div>
+            <div>
+              <div class="vd-pname">{{ p.name }}</div>
+              <div class="vd-psku">{{ p.sku }}</div>
+            </div>
+          </div>
+          <div class="vd-prod-cell">{{ p.categoryName }}</div>
+          <div class="vd-prod-cell">
+            <span [class]="stockClass(p.stockQty)">{{ stockLabel(p.stockQty) }}</span>
+          </div>
+          <div class="vd-prod-cell">{{ formatPrice(p.priceRetail) }}</div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ── HISTORY TAB ── -->
+  <ng-container *ngIf="activeTab === 'history'">
+    <div class="tx-loading" *ngIf="txLoading">
+      <div class="sk sk-text" style="height:40px;border-radius:8px" *ngFor="let i of [1,2,3,4,5]"></div>
+    </div>
+    <div class="alert alert-warn" *ngIf="!txLoading && txError">
+      <span class="icon icon-sm">error</span> {{ txError }}
+    </div>
+    <div class="empty" *ngIf="!txLoading && !txError && txList.length === 0" style="padding:48px">
+      <div class="empty-icon"><span class="icon icon-xl icon-muted">history</span></div>
+      <div class="empty-title">No purchase history yet</div>
+      <div class="empty-sub">Restock products using this vendor to see transactions here.</div>
+    </div>
+    <div *ngIf="!txLoading && !txError && txList.length > 0">
+      <div class="tx-summary">{{ txTotal }} transaction{{ txTotal !== 1 ? 's' : '' }}</div>
+      <div class="tx-table">
+        <div class="tx-head">
+          <span>Date</span>
+          <span>Product</span>
+          <span>Qty</span>
+          <span>₹/Unit</span>
+          <span>By</span>
+        </div>
+        <div class="tx-row" *ngFor="let tx of txList">
+          <div class="tx-cell tx-date">{{ formatDate(tx.createdAt) }}</div>
+          <div class="tx-cell">
+            <div class="tx-pname">{{ tx.productName }}</div>
+            <div class="tx-psku">{{ tx.variantLabel ? tx.productSku + ' · ' + tx.variantLabel : tx.productSku }}</div>
+          </div>
+          <div class="tx-cell qty-in">+{{ tx.qty }}</div>
+          <div class="tx-cell">{{ tx.purchasePricePerUnit != null ? formatPrice(tx.purchasePricePerUnit) : '—' }}</div>
+          <div class="tx-cell tx-by">{{ tx.createdByEmail }}</div>
+        </div>
+      </div>
+      <div class="tx-pager" *ngIf="txTotalPages > 1">
+        <app-btn variant="ghost" size="sm" icon="chevron_left" [disabled]="txPage === 0" (clicked)="txPrev()">Prev</app-btn>
+        <span class="tx-pager-info">{{ txPage + 1 }} / {{ txTotalPages }}</span>
+        <app-btn variant="ghost" size="sm" [disabled]="txPage >= txTotalPages - 1" (clicked)="txNext()">
+          Next <span class="icon icon-sm">chevron_right</span>
+        </app-btn>
+      </div>
+    </div>
+  </ng-container>
+
+</div>
+
+<!-- Loading -->
+<div class="page" *ngIf="loading">
+  <div class="sk sk-text" style="height:28px;width:200px;border-radius:6px;margin-bottom:24px"></div>
+  <div class="sk sk-text" style="height:60px;border-radius:8px;margin-bottom:12px"></div>
+  <div class="sk sk-text" style="height:200px;border-radius:8px"></div>
+</div>
+
+<!-- Not found -->
+<div class="empty" *ngIf="notFound" style="padding:80px">
+  <div class="empty-icon"><span class="icon icon-xl icon-muted">storefront</span></div>
+  <div class="empty-title">Vendor not found</div>
+  <app-btn variant="ghost" routerLink="/vendors">Back to Vendors</app-btn>
+</div>

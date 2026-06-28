@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
-import { concat, from, finalize } from 'rxjs';
+import { concat, finalize } from 'rxjs';
 import { PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
 import {
@@ -20,12 +20,18 @@ interface AttributeDefinitionDto {
   required: boolean; sortOrder: number; groupName: string | null;
 }
 
+interface VariantOption {
+  name:     string;
+  values:   string[];
+  newValue: string;
+}
+
 interface VariantForm {
-  colorName: string;
-  colorHex:  string;
-  size:      string;
-  priceOverride: number | null;
-  stockQty:  number;
+  attrs:          { key: string; value: string }[];
+  priceOverride:  number | null;
+  priceWholesale: number | null;
+  priceBroker:    number | null;
+  stockQty:       number;
 }
 
 @Component({
@@ -40,41 +46,45 @@ interface VariantForm {
 export class ProductNewComponent implements OnInit {
 
   // ── Wizard state ──────────────────────────────────────────────────────────
-  step       = 1;
-  productId  = '';
-  saving     = false;
-  error      = '';
-  touched    = false;
+  step      = 1;
+  productId = '';
+  saving    = false;
+  error     = '';
+  touched   = false;
 
   // ── Reference data ────────────────────────────────────────────────────────
-  categories: CategoryOption[]   = [];
-  brands:     BrandOption[]      = [];
+  categories: CategoryOption[] = [];
+  brands:     BrandOption[]    = [];
 
-  // ── Step 1 ────────────────────────────────────────────────────────────────
+  // ── Step 1: Basic Info ────────────────────────────────────────────────────
   step1 = {
     name: '', sku: '', categoryId: '', brandId: '',
     shortDescription: '', description: ''
   };
 
-  // ── Step 2 ────────────────────────────────────────────────────────────────
-  step2 = {
-    priceRetail:     null as number | null,
-    priceWholesale:  null as number | null,
-    priceBroker:     null as number | null,
-    gstPercent:      18,
-    gstIncluded:     false,
-    stockQty:        0
+  // ── Step 2: Spec Fields ───────────────────────────────────────────────────
+  attrDefs:   AttributeDefinitionDto[] = [];
+  attrLoading = false;
+  attrValues: Record<string, string>   = {};
+  attrMulti:  Record<string, string[]> = {};
+
+  // ── Step 3: Variants ──────────────────────────────────────────────────────
+  variantOptions:    VariantOption[] = [];
+  generatedVariants: VariantForm[]   = [];
+  optionNewName      = '';
+  variantError       = '';
+
+  get variants(): VariantForm[] { return this.generatedVariants; }
+
+  // ── Step 4: Pricing ───────────────────────────────────────────────────────
+  pricing = {
+    priceRetail:    null as number | null,
+    priceWholesale: null as number | null,
+    priceBroker:    null as number | null,
+    gstPercent:     18,
+    gstIncluded:    false,
+    stockQty:       0
   };
-
-  // ── Step 3 — attributes ───────────────────────────────────────────────────
-  attrDefs:    AttributeDefinitionDto[] = [];
-  attrLoading  = false;
-  attrValues:  Record<string, string>   = {};   // TEXT / NUMBER / SELECT / BOOLEAN
-  attrMulti:   Record<string, string[]> = {};   // MULTISELECT
-
-  // ── Step 4 — variants ─────────────────────────────────────────────────────
-  variants:     VariantForm[] = [];
-  variantError  = '';
 
   // ── Discard modal ─────────────────────────────────────────────────────────
   showDiscard = false;
@@ -122,10 +132,10 @@ export class ProductNewComponent implements OnInit {
 
   get steps() {
     return [
-      { label: 'Basic Info',   icon: 'description' },
-      { label: 'Pricing',      icon: 'payments' },
-      { label: 'Spec Fields',  icon: 'tune' },
-      { label: 'Variants',     icon: 'palette' },
+      { label: 'Basic Info',  icon: 'description' },
+      { label: 'Spec Fields', icon: 'tune' },
+      { label: 'Variants',    icon: 'palette' },
+      { label: 'Pricing',     icon: 'payments' },
     ];
   }
 
@@ -190,8 +200,8 @@ export class ProductNewComponent implements OnInit {
   next() {
     this.error = '';
     if (this.step === 1) this.submitStep1();
-    else if (this.step === 2) this.submitStep2();
-    else if (this.step === 3) this.submitStep3();
+    else if (this.step === 2) this.submitAttrs();
+    else if (this.step === 3) this.goToPricing();
     else if (this.step === 4) this.publish();
   }
 
@@ -200,19 +210,16 @@ export class ProductNewComponent implements OnInit {
     this.step++;
   }
 
-  // ── Step 1: Create product ────────────────────────────────────────────────
+  // ── Step 1: Create product draft ──────────────────────────────────────────
 
   submitStep1() {
     this.touched = true;
     if (!this.step1.name.trim() || !this.step1.sku.trim() || !this.step1.categoryId) {
       this.error = 'Product name, SKU, and Category are required.'; return;
     }
-
     if (this.productId) {
-      // Already created — just advance (changes only save on final publish)
       this.step = 2; this.touched = false; return;
     }
-
     this.saving = true;
     this.http.post<ApiResponse<any>>(PRODUCT_ENDPOINTS.BASE, {
       name:             this.step1.name.trim(),
@@ -228,37 +235,12 @@ export class ProductNewComponent implements OnInit {
       });
   }
 
-  // ── Step 2: Pricing ───────────────────────────────────────────────────────
+  // ── Step 2: Spec Fields ───────────────────────────────────────────────────
 
-  submitStep2() {
-    this.touched = true;
-    if (!this.step2.priceRetail || this.step2.priceRetail <= 0) {
-      this.error = 'Retail price is required.'; return;
-    }
-    this.saving = true;
-    this.http.patch<ApiResponse<any>>(PRODUCT_ENDPOINTS.BY_ID(this.productId), {
-      priceRetail:    this.step2.priceRetail,
-      priceWholesale: this.step2.priceWholesale || null,
-      priceBroker:    this.step2.priceBroker    || null,
-      gstPercent:     this.step2.gstPercent,
-      gstIncluded:    this.step2.gstIncluded,
-      stockQty:       this.step2.stockQty,
-    }).pipe(finalize(() => this.saving = false))
-      .subscribe({
-        next: () => {
-          this.touched = false;
-          this.step = (this.attrLoading || this.attrDefs.length > 0) ? 3 : 4;
-        },
-        error: e => this.error = extractErrorMessage(e)
-      });
-  }
-
-  // ── Step 3: Attribute values ──────────────────────────────────────────────
-
-  submitStep3() {
-    // Required attr validation
+  submitAttrs() {
     const missing = this.attrDefs.filter(d => {
       if (!d.required) return false;
+      if (d.fieldKey?.toLowerCase() === 'brand') return false;
       if (d.fieldType === 'MULTISELECT') return (this.attrMulti[d.id] ?? []).length === 0;
       if (d.fieldType === 'BOOLEAN') return false;
       return !this.attrValues[d.id]?.trim();
@@ -282,53 +264,149 @@ export class ProductNewComponent implements OnInit {
     this.http.put<ApiResponse<any>>(PRODUCT_ENDPOINTS.ATTRIBUTES(this.productId), { attributes })
       .pipe(finalize(() => this.saving = false))
       .subscribe({
-        next: () => { this.step = 4; this.touched = false; },
+        next: () => { this.step = 3; this.touched = false; },
         error: e  => this.error = extractErrorMessage(e)
       });
   }
 
-  // ── Step 4: Variants + Publish ────────────────────────────────────────────
+  // ── Step 3: Variant option matrix ────────────────────────────────────────
 
-  addVariant() {
-    this.variants.push({ colorName: '', colorHex: '#3b82f6', size: '', priceOverride: null, stockQty: 0 });
+  addOptionGroup() {
+    const name = this.optionNewName.trim();
+    if (!name) return;
+    if (this.variantOptions.find(o => o.name.toLowerCase() === name.toLowerCase())) return;
+    this.variantOptions.push({ name, values: [], newValue: '' });
+    this.optionNewName = '';
   }
 
-  removeVariant(i: number) {
-    this.variants.splice(i, 1);
+  removeOption(i: number) {
+    this.variantOptions.splice(i, 1);
+    this.rebuildVariants();
   }
+
+  addValue(opt: VariantOption, event: Event) {
+    event.preventDefault();
+    const val = opt.newValue.trim();
+    if (!val || opt.values.includes(val)) return;
+    opt.values.push(val);
+    opt.newValue = '';
+    this.rebuildVariants();
+  }
+
+  removeValue(opt: VariantOption, i: number) {
+    opt.values.splice(i, 1);
+    this.rebuildVariants();
+  }
+
+  rebuildVariants() {
+    const opts = this.variantOptions.filter(o => o.values.length > 0);
+    if (opts.length === 0) { this.generatedVariants = []; return; }
+
+    let combos: Record<string, string>[] = [{}];
+    for (const opt of opts) {
+      const next: Record<string, string>[] = [];
+      for (const combo of combos) {
+        for (const val of opt.values) {
+          next.push({ ...combo, [opt.name]: val });
+        }
+      }
+      combos = next;
+    }
+
+    const existing = new Map(this.generatedVariants.map(v => [this.variantLabel(v), v]));
+    this.generatedVariants = combos.map(attrs => {
+      const label = Object.values(attrs).join(' / ');
+      const prev  = existing.get(label);
+      return {
+        attrs:          Object.entries(attrs).map(([key, value]) => ({ key, value })),
+        priceOverride:  prev?.priceOverride  ?? null,
+        priceWholesale: prev?.priceWholesale ?? null,
+        priceBroker:    prev?.priceBroker    ?? null,
+        stockQty:       prev?.stockQty       ?? 0
+      };
+    });
+  }
+
+  variantLabel(v: VariantForm): string {
+    return v.attrs.map(a => a.value.trim()).filter(Boolean).join(' / ') || 'Variant';
+  }
+
+  get combinationCount(): number {
+    const opts = this.variantOptions.filter(o => o.values.length > 0);
+    return opts.reduce((acc, o) => acc * o.values.length, 1);
+  }
+
+  private attrsToMap(attrs: { key: string; value: string }[]): Record<string, string> {
+    const map: Record<string, string> = {};
+    for (const a of attrs) { if (a.key.trim()) map[a.key.trim()] = a.value.trim(); }
+    return map;
+  }
+
+  goToPricing() {
+    this.error = '';
+    this.step = 4;
+  }
+
+  // ── Step 4: Pricing + Publish ─────────────────────────────────────────────
 
   publish() {
-    // Validate variants if any
-    if (this.variants.length > 0) {
-      const bad = this.variants.find(v => !v.colorName.trim());
-      if (bad) { this.variantError = 'Each variant needs a Colour Name.'; return; }
+    this.touched = true;
+    this.error   = '';
+
+    if (this.variants.length === 0) {
+      if (!this.pricing.priceRetail || this.pricing.priceRetail <= 0) {
+        this.error = 'Retail price is required.'; return;
+      }
+    } else {
+      const unpriced = this.variants.find(v => !v.priceOverride || v.priceOverride <= 0);
+      if (unpriced) {
+        this.error = `Price is required for ${this.variantLabel(unpriced)}.`; return;
+      }
     }
-    this.variantError = '';
+
     this.saving = true;
+    const done  = () => { this.productId = ''; this.router.navigate(['/products']); };
+    const errFn = (e: any) => { this.saving = false; this.error = extractErrorMessage(e); };
 
-    const variantRequests = this.variants.map(v =>
-      this.http.post<ApiResponse<any>>(PRODUCT_ENDPOINTS.VARIANTS(this.productId), {
-        colorName:     v.colorName.trim(),
-        colorHex:      v.colorHex || null,
-        size:          v.size.trim() || null,
-        priceOverride: v.priceOverride || null,
-        stockQty:      v.stockQty || 0,
-      })
-    );
+    if (this.variants.length === 0) {
+      this.http.patch<ApiResponse<any>>(PRODUCT_ENDPOINTS.BY_ID(this.productId), {
+        priceRetail:    this.pricing.priceRetail,
+        priceWholesale: this.pricing.priceWholesale || null,
+        priceBroker:    this.pricing.priceBroker    || null,
+        gstPercent:     this.pricing.gstPercent,
+        gstIncluded:    this.pricing.gstIncluded,
+        stockQty:       this.pricing.stockQty,
+        status:         'ACTIVE'
+      }).pipe(finalize(() => this.saving = false))
+        .subscribe({ next: done, error: errFn });
+    } else {
+      const minPrice = Math.min(...this.variants.map(v => v.priceOverride ?? 0));
 
-    const activate$ = this.http.patch<ApiResponse<any>>(
-      PRODUCT_ENDPOINTS.BY_ID(this.productId), { status: 'ACTIVE' }
-    );
+      const variantRequests = this.variants.map(v =>
+        this.http.post<ApiResponse<any>>(PRODUCT_ENDPOINTS.VARIANTS(this.productId), {
+          attributes:     this.attrsToMap(v.attrs),
+          priceOverride:  v.priceOverride,
+          priceWholesale: v.priceWholesale || null,
+          priceBroker:    v.priceBroker    || null,
+          stockQty:       v.stockQty || 0,
+        })
+      );
 
-    concat(...variantRequests, activate$).pipe(
-      finalize(() => this.saving = false)
-    ).subscribe({
-      complete: () => {
-        this.productId = '';
-        this.router.navigate(['/products']);
-      },
-      error: e => { this.variantError = extractErrorMessage(e); }
-    });
+      const activate$ = this.http.patch<ApiResponse<any>>(
+        PRODUCT_ENDPOINTS.BY_ID(this.productId), {
+          priceRetail:    minPrice,
+          priceWholesale: this.pricing.priceWholesale || null,
+          priceBroker:    this.pricing.priceBroker    || null,
+          gstPercent:     this.pricing.gstPercent,
+          gstIncluded:    this.pricing.gstIncluded,
+          status:         'ACTIVE'
+        }
+      );
+
+      concat(...variantRequests, activate$)
+        .pipe(finalize(() => this.saving = false))
+        .subscribe({ complete: done, error: errFn });
+    }
   }
 
   // ── Discard ───────────────────────────────────────────────────────────────
@@ -365,7 +443,7 @@ export class ProductNewComponent implements OnInit {
              SELECT: 'Dropdown', MULTISELECT: 'Multi-select' }[ft] ?? ft;
   }
 
-  get stepLabel(): string { return this.steps[this.step - 1]?.label ?? ''; }
+  get stepLabel(): string  { return this.steps[this.step - 1]?.label ?? ''; }
   get isLastStep(): boolean { return this.step === 4; }
   get hasNoAttrs(): boolean { return !this.attrLoading && this.attrDefs.length === 0; }
 

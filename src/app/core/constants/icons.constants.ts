@@ -23,6 +23,7 @@ export const ICONS = {
   promotions:     'local_offer',
   chat:           'support_agent',
   delivery:       'local_shipping',
+  vendors:        'storefront',
   staff:          'badge',
   settings:       'settings',
 

@@ -168,6 +168,48 @@
 
 .pos-left { display: flex; flex-direction: column; gap: .875rem; min-width: 0; }
 
+// Barcode strip
+.barcode-strip {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem .875rem;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 12px;
+  transition: background .2s, border-color .2s;
+
+  &.bs-ok  { background: #f0fdf4; border-color: #22c55e; }
+  &.bs-err { background: #fef2f2; border-color: #fca5a5; }
+
+  .bs-icon { color: #16a34a; font-size: 1.25rem; flex-shrink: 0; }
+
+  .bs-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: .875rem;
+    color: #111827;
+    &::placeholder { color: #6b7280; font-size: .8rem; }
+  }
+
+  .bs-ready {
+    font-size: .68rem; font-weight: 700; color: #16a34a;
+    text-transform: uppercase; letter-spacing: .06em; flex-shrink: 0;
+  }
+  .bs-ok-msg {
+    display: flex; align-items: center; gap: .25rem;
+    font-size: .75rem; font-weight: 600; color: #059669; flex-shrink: 0;
+    .icon { font-size: .85rem; }
+  }
+  .bs-err-msg {
+    display: flex; align-items: center; gap: .25rem;
+    font-size: .75rem; font-weight: 600; color: #ef4444; flex-shrink: 0;
+    .icon { font-size: .85rem; }
+  }
+}
+
 // Search
 .search-card {
   background: #fff;

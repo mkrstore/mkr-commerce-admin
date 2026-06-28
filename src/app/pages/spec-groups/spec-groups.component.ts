@@ -1,7 +1,8 @@
-import { Component, OnInit, signal, computed, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, HostListener, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule }  from '@angular/forms';
 import { HttpClient }   from '@angular/common/http';
+import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { AuthService }  from '../../services/auth.service';
 import { SPEC_GROUP_ENDPOINTS, LOOKUP_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
@@ -20,8 +21,12 @@ interface SpecGroupDetail {
   fields: SpecGroupField[];
 }
 
-interface LookupListSummary {
-  id: string; name: string; fieldType: string; description: string | null; valueCount: number;
+interface FieldResult {
+  id: string; name: string; fieldType: string;
+}
+
+interface PageDto<T> {
+  content: T[]; page: number; size: number; totalElements: number; totalPages: number;
 }
 
 @Component({
@@ -31,27 +36,23 @@ interface LookupListSummary {
   templateUrl: './spec-groups.component.html',
   styleUrl: './spec-groups.component.scss'
 })
-export class SpecGroupsComponent implements OnInit {
+export class SpecGroupsComponent implements OnInit, OnDestroy {
 
   private readonly EP = SPEC_GROUP_ENDPOINTS;
 
-  groups      = signal<SpecGroupSummary[]>([]);
-  loading     = signal(true);
+  // ── Data ──────────────────────────────────────────────────────────────────
+  groups        = signal<SpecGroupSummary[]>([]);
+  loading       = signal(true);
+  totalElements = signal(0);
+  totalPages    = signal(0);
+
+  // ── UI state ──────────────────────────────────────────────────────────────
   searchQuery = signal('');
+  view        = signal<'card' | 'table'>('card');
   isMobile    = signal(false);
+  currentPage = signal(0);
 
-  // ── Pagination ────────────────────────────────────────────────────────────
-  currentPage    = signal(0);
-  readonly pageSize = 12;
-
-  totalPages = computed(() =>
-    Math.max(1, Math.ceil(this.filteredGroups().length / this.pageSize))
-  );
-
-  pagedGroups = computed(() => {
-    const p = this.currentPage();
-    return this.filteredGroups().slice(p * this.pageSize, (p + 1) * this.pageSize);
-  });
+  pageSize = computed(() => this.view() === 'card' || this.isMobile() ? 16 : 7);
 
   pageNumbers = computed((): (number | '...')[] => {
     const total = this.totalPages();
@@ -65,11 +66,24 @@ export class SpecGroupsComponent implements OnInit {
     return pages;
   });
 
-  // ── Available lookup lists (for field picker) ─────────────────────────────
-  allFields        = signal<LookupListSummary[]>([]);
-  fieldsLoading    = false;
-  fieldSearch      = '';
-  fieldPickerOpen  = false;
+  canManage = computed(() => {
+    const r = this.auth.currentUser()?.role;
+    return r === 'SUPER_ADMIN' || r === 'ADMIN';
+  });
+
+  // ── Search debounce ───────────────────────────────────────────────────────
+  @ViewChild('pageTop') private pageTopRef!: ElementRef<HTMLElement>;
+
+  private searchInput$ = new Subject<string>();
+  private destroy$     = new Subject<void>();
+  private scrollToTop  = false;
+
+  // ── Field picker ──────────────────────────────────────────────────────────
+  fieldPickerOpen     = false;
+  fieldSearchQuery    = '';
+  fieldSearchResults: FieldResult[] = [];
+  fieldSearchLoading  = false;
+  fieldSearched       = false;
 
   // ── Modal ─────────────────────────────────────────────────────────────────
   modalMode: 'closed' | 'create' | 'edit' = 'closed';
@@ -79,44 +93,38 @@ export class SpecGroupsComponent implements OnInit {
   editTarget: SpecGroupSummary | null = null;
 
   form = { name: '', description: '' };
-  selectedFieldIds: string[] = [];
+  selectedFields: FieldResult[] = [];
+
+  private originalGroup: { name: string; description: string; fieldIds: string[] } | null = null;
 
   // ── Delete ────────────────────────────────────────────────────────────────
   deleteTarget: SpecGroupSummary | null = null;
   deleting    = false;
   deleteError = '';
 
-  // ── Computed ──────────────────────────────────────────────────────────────
-  canManage = computed(() => {
-    const r = this.auth.currentUser()?.role;
-    return r === 'SUPER_ADMIN' || r === 'ADMIN';
-  });
-
-  filteredGroups = computed(() => {
-    const q = this.searchQuery().toLowerCase().trim();
-    return q
-      ? this.groups().filter(g =>
-          g.name.toLowerCase().includes(q) ||
-          (g.description ?? '').toLowerCase().includes(q))
-      : this.groups();
-  });
-
-  get availableFields(): LookupListSummary[] {
-    const q = this.fieldSearch.toLowerCase().trim();
-    const selected = new Set(this.selectedFieldIds);
-    const available = this.allFields().filter(f => !selected.has(f.id));
-    return q
-      ? available.filter(f =>
-          f.name.toLowerCase().includes(q) ||
-          f.fieldType.toLowerCase().includes(q))
-      : available;
-  }
-
-  getFieldById(id: string): LookupListSummary | undefined {
-    return this.allFields().find(f => f.id === id);
-  }
-
   skeletonRows = Array(8);
+
+  // ── Button state ──────────────────────────────────────────────────────────
+  get groupFormValid(): boolean {
+    return this.form.name.trim().length > 0;
+  }
+
+  get groupFormChanged(): boolean {
+    if (!this.originalGroup) return false;
+    const currentIds = this.selectedFields.map(f => f.id).join(',');
+    const originalIds = this.originalGroup.fieldIds.join(',');
+    return (
+      this.form.name.trim() !== this.originalGroup.name ||
+      (this.form.description.trim() || '') !== this.originalGroup.description ||
+      currentIds !== originalIds
+    );
+  }
+
+  get saveDisabled(): boolean {
+    if (!this.groupFormValid) return true;
+    if (this.modalMode === 'edit') return !this.groupFormChanged;
+    return false;
+  }
 
   constructor(private http: HttpClient, public auth: AuthService) {}
 
@@ -125,49 +133,116 @@ export class SpecGroupsComponent implements OnInit {
 
   ngOnInit() {
     this.updateMobile();
+    const saved = localStorage.getItem('sg-view');
+    if (saved === 'table') this.view.set('table');
+    this.searchInput$.pipe(
+      debounceTime(350),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$)
+    ).subscribe(() => { this.currentPage.set(0); this.load(); });
     this.load();
+  }
+
+  setView(v: 'card' | 'table') {
+    this.view.set(v);
+    localStorage.setItem('sg-view', v);
+    this.currentPage.set(0);
+    this.load();
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   // ── Data ──────────────────────────────────────────────────────────────────
 
   load() {
     this.loading.set(true);
-    this.http.get<ApiResponse<SpecGroupSummary[]>>(this.EP.BASE).subscribe({
-      next: res => { this.groups.set(res.data ?? []); this.loading.set(false); },
-      error: ()  => this.loading.set(false)
-    });
-  }
+    const params: Record<string, string | number> = {
+      page: this.currentPage(),
+      size: this.pageSize(),
+    };
+    const q = this.searchQuery().trim();
+    if (q) params['search'] = q;
 
-  private loadAllFields() {
-    if (this.allFields().length > 0) return;
-    this.fieldsLoading = true;
-    this.http.get<ApiResponse<LookupListSummary[]>>(LOOKUP_ENDPOINTS.BASE).subscribe({
-      next: res => { this.allFields.set(res.data ?? []); this.fieldsLoading = false; },
-      error: ()  => { this.fieldsLoading = false; }
+    this.http.get<ApiResponse<PageDto<SpecGroupSummary>>>(this.EP.BASE, { params }).subscribe({
+      next: res => {
+        this.groups.set(res.data?.content ?? []);
+        this.totalElements.set(res.data?.totalElements ?? 0);
+        this.totalPages.set(res.data?.totalPages ?? 0);
+        this.loading.set(false);
+        if (this.scrollToTop) {
+          this.scrollToTop = false;
+          setTimeout(() => { if (this.pageTopRef?.nativeElement) this.pageTopRef.nativeElement.scrollTop = 0; }, 0);
+        }
+      },
+      error: () => this.loading.set(false)
     });
   }
 
   // ── Search & Pagination ───────────────────────────────────────────────────
 
-  onSearchChange(q: string) { this.searchQuery.set(q); this.currentPage.set(0); }
-  clearSearch()              { this.searchQuery.set(''); this.currentPage.set(0); }
+  onSearchChange(q: string) { this.searchQuery.set(q); this.searchInput$.next(q); }
+  clearSearch()              { this.searchQuery.set(''); this.searchInput$.next(''); }
 
-  goToPage(p: number | '...') { if (p !== '...') this.currentPage.set((p as number) - 1); }
-  prevPage() { if (this.currentPage() > 0)                      this.currentPage.update(p => p - 1); }
-  nextPage() { if (this.currentPage() < this.totalPages() - 1)  this.currentPage.update(p => p + 1); }
+  goToPage(p: number | '...') {
+    if (p === '...') return;
+    this.scrollToTop = true;
+    this.currentPage.set((p as number) - 1);
+    this.load();
+  }
+  prevPage() { if (this.currentPage() > 0)                     { this.scrollToTop = true; this.currentPage.update(p => p - 1); this.load(); } }
+  nextPage() { if (this.currentPage() < this.totalPages() - 1) { this.scrollToTop = true; this.currentPage.update(p => p + 1); this.load(); } }
 
   // ── Field picker ──────────────────────────────────────────────────────────
 
-  addField(fieldId: string) {
-    if (!this.selectedFieldIds.includes(fieldId)) {
-      this.selectedFieldIds.push(fieldId);
-    }
-    this.fieldSearch = '';
+  openFieldPicker() {
+    this.fieldPickerOpen    = true;
+    this.fieldSearchQuery   = '';
+    this.fieldSearchResults = [];
+    this.fieldSearched      = false;
   }
 
-  removeField(fieldId: string) {
-    const idx = this.selectedFieldIds.indexOf(fieldId);
-    if (idx >= 0) this.selectedFieldIds.splice(idx, 1);
+  closeFieldPicker() {
+    this.fieldPickerOpen    = false;
+    this.fieldSearchQuery   = '';
+    this.fieldSearchResults = [];
+    this.fieldSearched      = false;
+  }
+
+  searchFields() {
+    this.fetchFields(this.fieldSearchQuery.trim());
+  }
+
+  private fetchFields(q: string) {
+    this.fieldSearchLoading = true;
+    this.fieldSearched      = true;
+    const selectedIds = new Set(this.selectedFields.map(f => f.id));
+    const params: Record<string, string | number> = { page: 0, size: 20 };
+    if (q) params['search'] = q;
+    this.http.get<ApiResponse<PageDto<FieldResult>>>(LOOKUP_ENDPOINTS.BASE, { params }).subscribe({
+      next: res => {
+        this.fieldSearchResults = (res.data?.content ?? []).filter(f => !selectedIds.has(f.id));
+        this.fieldSearchLoading = false;
+      },
+      error: () => { this.fieldSearchLoading = false; }
+    });
+  }
+
+  onFieldSearchKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter') this.searchFields();
+  }
+
+  addField(f: FieldResult) {
+    if (!this.selectedFields.some(s => s.id === f.id)) {
+      this.selectedFields.push({ id: f.id, name: f.name, fieldType: f.fieldType });
+      this.fieldSearchResults = this.fieldSearchResults.filter(r => r.id !== f.id);
+    }
+  }
+
+  removeField(id: string) {
+    this.selectedFields = this.selectedFields.filter(f => f.id !== id);
   }
 
   fieldTypeLabel(ft: string): string {
@@ -177,40 +252,44 @@ export class SpecGroupsComponent implements OnInit {
   // ── Create / Edit ─────────────────────────────────────────────────────────
 
   openCreate() {
-    this.form            = { name: '', description: '' };
-    this.selectedFieldIds = [];
-    this.fieldSearch     = '';
-    this.fieldPickerOpen = false;
-    this.modalError      = '';
-    this.formTouched     = false;
-    this.editTarget      = null;
-    this.modalMode       = 'create';
-    this.loadAllFields();
+    this.form             = { name: '', description: '' };
+    this.selectedFields   = [];
+    this.originalGroup    = null;
+    this.modalError       = '';
+    this.formTouched      = false;
+    this.editTarget       = null;
+    this.modalMode        = 'create';
+    this.closeFieldPicker();
   }
 
   openEdit(group: SpecGroupSummary) {
-    this.form            = { name: group.name, description: group.description ?? '' };
-    this.selectedFieldIds = [];
-    this.fieldSearch     = '';
-    this.fieldPickerOpen = false;
-    this.modalError      = '';
-    this.formTouched     = false;
-    this.editTarget      = group;
-    this.modalMode       = 'edit';
-    this.saving        = true;
-    this.loadAllFields();
+    this.form             = { name: group.name, description: group.description ?? '' };
+    this.selectedFields   = [];
+    this.originalGroup    = null;
+    this.modalError       = '';
+    this.formTouched      = false;
+    this.editTarget       = group;
+    this.modalMode        = 'edit';
+    this.saving           = true;
+    this.closeFieldPicker();
+
     this.http.get<ApiResponse<SpecGroupDetail>>(this.EP.BY_ID(group.id)).subscribe({
       next: res => {
         this.saving = false;
-        this.selectedFieldIds = (res.data?.fields ?? [])
+        this.selectedFields = (res.data?.fields ?? [])
           .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map(f => f.fieldId);
+          .map(f => ({ id: f.fieldId, name: f.fieldName, fieldType: f.fieldType }));
+        this.originalGroup = {
+          name:        group.name,
+          description: group.description ?? '',
+          fieldIds:    this.selectedFields.map(f => f.id)
+        };
       },
       error: e => { this.saving = false; this.modalError = extractErrorMessage(e, 'Failed to load group.'); }
     });
   }
 
-  closeModal() { this.modalMode = 'closed'; this.modalError = ''; }
+  closeModal() { this.modalMode = 'closed'; this.modalError = ''; this.closeFieldPicker(); }
 
   save() {
     this.formTouched = true;
@@ -218,7 +297,7 @@ export class SpecGroupsComponent implements OnInit {
     const payload = {
       name:        this.form.name.trim(),
       description: this.form.description.trim() || null,
-      fieldIds:    this.selectedFieldIds
+      fieldIds:    this.selectedFields.map(f => f.id)
     };
     this.saving = true; this.modalError = '';
     const req$ = this.modalMode === 'create'
@@ -226,15 +305,13 @@ export class SpecGroupsComponent implements OnInit {
       : this.http.put<ApiResponse<SpecGroupDetail>>(this.EP.BY_ID(this.editTarget!.id), payload);
     req$.subscribe({
       next: () => { this.saving = false; this.modalMode = 'closed'; this.load(); },
-      error: e => { this.saving = false; this.modalError = extractErrorMessage(e, 'Save failed.'); }
+      error: e  => { this.saving = false; this.modalError = extractErrorMessage(e, 'Save failed.'); }
     });
   }
 
   // ── Delete ────────────────────────────────────────────────────────────────
 
-  openDelete(group: SpecGroupSummary) {
-    this.deleteTarget = group; this.deleteError = ''; this.deleting = false;
-  }
+  openDelete(group: SpecGroupSummary) { this.deleteTarget = group; this.deleteError = ''; this.deleting = false; }
   closeDelete() { this.deleteTarget = null; this.deleteError = ''; }
 
   confirmDelete() {
@@ -242,7 +319,7 @@ export class SpecGroupsComponent implements OnInit {
     this.deleting = true; this.deleteError = '';
     this.http.delete<ApiResponse<void>>(this.EP.BY_ID(this.deleteTarget.id)).subscribe({
       next: () => { this.deleting = false; this.deleteTarget = null; this.load(); },
-      error: e => { this.deleting = false; this.deleteError = extractErrorMessage(e, 'Delete failed.'); }
+      error: e  => { this.deleting = false; this.deleteError = extractErrorMessage(e, 'Delete failed.'); }
     });
   }
 }

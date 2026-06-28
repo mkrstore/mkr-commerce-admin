@@ -22,6 +22,8 @@ export const routes: Routes = [
   { path: 'spec-groups',   canActivate: [authGuard], loadComponent: () => import('./pages/spec-groups/spec-groups.component').then(m => m.SpecGroupsComponent) },
   { path: 'lookup-lists', redirectTo: 'custom-fields', pathMatch: 'full' },
   { path: 'inventory',   canActivate: [authGuard], loadComponent: () => import('./pages/inventory/inventory.component').then(m => m.InventoryComponent) },
+  { path: 'vendors',     canActivate: [authGuard], loadComponent: () => import('./pages/vendors/vendors.component').then(m => m.VendorsComponent) },
+  { path: 'vendors/:id', canActivate: [authGuard], loadComponent: () => import('./pages/vendor-detail/vendor-detail.component').then(m => m.VendorDetailComponent) },
   { path: 'orders',      canActivate: [authGuard], loadComponent: () => import('./pages/orders/orders.component').then(m => m.OrdersComponent) },
   { path: 'orders/:id',  canActivate: [authGuard], loadComponent: () => import('./pages/order-detail/order-detail.component').then(m => m.OrderDetailComponent) },
   { path: 'customers',      canActivate: [authGuard], loadComponent: () => import('./pages/customers/customers.component').then(m => m.CustomersComponent) },

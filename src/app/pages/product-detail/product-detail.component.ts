@@ -3,11 +3,13 @@ import { CommonModule }    from '@angular/common';
 import { FormsModule }     from '@angular/forms';
 import { HttpClient }      from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
+import { concat, finalize } from 'rxjs';
 import { AuthService }     from '../../services/auth.service';
 import { ConfirmService }  from '../../services/confirm.service';
 import { PRODUCT_ENDPOINTS } from '../../core/constants/api.constants';
 import { ApiResponse, extractErrorMessage } from '../../core/models/api.models';
 import { AppInputComponent, AppSelectComponent, AppTextareaComponent, AppCheckboxComponent, AppBtnComponent } from '../../shared/ui';
+import { VendorApiService, VendorSummary } from '../../services/vendor-api.service';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,8 +36,13 @@ interface ProductImageDto {
 }
 
 interface ProductVariantDto {
-  id: string; sku: string; colorName: string | null; colorHex: string | null;
-  size: string | null; priceOverride: number | null; stockQty: number; isActive: boolean;
+  id: string; sku: string;
+  attributes: Record<string, string> | null;
+  label: string;
+  priceOverride:  number | null;
+  priceWholesale: number | null;
+  priceBroker:    number | null;
+  stockQty: number; isActive: boolean;
 }
 
 interface ProductDetail {
@@ -43,6 +50,7 @@ interface ProductDetail {
   shortDescription: string | null; description: string | null;
   categoryId: string; categoryName: string;
   brandId: string | null; brandName: string | null;
+  preferredVendorId: string | null; preferredVendorName: string | null;
   priceRetail: number; priceWholesale: number | null; priceBroker: number | null;
   minQtyWholesale: number; gstPercent: number; gstIncluded: boolean;
   stockQty: number; weight: number | null; dimensions: string | null;
@@ -76,9 +84,10 @@ export class ProductDetailComponent implements OnInit {
   // ── Info tab ──────────────────────────────────────────────────────────────
   categories = signal<CategoryNode[]>([]);
   brands     = signal<BrandItem[]>([]);
+  vendors    = signal<VendorSummary[]>([]);
   infoForm   = {
     name: '', slug: '', sku: '', barcode: '', shortDescription: '', description: '',
-    categoryId: '', brandId: '', status: 'DRAFT' as ProductStatus, tagsRaw: ''
+    categoryId: '', brandId: '', preferredVendorId: '', status: 'DRAFT' as ProductStatus, tagsRaw: ''
   };
   infoSaving = false;
   infoSaved  = false;
@@ -100,6 +109,8 @@ export class ProductDetailComponent implements OnInit {
   pricingSaved  = false;
   pricingError  = '';
 
+  variantPricingRows: { id: string; label: string; priceOverride: number | null; priceWholesale: number | null; priceBroker: number | null; stockQty: number }[] = [];
+
   // ── Attributes tab ────────────────────────────────────────────────────────
   attrDefs:              AttributeDefinitionDto[] = [];
   attrValues:            Record<string, string>   = {};
@@ -114,12 +125,27 @@ export class ProductDetailComponent implements OnInit {
   showAddVariant   = false;
   variantAddSaving = false;
   variantAddError  = '';
-  variantAddForm   = { colorName: '', colorHex: '#3b82f6', size: '', priceOverride: null as number | null, stockQty: 0 };
+  variantAddForm   = {
+    attrs: [{ key: '', value: '' }] as { key: string; value: string }[],
+    sku: '',
+    priceOverride:  null as number | null,
+    priceWholesale: null as number | null,
+    priceBroker:    null as number | null,
+    stockQty: 0
+  };
 
   variantEditId     : string | null = null;
   variantEditSaving = false;
   variantEditError  = '';
-  variantEditForm   = { colorName: '', colorHex: '', size: '', priceOverride: null as number | null, stockQty: 0 };
+  variantEditForm   = {
+    sku: '',
+    attrs: [{ key: '', value: '' }] as { key: string; value: string }[],
+    priceOverride:  null as number | null,
+    priceWholesale: null as number | null,
+    priceBroker:    null as number | null,
+    stockQty: 0,
+    isActive: true
+  };
 
   deletingVariantId: string | null = null;
 
@@ -171,6 +197,23 @@ export class ProductDetailComponent implements OnInit {
     ];
   }
 
+  get vendorOpts() {
+    return [
+      { value: '', label: 'No preferred vendor' },
+      ...this.vendors().map(v => ({ value: v.id, label: v.name }))
+    ];
+  }
+
+  get gstOpts() {
+    return [
+      { value: 0,  label: '0% — Exempt' },
+      { value: 5,  label: '5%' },
+      { value: 12, label: '12%' },
+      { value: 18, label: '18% (default)' },
+      { value: 28, label: '28%' },
+    ];
+  }
+
   get mediaTypeOpts() { return this.mediaTypeOptions; }
 
   getAttrOpts(def: AttributeDefinitionDto) {
@@ -182,13 +225,15 @@ export class ProductDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     public auth: AuthService,
-    private confirm: ConfirmService
+    private confirm: ConfirmService,
+    private vendorApi: VendorApiService
   ) {}
 
   ngOnInit() {
     this.loadProduct();
     this.loadCategories();
     this.loadBrands();
+    this.vendorApi.summary().subscribe({ next: v => this.vendors.set(v) });
   }
 
   // ── Load ──────────────────────────────────────────────────────────────────
@@ -215,9 +260,10 @@ export class ProductDetailComponent implements OnInit {
       barcode:          p.barcode ?? '',
       shortDescription: p.shortDescription ?? '',
       description:      p.description ?? '',
-      categoryId:       p.categoryId,
-      brandId:          p.brandId ?? '',
-      status:           p.status,
+      categoryId:         p.categoryId,
+      brandId:            p.brandId ?? '',
+      preferredVendorId:  p.preferredVendorId ?? '',
+      status:             p.status,
       tagsRaw:          (p.tags ?? []).join(', ')
     };
     this.pricingForm = {
@@ -231,6 +277,13 @@ export class ProductDetailComponent implements OnInit {
       weight:          p.weight,
       dimensions:      p.dimensions ?? ''
     };
+    this.variantPricingRows = (p.variants ?? []).map(v => ({
+      id: v.id, label: v.label || v.sku,
+      priceOverride:  v.priceOverride,
+      priceWholesale: v.priceWholesale,
+      priceBroker:    v.priceBroker,
+      stockQty:       v.stockQty
+    }));
   }
 
   loadCategories() {
@@ -298,9 +351,12 @@ export class ProductDetailComponent implements OnInit {
       barcode:          this.infoForm.barcode.trim()           || null,
       shortDescription: this.infoForm.shortDescription.trim()  || null,
       description:      this.infoForm.description.trim()       || null,
-      categoryId:       this.infoForm.categoryId  || null,
-      brandId:          this.infoForm.brandId     || null,
-      status:           this.infoForm.status,
+      categoryId:        this.infoForm.categoryId  || null,
+      brandId:           this.infoForm.brandId     || null,
+      preferredVendorId: this.infoForm.preferredVendorId
+                           ? this.infoForm.preferredVendorId
+                           : '00000000-0000-0000-0000-000000000000',
+      status:            this.infoForm.status,
       tags:             tags.length ? tags : null,
     };
     this.http.patch<ApiResponse<ProductDetail>>(this.EP.BY_ID(this.productId), payload).subscribe({
@@ -319,25 +375,64 @@ export class ProductDetailComponent implements OnInit {
     const ok = await this.confirm.ask({ title: 'Save Pricing', message: 'Save pricing and stock changes?', confirmLabel: 'Save', variant: 'primary' });
     if (!ok) return;
     this.pricingSaving = true; this.pricingError = ''; this.pricingSaved = false;
-    const payload: any = {
-      priceRetail:     this.pricingForm.priceRetail,
+
+    const p = this.product()!;
+    const hasVariants = (p.variants?.length ?? 0) > 0;
+
+    const productPayload: any = {
       priceWholesale:  this.pricingForm.priceWholesale || null,
       priceBroker:     this.pricingForm.priceBroker    || null,
       minQtyWholesale: this.pricingForm.minQtyWholesale,
       gstPercent:      this.pricingForm.gstPercent,
       gstIncluded:     this.pricingForm.gstIncluded,
-      stockQty:        this.pricingForm.stockQty,
       weight:          this.pricingForm.weight      || null,
       dimensions:      this.pricingForm.dimensions.trim() || null,
     };
-    this.http.patch<ApiResponse<ProductDetail>>(this.EP.BY_ID(this.productId), payload).subscribe({
-      next: res => {
-        this.pricingSaving = false; this.pricingSaved = true;
-        if (res.data) { this.product.set(res.data); }
-        setTimeout(() => this.pricingSaved = false, 2500);
-      },
-      error: e => { this.pricingSaving = false; this.pricingError = extractErrorMessage(e, 'Save failed.'); }
-    });
+
+    if (!hasVariants) {
+      productPayload.priceRetail = this.pricingForm.priceRetail;
+      productPayload.stockQty    = this.pricingForm.stockQty;
+    }
+
+    const product$ = this.http.patch<ApiResponse<ProductDetail>>(this.EP.BY_ID(this.productId), productPayload);
+
+    if (!hasVariants) {
+      product$.pipe(finalize(() => this.pricingSaving = false)).subscribe({
+        next: res => {
+          this.pricingSaved = true;
+          if (res.data) this.product.set(res.data);
+          setTimeout(() => this.pricingSaved = false, 2500);
+        },
+        error: e => this.pricingError = extractErrorMessage(e, 'Save failed.')
+      });
+    } else {
+      const variantUpdates$ = this.variantPricingRows.map(row => {
+        const existing = p.variants.find(v => v.id === row.id)!;
+        return this.http.put<ApiResponse<ProductVariantDto>>(
+          this.EP.VARIANT_BY_ID(this.productId, row.id),
+          {
+            sku:            existing.sku,
+            attributes:     existing.attributes ?? {},
+            priceOverride:  row.priceOverride  || null,
+            priceWholesale: row.priceWholesale || null,
+            priceBroker:    row.priceBroker    || null,
+            stockQty:       row.stockQty || 0,
+            isActive:       existing.isActive
+          }
+        );
+      });
+
+      concat(product$, ...variantUpdates$)
+        .pipe(finalize(() => this.pricingSaving = false))
+        .subscribe({
+          complete: () => {
+            this.pricingSaved = true;
+            this.loadProduct();
+            setTimeout(() => this.pricingSaved = false, 2500);
+          },
+          error: e => this.pricingError = extractErrorMessage(e, 'Save failed.')
+        });
+    }
   }
 
   // ── Attributes save ───────────────────────────────────────────────────────
@@ -461,29 +556,45 @@ export class ProductDetailComponent implements OnInit {
 
   // ── Variants ──────────────────────────────────────────────────────────────
 
+  private attrsToMap(attrs: { key: string; value: string }[]): Record<string, string> {
+    const map: Record<string, string> = {};
+    for (const a of attrs) { if (a.key.trim()) map[a.key.trim()] = a.value.trim(); }
+    return map;
+  }
+
+  private mapToAttrs(map: Record<string, string> | null): { key: string; value: string }[] {
+    if (!map || Object.keys(map).length === 0) return [{ key: '', value: '' }];
+    return Object.entries(map).map(([key, value]) => ({ key, value }));
+  }
+
   openAddVariant() {
     this.variantEditId = null;
-    this.variantAddForm = { colorName: '', colorHex: '#3b82f6', size: '', priceOverride: null, stockQty: 0 };
+    this.variantAddForm = { attrs: [{ key: '', value: '' }], sku: '', priceOverride: null, priceWholesale: null, priceBroker: null, stockQty: 0 };
     this.variantAddError = '';
     this.showAddVariant = true;
   }
 
-  cancelAddVariant() {
-    this.showAddVariant = false;
-    this.variantAddError = '';
+  cancelAddVariant() { this.showAddVariant = false; this.variantAddError = ''; }
+
+  addAttrRow(form: 'add' | 'edit') {
+    if (form === 'add') this.variantAddForm.attrs.push({ key: '', value: '' });
+    else                this.variantEditForm.attrs.push({ key: '', value: '' });
+  }
+
+  removeAttrRow(form: 'add' | 'edit', i: number) {
+    const arr = form === 'add' ? this.variantAddForm.attrs : this.variantEditForm.attrs;
+    if (arr.length > 1) arr.splice(i, 1);
   }
 
   saveNewVariant() {
-    if (!this.variantAddForm.colorName.trim()) {
-      this.variantAddError = 'Colour name is required.'; return;
-    }
     this.variantAddSaving = true; this.variantAddError = '';
     this.http.post<ApiResponse<ProductVariantDto>>(this.EP.VARIANTS(this.productId), {
-      colorName:     this.variantAddForm.colorName.trim(),
-      colorHex:      this.variantAddForm.colorHex || null,
-      size:          this.variantAddForm.size.trim() || null,
-      priceOverride: this.variantAddForm.priceOverride || null,
-      stockQty:      this.variantAddForm.stockQty || 0,
+      sku:            this.variantAddForm.sku.trim() || null,
+      attributes:     this.attrsToMap(this.variantAddForm.attrs),
+      priceOverride:  this.variantAddForm.priceOverride  || null,
+      priceWholesale: this.variantAddForm.priceWholesale || null,
+      priceBroker:    this.variantAddForm.priceBroker    || null,
+      stockQty:       this.variantAddForm.stockQty || 0,
     }).subscribe({
       next: res => {
         this.variantAddSaving = false;
@@ -498,34 +609,33 @@ export class ProductDetailComponent implements OnInit {
   }
 
   openEditVariant(v: ProductVariantDto) {
-    this.showAddVariant = false;
+    this.showAddVariant   = false;
     this.variantEditId    = v.id;
     this.variantEditError = '';
     this.variantEditForm  = {
-      colorName:     v.colorName ?? '',
-      colorHex:      v.colorHex  ?? '#3b82f6',
-      size:          v.size      ?? '',
-      priceOverride: v.priceOverride,
-      stockQty:      v.stockQty,
+      sku:            v.sku,
+      attrs:          this.mapToAttrs(v.attributes),
+      priceOverride:  v.priceOverride,
+      priceWholesale: v.priceWholesale,
+      priceBroker:    v.priceBroker,
+      stockQty:       v.stockQty,
+      isActive:       v.isActive,
     };
   }
 
-  cancelEditVariant() {
-    this.variantEditId = null;
-    this.variantEditError = '';
-  }
+  cancelEditVariant() { this.variantEditId = null; this.variantEditError = ''; }
 
   saveEditVariant() {
-    if (!this.variantEditForm.colorName.trim()) {
-      this.variantEditError = 'Colour name is required.'; return;
-    }
+    if (!this.variantEditForm.sku.trim()) { this.variantEditError = 'SKU is required.'; return; }
     this.variantEditSaving = true; this.variantEditError = '';
     this.http.put<ApiResponse<ProductVariantDto>>(this.EP.VARIANT_BY_ID(this.productId, this.variantEditId!), {
-      colorName:     this.variantEditForm.colorName.trim(),
-      colorHex:      this.variantEditForm.colorHex || null,
-      size:          this.variantEditForm.size.trim() || null,
-      priceOverride: this.variantEditForm.priceOverride || null,
-      stockQty:      this.variantEditForm.stockQty || 0,
+      sku:            this.variantEditForm.sku.trim(),
+      attributes:     this.attrsToMap(this.variantEditForm.attrs),
+      priceOverride:  this.variantEditForm.priceOverride  || null,
+      priceWholesale: this.variantEditForm.priceWholesale || null,
+      priceBroker:    this.variantEditForm.priceBroker    || null,
+      stockQty:       this.variantEditForm.stockQty || 0,
+      isActive:       this.variantEditForm.isActive,
     }).subscribe({
       next: res => {
         this.variantEditSaving = false;
@@ -576,6 +686,20 @@ export class ProductDetailComponent implements OnInit {
     this.http.post<ApiResponse<any>>(this.EP.CLONE(this.productId), {}).subscribe({
       next: res => { if (res.data?.id) this.router.navigate(['/products', res.data.id]); },
       error: e => alert(extractErrorMessage(e, 'Clone failed.'))
+    });
+  }
+
+  async deleteProduct() {
+    const ok = await this.confirm.ask({
+      title: 'Delete Product',
+      message: 'Permanently delete this product? This cannot be undone.',
+      confirmLabel: 'Delete',
+      variant: 'danger'
+    });
+    if (!ok) return;
+    this.http.delete<ApiResponse<void>>(this.EP.BY_ID(this.productId)).subscribe({
+      next: () => this.router.navigate(['/products']),
+      error: e => alert(extractErrorMessage(e, 'Delete failed.'))
     });
   }
 
